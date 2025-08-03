@@ -1,0 +1,325 @@
+
+
+<form [formGroup]="accountForm" class="flex flex-col" style="height: 650px">
+    <div class="wizard-content" [class.transitioning]="isTransitioning">
+
+        <p-steps [model]="steps" [readonly]="true" [activeIndex]="activeStep" styleClass="w-full mb-6"></p-steps>
+
+        <div class="wizard-content w-full p-6 rounded-lg shadow-sm" style="height: 550px;">
+            <!-- Step 1: Account -->
+            <div *ngIf="activeStep === 0" [formGroup]="accountFormGroup" class="flex flex-col gap-4">
+                <h3 class="text-2xl font-semibold mb-4">Account Information</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="field">
+                        <label class="block mb-2 font-medium">Account Name <span class="text-red-500">*</span></label>
+                        <input type="text" pInputText formControlName="accountName" class="w-full" />
+                        <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('account.accountName')?.errors?.['required'] && accountForm.get('account.accountName')?.touched">
+                            Account name is required
+                        </div>
+                    </div>
+
+
+                    <div class="field">
+                        <label class="block mb-2 font-medium">Owner <span class="text-red-500">*</span></label>
+                        <p-dropdown [options]="ownerTypes" optionLabel="name" optionValue="id" formControlName="ownerTypeId" class="w-full"></p-dropdown>
+                        <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('account.ownerTypeId')?.errors?.['required'] && accountForm.get('account.ownerTypeId')?.touched">
+                            Owner is required
+                        </div>
+                    </div>
+
+
+                    <div class="field">
+                        <label class="block mb-2 font-medium">Username</label>
+                        <input type="text" pInputText formControlName="username" class="w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label class="block mb-2 font-medium">Password</label>
+                        <input type="password" pInputText formControlName="password" class="w-full" />
+                    </div>
+
+                    <div class="field md:col-span-2">
+                        <label class="block mb-2 font-medium">Website URL</label>
+                        <input type="text" pInputText formControlName="url" class="w-full" />
+                    </div>
+
+                    <div class="field md:col-span-2">
+                        <label class="block mb-2 font-medium">Description</label>
+                        <textarea pTextarea formControlName="description" rows="3" class="w-full"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Bill -->
+            <div *ngIf="activeStep === 1" [formGroup]="billFormGroup" class="flex flex-col gap-4">
+                <h3 class="text-2xl font-semibold mb-0">Bill Information</h3>
+
+                <div class="flex items-center mb-4">
+                    <p-checkbox binary formControlName="hasBill" inputId="hasBill"></p-checkbox>
+                    <label for="hasBill" class="ml-2 cursor-pointer">This account has associated bills</label>
+                </div>
+
+
+                <ng-container *ngIf="accountForm.get('bill.hasBill')?.value">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Bill Type <span class="text-red-500">*</span></label>
+                            <p-dropdown [options]="billTypes" optionLabel="name" optionValue="id" formControlName="billTypeId" class="w-full"></p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.billTypeId')?.errors?.['required'] && accountForm.get('bill.billTypeId')?.touched">
+                                Bill type is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Bill Amount <span class="text-red-500">*</span></label>
+                            <p-inputNumber formControlName="billAmount" mode="currency" currency="USD" [useGrouping]="false" class="w-full"></p-inputNumber>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.billAmount')?.errors?.['required'] && accountForm.get('bill.billAmount')?.touched">
+                                Bill amount is required
+                            </div>
+
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Due Date <span class="text-red-500">*</span></label>
+                            <input type="text" pInputText formControlName="dueDate" class="w-full" />
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.dueDate')?.errors?.['required'] && accountForm.get('bill.dueDate')?.touched">
+                                Due date is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Priority <span class="text-red-500">*</span></label>
+                            <p-dropdown [options]="priorityTypes" optionLabel="name" optionValue="id" formControlName="priorityId" class="w-full"></p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.priorityId')?.errors?.['required'] && accountForm.get('bill.priorityId')?.touched">
+                                Priority is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Frequency <span class="text-red-500">*</span></label>
+                            <p-dropdown [options]="frequencyTypes" optionLabel="name" optionValue="id" formControlName="frequencyId" class="w-full"></p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.frequencyId')?.errors?.['required'] && accountForm.get('bill.frequencyId')?.touched">
+                                Frequency is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Payment Type <span class="text-red-500">*</span></label>
+                            <p-dropdown [options]="paymentTypes" optionLabel="name" optionValue="id" formControlName="paymentTypeId" class="w-full"></p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.paymentTypeId')?.errors?.['required'] && accountForm.get('bill.paymentTypeId')?.touched">
+                                Payment type is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Tag</label>
+                            <p-dropdown [options]="tagOptions" optionLabel="name" optionValue="id" formControlName="tagId" class="w-full"></p-dropdown>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Last Paid <span class="text-red-500">*</span></label>
+                            <p-calendar formControlName="lastPaid" dateFormat="mm/dd/yy" [style]="{'width':'100%'}" class="w-full"></p-calendar>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.lastPaid')?.errors?.['required'] && accountForm.get('bill.lastPaid')?.touched">
+                                Last paid date is required
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 mt-4">
+                        <div class="flex gap-4">
+                            <div class="flex items-center">
+                                <p-checkbox binary formControlName="isFixedBill" inputId="isFixedBill"></p-checkbox>
+                                <label for="isFixedBill" class="ml-2 cursor-pointer">Fixed Bill?</label>
+                            </div>
+                            <div class="flex items-center">
+                                <p-checkbox binary formControlName="isIncludedInMonthlyPayment" inputId="isIncludedInMonthlyPayment"></p-checkbox>
+                                <label for="isIncludedInMonthlyPayment" class="ml-2 cursor-pointer">Include in Monthly Total?</label>
+                            </div>
+                            <div class="flex items-center">
+                                <p-checkbox binary formControlName="isActive" inputId="isActive"></p-checkbox>
+                                <label for="isActive" class="ml-2 cursor-pointer">Bill is currently active?</label>
+                            </div>
+                        </div>
+                    </div>
+                </ng-container>
+            </div>
+
+            <!-- Step 3: Credit Card -->
+            <div *ngIf="activeStep === 2" [formGroup]="creditCardFormGroup" class="flex flex-col gap-4">
+                <h3 class="text-2xl font-semibold mb-0">Credit Card Information</h3>
+
+                <div class="flex items-center mb-4">
+                    <p-checkbox binary formControlName="hasCreditCard" inputId="isActive"></p-checkbox>
+                    <label for="isActive" class="ml-2 cursor-pointer">This account has associated credit cards?</label>
+                </div>
+
+                <ng-container *ngIf="accountForm.get('creditCard.hasCreditCard')?.value">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Card Type <span class="text-red-500">*</span></label>
+                            <p-dropdown [options]="creditCardTypes" optionLabel="name" optionValue="id" formControlName="cardType" class="w-full"></p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="creditCardFormGroup.get('cardType')?.errors?.['required'] && creditCardFormGroup.get('cardType')?.touched">
+                                Card type is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Card Number <span class="text-red-500">*</span></label>
+                            <input type="text" pInputText formControlName="cardNumber" class="w-full" />
+                            <div class="text-red-500 text-sm mt-1" *ngIf="creditCardFormGroup.get('cardNumber')?.errors?.['required'] && creditCardFormGroup.get('cardNumber')?.touched">
+                                Card number is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Card Holder Name <span class="text-red-500">*</span></label>
+                            <input type="text" pInputText formControlName="cardHolderName" class="w-full" />
+                            <div class="text-red-500 text-sm mt-1" *ngIf="creditCardFormGroup.get('cardHolderName')?.errors?.['required'] && creditCardFormGroup.get('cardHolderName')?.touched">
+                                Card holder name is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Expiry Date <span class="text-red-500">*</span></label>
+                            <p-calendar 
+                                view="month" 
+                                dateFormat="mm/yy" 
+                                formControlName="expiryDate" 
+                                [style]="{'width':'100%'}" 
+                                class="w-full" 
+                                appendTo="body"
+                                [showIcon]="true"
+                                [touchUI]="false"
+                                (onSelect)="onExpiryDateChange($event)">
+                            </p-calendar>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="creditCardFormGroup.get('expiryDate')?.errors?.['required'] && creditCardFormGroup.get('expiryDate')?.touched">
+                                Expiry date is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Credit Limit</label>
+                            <p-inputNumber formControlName="creditLimit" class="w-full"></p-inputNumber>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Balance</label>
+                            <p-inputNumber formControlName="balance" class="w-full"></p-inputNumber>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">APR</label>
+                            <p-inputNumber formControlName="apr" class="w-full"></p-inputNumber>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Annual Fee</label>
+                            <p-inputNumber formControlName="annualFee" class="w-full"></p-inputNumber>
+                        </div>
+                    </div>
+
+                    <p-fieldset legend="Additional Details" [toggleable]="true">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="field w-full">
+                                <label class="block mb-2 font-medium">Purchase Rate</label>
+                                <p-inputNumber formControlName="purchaseRate" class="w-full"></p-inputNumber>
+                            </div>
+
+                            <div class="field w-full">
+                                <label class="block mb-2 font-medium">Cash Advance Rate</label>
+                                <p-inputNumber formControlName="cashAdvanceRate" class="w-full"></p-inputNumber>
+                            </div>
+
+                            <div class="field w-full">
+                                <label class="block mb-2 font-medium">Balance Transfer Rate</label>
+                                <p-inputNumber formControlName="balanceTransferRate" class="w-full"></p-inputNumber>
+                            </div>
+                        </div>
+                    </p-fieldset>
+                </ng-container>
+            </div>
+
+            <!-- Step 4: Warranty -->
+            <div *ngIf="activeStep === 3" [formGroup]="warrantyFormGroup" class="flex flex-col gap-4">
+                <h3 class="text-2xl font-semibold mb-0">Warranty Information</h3>
+
+                <div class="flex items-center mb-4">
+                    <p-checkbox binary formControlName="hasWarranty" inputId="hasWarranty"></p-checkbox>
+                    <label for="hasWarranty" class="ml-2 cursor-pointer">This account has associated warranties</label>
+                </div>
+
+                <ng-container *ngIf="accountForm.get('warranty.hasWarranty')?.value">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Warranty Type <span class="text-red-500">*</span></label>
+                            <p-dropdown [options]="warrantyTypes" optionLabel="name" optionValue="id" formControlName="warrantyTypeId" class="w-full"></p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="warrantyFormGroup.get('warrantyTypeId')?.errors?.['required'] && warrantyFormGroup.get('warrantyTypeId')?.touched">
+                                Warranty type is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Provider</label>
+                            <input type="text" pInputText formControlName="provider" class="w-full" />
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Coverage Start Date <span class="text-red-500">*</span></label>
+                            <p-calendar formControlName="coverageStart" dateFormat="yy-mm-dd" [style]="{'width':'100%'}" class="w-full" appendTo="body"></p-calendar>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="warrantyFormGroup.get('coverageStart')?.errors?.['required'] && warrantyFormGroup.get('coverageStart')?.touched">
+                                Coverage start date is required
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="block mb-2 font-medium">Coverage End Date <span class="text-red-500">*</span></label>
+                            <p-calendar formControlName="coverageEnd" dateFormat="yy-mm-dd" [style]="{'width':'100%'}" class="w-full" appendTo="body"></p-calendar>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="warrantyFormGroup.get('coverageEnd')?.errors?.['required'] && warrantyFormGroup.get('coverageEnd')?.touched">
+                                Coverage end date is required
+                            </div>
+                        </div>
+
+
+
+                        <div class="field md:col-span-2">
+                            <label class="block mb-2 font-medium">Terms & Conditions</label>
+                            <textarea pTextarea formControlName="terms" rows="5" class="w-full"></textarea>
+                        </div>
+
+                        <div class="field md:col-span-2">
+                            <label class="block mb-2 font-medium">Claim Procedure</label>
+                            <textarea pTextarea formControlName="claimProcedure" rows="5" class="w-full"></textarea>
+                        </div>
+                    </div>
+                </ng-container>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-content-between p-4 border-t-1 surface-border">
+        <p-button
+            label="Previous"
+            icon="pi pi-chevron-left"
+            (onClick)="prevStep()"
+            [disabled]="activeStep === 0"
+            styleClass="p-button-outlined"
+        ></p-button>
+
+        <div class="flex gap-2">
+            <p-button
+                label="Cancel"
+                icon="pi pi-times"
+                (onClick)="hideDialog()"
+                styleClass="p-button-outlined"
+            ></p-button>
+            <p-button
+                [label]="getStepButtonLabel()"
+                [icon]="isLastStep() ? 'pi pi-check' : 'pi pi-chevron-right'"
+                (onClick)="isLastStep() ? saveAccount() : nextStep()"
+                [loading]="false"
+            ></p-button>
+        </div>
+    </div>
+</form>

@@ -11,3 +11,6 @@
 
 # Node.js dependencies
 /node_modules/
+
+# Angular CLI cache and diagnostics
+.angular/

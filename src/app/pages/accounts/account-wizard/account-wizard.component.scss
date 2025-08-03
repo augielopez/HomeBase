@@ -1,0 +1,21 @@
+// Add this to your account-wizard.component.scss
+:host ::ng-deep {
+    .wizard-content {
+        transition: opacity 0.3s ease-in-out;
+        opacity: 1;
+    }
+
+    .wizard-content.transitioning {
+        opacity: 0;
+    }
+
+    // Customize the steps indicator transitions
+    .p-steps .p-steps-item {
+        transition: all 0.3s ease-in-out;
+    }
+
+    // Smooth line transitions
+    .p-steps .p-steps-item:before {
+        transition: background-color 0.3s ease-in-out;
+    }
+}

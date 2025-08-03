@@ -76,6 +76,21 @@ export class AppMenu {
                         ]
                     },
                     {
+                        label: 'Accounts',
+                        icon: 'pi pi-fw pi-credit-card',
+                        routerLink: ['/pages/accounts']
+                    },
+                    {
+                        label: 'Transactions',
+                        icon: 'pi pi-fw pi-list',
+                        routerLink: ['/transactions']
+                    },
+                    {
+                        label: 'Settings',
+                        icon: 'pi pi-fw pi-cog',
+                        routerLink: ['/settings']
+                    },
+                    {
                         label: 'Crud',
                         icon: 'pi pi-fw pi-pencil',
                         routerLink: ['/pages/crud']
@@ -147,7 +162,7 @@ export class AppMenu {
                     {
                         label: 'View Source',
                         icon: 'pi pi-fw pi-github',
-                        url: 'https://github.com/primefaces/sakai-ng',
+                        url: 'https://github.com/primefaces/homebase-ng',
                         target: '_blank'
                     }
                 ]
