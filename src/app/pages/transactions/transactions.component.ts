@@ -1,6 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { SupabaseService } from '../service/supabase.service';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -22,6 +23,7 @@ import { finalize, interval, take } from 'rxjs';
     imports: [
         CommonModule,
         FormsModule,
+        RouterModule,
         ButtonModule,
         CardModule,
         TableModule,
@@ -39,13 +41,22 @@ import { finalize, interval, take } from 'rxjs';
         <div class="card">
             <div class="flex justify-between items-center mb-4">
                 <h1>Transactions</h1>
-                <p-button 
-                    icon="pi pi-bars" 
-                    (onClick)="toggleMenu($event)"
-                    severity="secondary"
-                    [outlined]="true"
-                    aria-label="Menu">
-                </p-button>
+                <div class="flex gap-3">
+                    <p-button 
+                        icon="pi pi-chart-line" 
+                        label="Reconciliation & Insights"
+                        routerLink="/pages/reconciliation"
+                        severity="info"
+                        [outlined]="true">
+                    </p-button>
+                    <p-button 
+                        icon="pi pi-bars" 
+                        (onClick)="toggleMenu($event)"
+                        severity="secondary"
+                        [outlined]="true"
+                        aria-label="Menu">
+                    </p-button>
+                </div>
             </div>
             
             <p-menu 
@@ -58,25 +69,25 @@ import { finalize, interval, take } from 'rxjs';
 
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" *ngIf="transactionStats">
-                <div class="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <div class="p-4 rounded-lg border border-blue-200">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-blue-600">{{ transactionStats.total_transactions }}</div>
                         <div class="text-sm text-blue-500">Total Transactions</div>
                     </div>
                 </div>
-                <div class="p-4 rounded-lg bg-green-50 border border-green-200">
+                <div class="p-4 rounded-lg border border-green-200">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-green-600">{{ transactionStats.total_spent | currency }}</div>
                         <div class="text-sm text-green-500">Total Spent</div>
                     </div>
                 </div>
-                <div class="p-4 rounded-lg bg-purple-50 border border-purple-200">
+                <div class="p-4 rounded-lg border border-purple-200">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-purple-600">{{ transactionStats.unique_accounts }}</div>
                         <div class="text-sm text-purple-500">Accounts</div>
                     </div>
                 </div>
-                <div class="p-4 rounded-lg bg-orange-50 border border-orange-200">
+                <div class="p-4 rounded-lg border border-orange-200">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-orange-600">{{ transactionStats.pending_count }}</div>
                         <div class="text-sm text-orange-500">Pending</div>
