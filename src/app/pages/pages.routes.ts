@@ -5,6 +5,7 @@ import { Empty } from './empty/empty';
 import { AccountsComponent } from './accounts/accounts';
 import { SettingsComponent } from './settings/settings.component';
 import { TransactionsComponent } from './transactions/transactions.component';
+import { ReconciliationComponent } from './reconciliation/reconciliation.component';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -13,6 +14,7 @@ export default [
     { path: 'accounts', component: AccountsComponent },
     { path: 'settings', component: SettingsComponent },
     { path: 'transactions', component: TransactionsComponent },
+    { path: 'reconciliation', component: ReconciliationComponent },
     { path: '**', redirectTo: '/notfound' }
 ] as Routes;
 
