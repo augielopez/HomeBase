@@ -83,12 +83,12 @@ export class AppMenu {
                     {
                         label: 'Transactions',
                         icon: 'pi pi-fw pi-list',
-                        routerLink: ['/transactions']
+                        routerLink: ['/pages/transactions']
                     },
                     {
                         label: 'Settings',
                         icon: 'pi pi-fw pi-cog',
-                        routerLink: ['/settings']
+                        routerLink: ['/pages/settings']
                     },
                     {
                         label: 'Crud',

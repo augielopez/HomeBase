@@ -96,7 +96,7 @@ import { TagModule } from 'primeng/tag';
                         icon="pi pi-external-link" 
                         severity="secondary"
                         [outlined]="true"
-                        routerLink="/transactions">
+                        routerLink="/pages/transactions">
                     </p-button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
