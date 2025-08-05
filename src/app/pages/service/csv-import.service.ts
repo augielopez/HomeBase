@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { Transaction, BankAccount, CsvImport, TransactionCategory } from '../../interfaces';
-import { Observable, from, map, switchMap } from 'rxjs';
+import { Observable, from, map, switchMap, forkJoin, catchError } from 'rxjs';
+import { AiCategorizationService, CategorizationResult } from './ai-categorization.service';
 
 export interface CsvTransaction {
     date: string;
@@ -88,10 +89,55 @@ export class CsvImportService {
             },
             dateFormat: 'MM/dd/yyyy',
             amountFormat: 'positive_negative'
+        },
+        {
+            name: 'Fidelity Bank',
+            patterns: ['fidelity', 'history_for_account'],
+            fieldMapping: {
+                date: 'Date',
+                description: 'Description',
+                amount: 'Amount',
+                merchant: 'Description',
+                category: 'Category',
+                account: 'Account Name'
+            },
+            dateFormat: 'MM/dd/yyyy',
+            amountFormat: 'positive_negative'
+        },
+        {
+            name: 'US Bank',
+            patterns: ['us bank', 'credit card'],
+            fieldMapping: {
+                date: 'Transaction Date',
+                description: 'Description',
+                amount: 'Amount',
+                merchant: 'Description',
+                category: 'Category',
+                account: 'Account Name'
+            },
+            dateFormat: 'MM/dd/yyyy',
+            amountFormat: 'positive_negative'
+        },
+        {
+            name: 'FirstTech CU',
+            patterns: ['firsttech', 'exportedtransactions'],
+            fieldMapping: {
+                date: 'Date',
+                description: 'Description',
+                amount: 'Amount',
+                merchant: 'Description',
+                category: 'Category',
+                account: 'Account Name'
+            },
+            dateFormat: 'MM/dd/yyyy',
+            amountFormat: 'positive_negative'
         }
     ];
 
-    constructor(private supabaseService: SupabaseService) {}
+    constructor(
+        private supabaseService: SupabaseService,
+        private aiCategorizationService: AiCategorizationService
+    ) {}
 
     /**
      * Detect bank from filename and CSV headers
@@ -302,28 +348,39 @@ export class CsvImportService {
                     throw new Error('Unable to detect bank format');
                 }
 
-                // Create import record
-                const importRecord: Partial<CsvImport> = {
-                    filename: file.name,
-                    bank_detected: bankSchema.name,
-                    total_rows: transactions.length,
-                    imported_rows: 0,
-                    failed_rows: 0,
-                    status: 'processing'
-                };
+                // Create import record with user_id
+                return from(this.supabaseService.getCurrentUserId()).pipe(
+                    switchMap(userId => {
+                        const importRecord: Partial<CsvImport> = {
+                            user_id: userId,
+                            filename: file.name,
+                            bank_detected: bankSchema.name,
+                            total_rows: transactions.length,
+                            imported_rows: 0,
+                            failed_rows: 0,
+                            status: 'processing'
+                        };
 
-                return from(this.supabaseService.getClient()
-                    .from('hb_csv_imports')
-                    .insert([importRecord])
-                    .select()
-                    .single()
-                ).pipe(
-                    switchMap((result: any) => {
-                        if (result.error) {
-                            throw new Error(result.error.message);
+                        return from(this.supabaseService.getClient()
+                            .from('hb_csv_imports')
+                            .insert([importRecord])
+                            .select()
+                            .single()
+                        ).pipe(
+                            switchMap((result: any) => {
+                                if (result.error) {
+                                    throw new Error(result.error.message);
+                                }
+                                // Process transactions
+                                return this.processTransactions(transactions, result.data.id, bankSchema.name, file.name);
+                            })
+                        );
+                    }),
+                    catchError((error: any) => {
+                        if (error.message?.includes('No user is currently authenticated')) {
+                            throw new Error('Please log in to import CSV files');
                         }
-                        // Process transactions
-                        return this.processTransactions(transactions, result.data.id, bankSchema.name);
+                        throw error;
                     })
                 );
             })
@@ -331,46 +388,83 @@ export class CsvImportService {
     }
 
     /**
-     * Process and save transactions
+     * Process and save transactions with enhanced AI categorization
      */
-    private async processTransactions(transactions: CsvTransaction[], importId: string, bankSource: string): Promise<CsvImport> {
+    private async processTransactions(transactions: CsvTransaction[], importId: string, bankSource: string, filename?: string): Promise<CsvImport> {
         const supabase = this.supabaseService.getClient();
         let importedCount = 0;
         let failedCount = 0;
+        const errors: string[] = [];
 
-        for (const csvTransaction of transactions) {
+        // Extract account owner from filename for specific banks
+        const accountOwner = this.extractAccountOwnerFromFilename(filename, bankSource);
+
+        // Process transactions in batches for better performance
+        const batchSize = 10;
+        for (let i = 0; i < transactions.length; i += batchSize) {
+            const batch = transactions.slice(i, i + batchSize);
+            
             try {
-                // Categorize transaction
-                const categoryId = await this.categorizeTransaction(csvTransaction);
+                // Categorize batch of transactions using AI service
+                const categorizationResults = await this.aiCategorizationService.batchCategorize(batch).toPromise();
                 
-                // Create transaction record
-                const transaction: Partial<Transaction> = {
-                    account_id: csvTransaction.account || 'unknown',
-                    amount: csvTransaction.amount,
-                    date: csvTransaction.date,
-                    name: csvTransaction.description,
-                    merchant_name: csvTransaction.merchant,
-                    category_id: categoryId || undefined,
-                    bank_source: bankSource.toLowerCase().replace(/\s+/g, '_'),
-                    import_method: 'csv',
-                    csv_filename: importId,
-                    pending: false,
-                    iso_currency_code: 'USD'
-                };
+                // Process each transaction in the batch
+                for (let j = 0; j < batch.length; j++) {
+                    const csvTransaction = batch[j];
+                    const categorization = categorizationResults?.[j];
+                    
+                    try {
+                        // Determine account_id - use filename-based owner for specific banks, otherwise use CSV field
+                        const accountId = accountOwner || csvTransaction.account || 'unknown';
+                        
+                        // Create transaction record
+                        const transaction: Partial<Transaction> = {
+                            user_id: await this.supabaseService.getCurrentUserId(),
+                            account_id: accountId,
+                            amount: csvTransaction.amount,
+                            date: csvTransaction.date,
+                            name: csvTransaction.description,
+                            merchant_name: csvTransaction.merchant,
+                            category_id: categorization?.categoryId || undefined,
+                            category_confidence: categorization?.confidence || 0,
+                            bank_source: bankSource.toLowerCase().replace(/\s+/g, '_'),
+                            import_method: 'csv',
+                            csv_filename: importId,
+                            pending: false,
+                            iso_currency_code: 'USD'
+                        };
 
-                const { error } = await supabase
-                    .from('hb_transactions')
-                    .insert([transaction]);
+                        const { data: insertedTransaction, error } = await supabase
+                            .from('hb_transactions')
+                            .insert([transaction])
+                            .select('id')
+                            .single();
 
-                if (error) {
-                    console.error('Error inserting transaction:', error);
-                    failedCount++;
-                } else {
-                    importedCount++;
+                        if (error) {
+                            console.error('Error inserting transaction:', error);
+                            failedCount++;
+                            errors.push(`Transaction ${csvTransaction.description}: ${error.message}`);
+                        } else {
+                            importedCount++;
+                            
+                            // Store embedding if available and categorization was AI-based
+                            if (categorization?.method === 'ai_similarity' && insertedTransaction?.id) {
+                                const embedding = await this.aiCategorizationService['generateEmbedding'](csvTransaction);
+                                if (embedding) {
+                                    await this.aiCategorizationService.storeTransactionEmbedding(insertedTransaction.id, embedding);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error processing transaction:', error);
+                        failedCount++;
+                        errors.push(`Transaction ${csvTransaction.description}: ${error}`);
+                    }
                 }
             } catch (error) {
-                console.error('Error processing transaction:', error);
-                failedCount++;
+                console.error('Error processing batch:', error);
+                failedCount += batch.length;
+                errors.push(`Batch processing error: ${error}`);
             }
         }
 
@@ -381,6 +475,7 @@ export class CsvImportService {
                 imported_rows: importedCount,
                 failed_rows: failedCount,
                 status: failedCount === 0 ? 'completed' : 'completed_with_errors',
+                error_message: errors.length > 0 ? errors.join('; ') : null,
                 processing_time_ms: Date.now() - new Date().getTime()
             })
             .eq('id', importId)
@@ -483,6 +578,32 @@ export class CsvImportService {
             .single();
 
         return defaultCategory?.id || null;
+    }
+
+    /**
+     * Extract account owner from filename for specific banks
+     */
+    private extractAccountOwnerFromFilename(filename: string | undefined, bankSource: string): string | null {
+        if (!filename) return null;
+
+        // Handle FirstTech CU files
+        if (bankSource.toLowerCase().includes('firsttech')) {
+            // Extract name from "ExportedTransactionsMelissa.csv" -> "Melissa"
+            const match = filename.match(/ExportedTransactions(.+)\.csv$/i);
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+        }
+
+        // Handle Fidelity Bank files
+        if (bankSource.toLowerCase().includes('fidelity')) {
+            // Extract account type from "History_for_Account_X66402850.csv" -> "Checking"
+            // This would need to be mapped based on account number patterns
+            // For now, return a generic identifier
+            return 'Fidelity Account';
+        }
+
+        return null;
     }
 
     /**
