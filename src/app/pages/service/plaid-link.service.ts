@@ -51,29 +51,62 @@ export class PlaidLinkService {
         this.createLinkToken().then(linkToken => {
             console.log('Link token created:', linkToken);
             
-            const handler = (window as any).Plaid.create({
-                token: linkToken,
-                onSuccess: (public_token: string, metadata: any) => {
-                    console.log('🎉 Plaid onSuccess called!', { public_token, metadata });
-                    onSuccess(public_token, metadata);
-                },
-                onExit: (err: any, metadata: any) => {
-                    console.log('🚪 Plaid onExit called!', { err, metadata });
-                    if (onExit) {
-                        onExit(err, metadata);
-                    } else {
-                        console.error('Plaid exited', err, metadata);
+            // Check if Plaid is loaded, with retry mechanism
+            this.waitForPlaid().then(() => {
+                const handler = (window as any).Plaid.create({
+                    token: linkToken,
+                    onSuccess: (public_token: string, metadata: any) => {
+                        console.log('🎉 Plaid onSuccess called!', { public_token, metadata });
+                        onSuccess(public_token, metadata);
+                    },
+                    onExit: (err: any, metadata: any) => {
+                        console.log('🚪 Plaid onExit called!', { err, metadata });
+                        if (onExit) {
+                            onExit(err, metadata);
+                        } else {
+                            console.error('Plaid exited', err, metadata);
+                        }
+                    },
+                    onEvent: (eventName: string, metadata: any) => {
+                        console.log('📡 Plaid event:', eventName, metadata);
                     }
-                },
-                onEvent: (eventName: string, metadata: any) => {
-                    console.log('📡 Plaid event:', eventName, metadata);
+                });
+
+                console.log('Plaid handler created, opening...');
+                handler.open();
+            }).catch(error => {
+                console.error('Plaid script not available:', error);
+                if (onExit) {
+                    onExit({ error_message: 'Plaid script not loaded' }, {});
                 }
             });
-
-            console.log('Plaid handler created, opening...');
-            handler.open();
         }).catch(error => {
             console.error('Failed to create link token:', error);
+            if (onExit) {
+                onExit({ error_message: 'Failed to create link token' }, {});
+            }
+        });
+    }
+
+    private waitForPlaid(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max wait
+            
+            const checkPlaid = () => {
+                attempts++;
+                
+                if ((window as any).Plaid) {
+                    console.log('Plaid script loaded successfully');
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    reject(new Error('Plaid script failed to load after 5 seconds'));
+                } else {
+                    setTimeout(checkPlaid, 100);
+                }
+            };
+            
+            checkPlaid();
         });
     }
 }

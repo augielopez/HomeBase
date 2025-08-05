@@ -152,11 +152,6 @@ export class SettingsComponent implements OnInit {
         try {
             console.log('Starting Plaid link process...');
             
-            // Check if Plaid is loaded
-            if (!(window as any).Plaid) {
-                throw new Error('Plaid script not loaded');
-            }
-            
             this.plaidService.openPlaid(
                 async (public_token: string, metadata: any) => {
                     console.log('Plaid success callback:', { public_token, metadata });
