@@ -32,7 +32,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
             <h1>Financial Insights & Analytics</h1>
             <p>AI-powered spending analysis and financial trends</p>
             
-            <div class="flex gap-3">
+            <div class="flex gap-3 mb-4">
                 <p-dropdown 
                     [options]="monthOptions" 
                     [(ngModel)]="selectedMonth"
@@ -55,31 +55,31 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
 
             <div *ngIf="!loading && monthlySummary" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div class="p-6 rounded-lg border border-blue-200 bg-blue-50">
+                    <div class="p-6 rounded-lg border border-blue-200">
                         <p class="text-sm text-blue-600 font-medium">Total Spent</p>
-                        <p class="text-2xl font-bold text-blue-900">{{ monthlySummary.totalSpent | currency }}</p>
+                        <p class="text-2xl font-bold text-blue-600">{{ monthlySummary.totalSpent | currency }}</p>
                     </div>
                     
-                    <div class="p-6 rounded-lg border border-green-200 bg-green-50">
+                    <div class="p-6 rounded-lg border border-green-200">
                         <p class="text-sm text-green-600 font-medium">Total Income</p>
-                        <p class="text-2xl font-bold text-green-900">{{ monthlySummary.totalIncome | currency }}</p>
+                        <p class="text-2xl font-bold text-green-600">{{ monthlySummary.totalIncome | currency }}</p>
                     </div>
                     
-                    <div class="p-6 rounded-lg border border-purple-200 bg-purple-50">
+                    <div class="p-6 rounded-lg border border-purple-200">
                         <p class="text-sm text-purple-600 font-medium">Net Amount</p>
-                        <p class="text-2xl font-bold" [class.text-purple-900]="monthlySummary.netAmount >= 0" [class.text-red-900]="monthlySummary.netAmount < 0">
+                        <p class="text-2xl font-bold" [class.text-purple-600]="monthlySummary.netAmount >= 0" [class.text-red-600]="monthlySummary.netAmount < 0">
                             {{ monthlySummary.netAmount | currency }}
                         </p>
                     </div>
                     
-                    <div class="p-6 rounded-lg border border-orange-200 bg-orange-50">
+                    <div class="p-6 rounded-lg border border-orange-200">
                         <p class="text-sm text-orange-600 font-medium">Transactions</p>
-                        <p class="text-2xl font-bold text-orange-900">{{ monthlySummary.transactionCount }}</p>
+                        <p class="text-2xl font-bold text-orange-600">{{ monthlySummary.transactionCount }}</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="card">
+                    <div class="card flex flex-col gap-4">
                         <h3>Spending by Category</h3>
                         <p-chart 
                             type="pie" 
@@ -89,7 +89,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                         </p-chart>
                     </div>
 
-                    <div class="card">
+                    <div class="card flex flex-col gap-4">
                         <h3>Monthly Spending Trends</h3>
                         <p-chart 
                             type="line" 
@@ -100,7 +100,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card flex flex-col gap-4">
                     <h3>Category Breakdown</h3>
                     <table class="w-full">
                         <thead>
@@ -115,14 +115,14 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                             <tr *ngFor="let category of monthlySummary.categoryBreakdown" class="border-b">
                                 <td class="p-3">{{ category.category }}</td>
                                 <td class="text-right p-3 font-medium">{{ category.amount | currency }}</td>
-                                <td class="text-right p-3 text-gray-600">{{ category.percentage.toFixed(1) }}%</td>
-                                <td class="text-right p-3 text-gray-600">{{ category.transactionCount }}</td>
+                                <td class="text-right p-3">{{ category.percentage.toFixed(1) }}%</td>
+                                <td class="text-right p-3">{{ category.transactionCount }}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="card" *ngIf="monthlySummary.insights.length > 0">
+                <div class="card flex flex-col gap-4" *ngIf="monthlySummary.insights.length > 0">
                     <h3>AI-Powered Insights</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div *ngFor="let insight of monthlySummary.insights" 
@@ -131,7 +131,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                              [class.border-yellow-200]="insight.severity === 'medium'"
                              [class.border-green-200]="insight.severity === 'low'">
                             <h4 class="font-semibold mb-1">{{ insight.title }}</h4>
-                            <p class="text-sm text-gray-600">{{ insight.description }}</p>
+                            <p class="text-sm">{{ insight.description }}</p>
                             <div *ngIf="insight.amount" class="mt-2 text-sm font-medium">
                                 Amount: {{ insight.amount | currency }}
                             </div>

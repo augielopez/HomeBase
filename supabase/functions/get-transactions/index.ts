@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,50 +13,78 @@ serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('PROJECT_URL')
-    const supabaseServiceKey = Deno.env.get('SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing environment variables')
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Get user ID from authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('No authorization header')
     }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    
-    // Use test user ID
-    const userId = '00000000-0000-0000-0000-000000000000'
-    
-    // Get transactions
-    const { data: transactions, error: transactionsError } = await supabase
-      .from('hb_plaid_transactions')
-      .select('*')
+
+    const supabase = createClient(
+      Deno.env.get('PROJECT_URL') ?? '',
+      Deno.env.get('SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Get user from token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (authError || !user) {
+      throw new Error('Invalid user')
+    }
+
+    const userId = user.id
+
+    // Get query parameters
+    const url = new URL(req.url)
+    const startDate = url.searchParams.get('start_date')
+    const endDate = url.searchParams.get('end_date')
+    const importMethod = url.searchParams.get('import_method') // 'plaid', 'csv', or null for all
+
+    // Build query
+    let query = supabase
+      .from('hb_transactions')
+      .select(`
+        *,
+        category:category_id(*)
+      `)
       .eq('user_id', userId)
       .order('date', { ascending: false })
 
-    if (transactionsError) {
-      console.error('Error fetching transactions:', transactionsError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch transactions' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Add date filters if provided
+    if (startDate) {
+      query = query.gte('date', startDate)
+    }
+    if (endDate) {
+      query = query.lte('date', endDate)
+    }
+    if (importMethod) {
+      query = query.eq('import_method', importMethod)
+    }
+
+    const { data: transactions, error } = await query
+
+    if (error) {
+      throw new Error(`Failed to fetch transactions: ${error.message}`)
     }
 
     return new Response(
-      JSON.stringify({
-        transactions: transactions || []
+      JSON.stringify({ 
+        success: true, 
+        transactions: transactions || [],
+        count: transactions?.length || 0
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
-    console.error('Error in get-transactions function:', error)
+    console.error('Error fetching transactions:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     )
   }
 }) 

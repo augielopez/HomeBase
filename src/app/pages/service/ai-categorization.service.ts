@@ -63,10 +63,15 @@ export class AiCategorizationService {
             return similarityResult;
         }
 
-        // 4. OpenAI categorization (if enabled)
-        const openaiResult = await this.openaiCategorization(transaction);
-        if (openaiResult.categoryId) {
-            return openaiResult;
+        // 4. OpenAI categorization (if enabled and API key configured)
+        try {
+            const openaiResult = await this.openaiCategorization(transaction);
+            if (openaiResult.categoryId) {
+                return openaiResult;
+            }
+        } catch (error: any) {
+            // If OpenAI fails due to rate limits or other errors, continue to default
+            console.log('OpenAI categorization failed, using default category:', error.message);
         }
 
         // 5. Default category
@@ -108,22 +113,31 @@ export class AiCategorizationService {
      * Check if transaction matches a categorization rule
      */
     private matchesRule(transaction: any, rule: any): boolean {
-        const conditions = rule.rule_conditions;
+        const conditions = rule.rule_conditions || {};
         
         switch (rule.rule_type) {
             case 'keyword':
+                if (!conditions.keywords || !Array.isArray(conditions.keywords)) {
+                    return false;
+                }
                 const searchText = `${transaction.name} ${transaction.description || ''} ${transaction.merchant_name || ''}`.toLowerCase();
                 return conditions.keywords.some((keyword: string) => 
                     searchText.includes(keyword.toLowerCase())
                 );
             
             case 'merchant':
+                if (!conditions.merchants || !Array.isArray(conditions.merchants)) {
+                    return false;
+                }
                 return conditions.merchants.some((merchant: string) => 
                     transaction.merchant_name?.toLowerCase().includes(merchant.toLowerCase()) ||
                     transaction.name.toLowerCase().includes(merchant.toLowerCase())
                 );
             
             case 'amount_range':
+                if (typeof conditions.min_amount !== 'number' || typeof conditions.max_amount !== 'number') {
+                    return false;
+                }
                 const amount = Math.abs(transaction.amount);
                 return amount >= conditions.min_amount && amount <= conditions.max_amount;
             
@@ -236,36 +250,39 @@ export class AiCategorizationService {
      * OpenAI-based categorization
      */
     private async openaiCategorization(transaction: any): Promise<CategorizationResult> {
-        try {
-            const categories = await this.getAvailableCategories();
-            if (!categories.length) {
-                return { categoryId: null, confidence: 0, method: 'openai' };
-            }
-
-            const prompt = this.buildCategorizationPrompt(transaction, categories);
-            const response = await this.callOpenAI(prompt);
-            
-            if (response) {
-                const categoryName = this.extractCategoryFromResponse(response);
-                const categoryId = categories.find(c => 
-                    c.name.toLowerCase() === categoryName.toLowerCase()
-                )?.id;
-
-                if (categoryId) {
-                    return {
-                        categoryId,
-                        confidence: 0.8,
-                        method: 'openai'
-                    };
-                }
-            }
-
-            return { categoryId: null, confidence: 0, method: 'openai' };
-
-        } catch (error) {
-            console.error('Error in OpenAI categorization:', error);
+        // Check if OpenAI API key is properly configured
+        if (!this.OPENAI_API_KEY || 
+            this.OPENAI_API_KEY === 'your-openai-api-key-here' || 
+            this.OPENAI_API_KEY === '<REDACTED>' ||
+            this.OPENAI_API_KEY.trim() === '') {
+            console.log('OpenAI API key not configured, skipping OpenAI categorization');
             return { categoryId: null, confidence: 0, method: 'openai' };
         }
+
+        const categories = await this.getAvailableCategories();
+        if (!categories || categories.length === 0) {
+            return { categoryId: null, confidence: 0, method: 'openai' };
+        }
+
+        const prompt = this.buildCategorizationPrompt(transaction, categories);
+        const response = await this.callOpenAI(prompt);
+        
+        if (response) {
+            const categoryName = this.extractCategoryFromResponse(response);
+            const category = categories.find(c => 
+                c.name.toLowerCase() === categoryName.toLowerCase()
+            );
+            
+            if (category) {
+                return {
+                    categoryId: category.id,
+                    confidence: 0.8,
+                    method: 'openai'
+                };
+            }
+        }
+        
+        return { categoryId: null, confidence: 0, method: 'openai' };
     }
 
     /**
@@ -313,7 +330,8 @@ Please respond with only the category name from the list above.`;
 
         } catch (error) {
             console.error('Error calling OpenAI:', error);
-            return null;
+            // Re-throw the error so it can be caught by the calling method
+            throw error;
         }
     }
 
@@ -435,5 +453,144 @@ Please respond with only the category name from the list above.`;
      */
     batchCategorize(transactions: any[]): Observable<CategorizationResult[]> {
         return from(Promise.all(transactions.map(t => this.categorizeWithMultipleMethods(t))));
+    }
+
+    /**
+     * Re-categorize all existing transactions for the current user
+     */
+    async recategorizeAllTransactions(): Promise<{ success: boolean; processed: number; errors: number }> {
+        try {
+            const userId = await this.supabaseService.getCurrentUserId();
+            
+            // Get all transactions for the current user
+            const { data: transactions, error: fetchError } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: false });
+
+            if (fetchError) throw fetchError;
+            if (!transactions || transactions.length === 0) {
+                return { success: true, processed: 0, errors: 0 };
+            }
+
+            let processed = 0;
+            let errors = 0;
+            let openaiRateLimited = false;
+
+            // Process transactions in batches to avoid overwhelming the system
+            const batchSize = 5; // Reduced batch size for better rate limiting
+            for (let i = 0; i < transactions.length; i += batchSize) {
+                const batch = transactions.slice(i, i + batchSize);
+                
+                for (const transaction of batch) {
+                    try {
+                        // Skip OpenAI if we've hit rate limits
+                        if (openaiRateLimited) {
+                            // Temporarily disable OpenAI for this transaction
+                            const result = await this.categorizeWithMultipleMethodsRateLimited(transaction);
+                            
+                            if (result.categoryId) {
+                                const { error: updateError } = await this.supabaseService.getClient()
+                                    .from('hb_transactions')
+                                    .update({ 
+                                        category_id: result.categoryId,
+                                        updated_at: new Date().toISOString()
+                                    })
+                                    .eq('id', transaction.id);
+
+                                if (updateError) {
+                                    console.error('Error updating transaction:', updateError);
+                                    errors++;
+                                } else {
+                                    processed++;
+                                }
+                            } else {
+                                errors++;
+                            }
+                        } else {
+                            // Normal categorization with OpenAI
+                            const result = await this.categorizeWithMultipleMethods(transaction);
+                            
+                            if (result.categoryId) {
+                                const { error: updateError } = await this.supabaseService.getClient()
+                                    .from('hb_transactions')
+                                    .update({ 
+                                        category_id: result.categoryId,
+                                        updated_at: new Date().toISOString()
+                                    })
+                                    .eq('id', transaction.id);
+
+                                if (updateError) {
+                                    console.error('Error updating transaction:', updateError);
+                                    errors++;
+                                } else {
+                                    processed++;
+                                }
+                            } else {
+                                errors++;
+                            }
+                        }
+                    } catch (error: any) {
+                        console.error('Error processing transaction:', error);
+                        
+                        // Check if it's a rate limit error
+                        if (error.message && error.message.includes('429')) {
+                            console.log('OpenAI rate limit hit, switching to rate-limited mode');
+                            openaiRateLimited = true;
+                        }
+                        
+                        errors++;
+                    }
+                }
+
+                // Longer delay between batches to respect rate limits
+                if (i + batchSize < transactions.length) {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+                }
+            }
+
+            return { success: true, processed, errors };
+        } catch (error) {
+            console.error('Error in recategorizeAllTransactions:', error);
+            return { success: false, processed: 0, errors: 1 };
+        }
+    }
+
+    /**
+     * Categorize using multiple methods but skip OpenAI to avoid rate limits
+     */
+    private async categorizeWithMultipleMethodsRateLimited(transaction: any): Promise<CategorizationResult> {
+        // 1. Check if CSV provided category
+        if (transaction.category && transaction.category.trim()) {
+            const categoryId = await this.findOrCreateCategory(transaction.category);
+            if (categoryId) {
+                return {
+                    categoryId,
+                    confidence: 1.0,
+                    method: 'csv'
+                };
+            }
+        }
+
+        // 2. Apply rules-based categorization
+        const rulesResult = await this.applyCategorizationRules(transaction);
+        if (rulesResult.categoryId) {
+            return rulesResult;
+        }
+
+        // 3. AI similarity search
+        const similarityResult = await this.aiSimilaritySearch(transaction);
+        if (similarityResult.categoryId && similarityResult.confidence > 0.7) {
+            return similarityResult;
+        }
+
+        // 4. Skip OpenAI categorization to avoid rate limits
+        // 5. Default category
+        return {
+            categoryId: await this.getDefaultCategoryId(),
+            confidence: 0.0,
+            method: 'default'
+        };
     }
 } 

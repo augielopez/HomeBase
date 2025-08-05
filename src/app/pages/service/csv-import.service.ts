@@ -92,12 +92,12 @@ export class CsvImportService {
         },
         {
             name: 'Fidelity Bank',
-            patterns: ['fidelity', 'history_for_account'],
+            patterns: ['fidelity', 'history_for_account', 'x66402850', 'x67992518'],
             fieldMapping: {
                 date: 'Date',
-                description: 'Description',
+                description: 'Action',
                 amount: 'Amount',
-                merchant: 'Description',
+                merchant: 'Action',
                 category: 'Category',
                 account: 'Account Name'
             },
@@ -145,10 +145,14 @@ export class CsvImportService {
     detectBank(filename: string, headers: string[]): BankSchema | null {
         const filenameLower = filename.toLowerCase();
         
+        console.log('Detecting bank for file:', filename);
+        console.log('CSV headers:', headers);
+        
         // First try to match by filename patterns
         for (const schema of this.bankSchemas) {
             for (const pattern of schema.patterns) {
                 if (filenameLower.includes(pattern)) {
+                    console.log('Matched bank schema by filename pattern:', schema.name);
                     return schema;
                 }
             }
@@ -162,11 +166,19 @@ export class CsvImportService {
                 headers.some(header => header.toLowerCase().includes(field.toLowerCase()))
             );
             
+            console.log(`Checking schema ${schema.name}:`, {
+                requiredFields,
+                matchedFields,
+                matchCount: matchedFields.length
+            });
+            
             if (matchedFields.length >= 3) { // At least date, description, and amount
+                console.log('Matched bank schema by headers:', schema.name);
                 return schema;
             }
         }
 
+        console.log('No bank schema matched');
         return null;
     }
 
@@ -260,7 +272,25 @@ export class CsvImportService {
             const category = getValue(schema.fieldMapping.category || '');
             const account = getValue(schema.fieldMapping.account || '');
 
+            // Debug logging for Fidelity files
+            if (schema.name === 'Fidelity Bank') {
+                console.log('Fidelity transaction parsing:', {
+                    headers,
+                    values,
+                    fieldMapping: schema.fieldMapping,
+                    extracted: {
+                        dateStr,
+                        description,
+                        amountStr,
+                        merchant,
+                        category,
+                        account
+                    }
+                });
+            }
+
             if (!dateStr || !description || !amountStr) {
+                console.log('Missing required fields:', { dateStr, description, amountStr });
                 return null;
             }
 

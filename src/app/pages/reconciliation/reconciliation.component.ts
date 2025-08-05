@@ -80,8 +80,11 @@ import { Bill } from '../../interfaces/bill.interface';
                             *ngFor="let month of recentMonths; let i = index" 
                             [label]="month.label"
                             [removable]="false"
-                            [style.background-color]="getBirthstoneColor(month.month)"
-                            [style.color]="getContrastColor(getBirthstoneColor(month.month))"
+                            [style.background-color]="getTransparentBirthstoneColor(month.month)"
+                            [style.color]="getBirthstoneColor(month.month)"
+                            [style.border-color]="getBirthstoneColor(month.month)"
+                            [style.border-width]="'2px'"
+                            [style.border-style]="'solid'"
                             [class.ring-2]="selectedMonth === month.value"
                             [class.ring-blue-500]="selectedMonth === month.value"
                             [class.ring-offset-2]="selectedMonth === month.value"
@@ -380,7 +383,7 @@ import { Bill } from '../../interfaces/bill.interface';
                     </div>
                 </div>
                 
-                <div *ngIf="selectedFile" class="p-4 bg-blue-50 rounded-lg">
+                <div *ngIf="selectedFile" class="p-4 rounded-lg">
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="font-medium">{{ selectedFile.name }}</div>
@@ -441,7 +444,8 @@ import { Bill } from '../../interfaces/bill.interface';
                         optionLabel="description"
                         optionValue="id"
                         placeholder="Choose a bill"
-                        [showClear]="true">
+                        [showClear]="true"
+                        appendTo="body">
                     </p-dropdown>
                 </div>
             </div>
@@ -648,24 +652,33 @@ export class ReconciliationComponent implements OnInit {
     }
 
     /**
-     * Get birthstone color for month
+     * Get birthstone color for the given month
      */
     getBirthstoneColor(month: string): string {
         const colors: { [key: string]: string } = {
-            'Jan': '#8B0000', // Garnet (Siam) - Deep rich red
-            'Feb': '#663399', // Amethyst - Vibrant purple
-            'Mar': '#7FFFD4', // Aquamarine - Light clear blue
-            'Apr': '#FFFFFF', // Diamond (Crystal) - Clear colorless
-            'May': '#228B22', // Emerald - Deep green
-            'Jun': '#E6E6FA', // Alexandrite (Lt. Amethyst) - Light lavender
-            'Jul': '#DC143C', // Ruby (Siam) - Deep dark red
-            'Aug': '#90EE90', // Peridot - Light bright green
-            'Sep': '#000080', // Sapphire - Deep blue
-            'Oct': '#FF69B4', // Tourmaline (Rose) - Bright pink
-            'Nov': '#FFD700', // Topaz - Golden yellow/amber
-            'Dec': '#00CED1'  // Blue Topaz (Blue Zircon) - Vibrant turquoise
+            'Jan': '#DC2626', // Garnet - Softer red
+            'Feb': '#7C3AED', // Amethyst - Softer purple
+            'Mar': '#06B6D4', // Aquamarine - Softer blue
+            'Apr': '#6B7280', // Diamond - Neutral gray
+            'May': '#059669', // Emerald - Softer green
+            'Jun': '#8B5CF6', // Alexandrite - Softer lavender
+            'Jul': '#B91C1C', // Ruby - Softer red
+            'Aug': '#10B981', // Peridot - Softer green
+            'Sep': '#3B82F6', // Sapphire - Softer blue
+            'Oct': '#EC4899', // Tourmaline - Softer pink
+            'Nov': '#F59E0B', // Topaz - Softer amber
+            'Dec': '#0891B2'  // Blue Topaz - Softer turquoise
         };
-        return colors[month] || '#E5E7EB';
+        return colors[month] || '#6B7280';
+    }
+
+    /**
+     * Get transparent birthstone color for chips
+     */
+    getTransparentBirthstoneColor(month: string): string {
+        const baseColor = this.getBirthstoneColor(month);
+        // Convert to transparent version with 15% opacity for better balance
+        return baseColor + '26'; // Adding 26 hex for 15% opacity
     }
 
     /**

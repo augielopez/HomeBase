@@ -13,6 +13,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
 import { SupabaseService } from '../service/supabase.service';
+import { AiCategorizationService } from '../service/ai-categorization.service';
 import { TransactionCategory, CategorizationRule } from '../../interfaces';
 
 @Component({
@@ -34,18 +35,27 @@ import { TransactionCategory, CategorizationRule } from '../../interfaces';
     providers: [MessageService, ConfirmationService],
     template: `
         <div class="card">
-            <h1>Categorization Rules</h1>
-            <p>Manage automatic transaction categorization rules</p>
+            <div class="flex justify-between items-center mb-4">
+                <h1>Categorization Rules</h1>
+                <div class="flex gap-2">
+                    <p-button 
+                        icon="pi pi-refresh" 
+                        label="Re-categorize All Transactions"
+                        (onClick)="recategorizeAllTransactions()"
+                        [loading]="loading"
+                        severity="secondary"
+                        [outlined]="true">
+                    </p-button>
+                    <p-button 
+                        icon="pi pi-plus" 
+                        label="Add Rule"
+                        (onClick)="showAddRuleDialog = true"
+                        severity="primary">
+                    </p-button>
+                </div>
+            </div>
             
-            <p-button 
-                icon="pi pi-plus" 
-                label="Add Rule" 
-                (onClick)="showAddRuleDialog = true"
-                severity="primary">
-            </p-button>
-
-            <div class="card">
-                <p-table [value]="rules" [loading]="loading">
+            <p-table [value]="rules" [loading]="loading">
                     <ng-template pTemplate="header">
                         <tr>
                             <th>Rule Name</th>
@@ -81,41 +91,56 @@ import { TransactionCategory, CategorizationRule } from '../../interfaces';
                     </ng-template>
                 </p-table>
             </div>
-        </div>
 
         <p-dialog 
             [(visible)]="showAddRuleDialog" 
             header="Add New Rule"
             [modal]="true"
-            [style]="{width: '500px'}">
+            [style]="{width: '600px'}">
             
-            <div>
-                <label>Rule Name</label>
-                <input pInputText [(ngModel)]="newRule.rule_name" class="w-full">
+            <div class="flex flex-col gap-4">
+                <div class="field">
+                    <label class="block mb-2 font-medium">Rule Name <span class="text-red-500">*</span></label>
+                    <input pInputText [(ngModel)]="newRule.rule_name" class="w-full" placeholder="Enter rule name" />
+                </div>
                 
-                <label>Rule Type</label>
-                <p-dropdown 
-                    [options]="ruleTypes" 
-                    [(ngModel)]="newRule.rule_type"
-                    optionLabel="label"
-                    optionValue="value">
-                </p-dropdown>
+                <div class="field">
+                    <label class="block mb-2 font-medium">Rule Type <span class="text-red-500">*</span></label>
+                    <p-dropdown 
+                        [options]="ruleTypes" 
+                        [(ngModel)]="newRule.rule_type"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Select rule type"
+                        class="w-full">
+                    </p-dropdown>
+                </div>
                 
-                <label>Category</label>
-                <p-dropdown 
-                    [options]="categories" 
-                    [(ngModel)]="newRule.category_id"
-                    optionLabel="name"
-                    optionValue="id">
-                </p-dropdown>
+                <div class="field">
+                    <label class="block mb-2 font-medium">Category <span class="text-red-500">*</span></label>
+                    <p-dropdown 
+                        [options]="categories" 
+                        [(ngModel)]="newRule.category_id"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="Select category"
+                        class="w-full"
+                        appendTo="body">
+                    </p-dropdown>
+                </div>
                 
-                <label>Priority</label>
-                <input pInputText type="number" [(ngModel)]="newRule.priority">
+                <div class="field">
+                    <label class="block mb-2 font-medium">Priority</label>
+                    <input pInputText type="number" [(ngModel)]="newRule.priority" class="w-full" placeholder="0" min="0" />
+                    <small class="text-gray-600">Higher numbers have higher priority</small>
+                </div>
             </div>
 
             <ng-template pTemplate="footer">
-                <p-button label="Cancel" (onClick)="cancelEdit()"></p-button>
-                <p-button label="Save" (onClick)="saveRule()" [loading]="saving"></p-button>
+                <div class="flex justify-end gap-2">
+                    <p-button label="Cancel" (onClick)="cancelEdit()" severity="secondary" [outlined]="true"></p-button>
+                    <p-button label="Save" (onClick)="saveRule()" [loading]="saving"></p-button>
+                </div>
             </ng-template>
         </p-dialog>
 
@@ -149,6 +174,7 @@ export class CategorizationRulesComponent implements OnInit {
 
     constructor(
         private supabaseService: SupabaseService,
+        private aiCategorizationService: AiCategorizationService,
         private messageService: MessageService,
         private confirmationService: ConfirmationService
     ) {}
@@ -227,9 +253,17 @@ export class CategorizationRulesComponent implements OnInit {
                     detail: 'Rule updated successfully'
                 });
             } else {
+                // Get current user ID for new rules
+                const userId = await this.supabaseService.getCurrentUserId();
+                
+                const ruleToInsert = {
+                    ...this.newRule,
+                    user_id: userId
+                };
+
                 const { error } = await this.supabaseService.getClient()
                     .from('hb_categorization_rules')
-                    .insert([this.newRule]);
+                    .insert([ruleToInsert]);
 
                 if (error) throw error;
                 
@@ -307,5 +341,46 @@ export class CategorizationRulesComponent implements OnInit {
     getCategoryName(categoryId: string): string {
         const category = this.categories.find(c => c.id === categoryId);
         return category?.name || 'Unknown';
+    }
+
+    async recategorizeAllTransactions() {
+        this.confirmationService.confirm({
+            message: 'This will re-categorize all your existing transactions using current rules and AI. This may take a few minutes. Continue?',
+            header: 'Confirm Re-categorization',
+            icon: 'pi pi-exclamation-triangle',
+            accept: () => {
+                this.performRecategorization();
+            }
+        });
+    }
+
+    async performRecategorization() {
+        this.loading = true;
+        try {
+            const result = await this.aiCategorizationService.recategorizeAllTransactions();
+            
+            if (result.success) {
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Re-categorization Complete',
+                    detail: `Successfully processed ${result.processed} transactions. ${result.errors} errors occurred.`
+                });
+            } else {
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Re-categorization Failed',
+                    detail: 'Failed to re-categorize transactions. Please try again.'
+                });
+            }
+        } catch (error) {
+            console.error('Error during re-categorization:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'An unexpected error occurred during re-categorization.'
+            });
+        } finally {
+            this.loading = false;
+        }
     }
 } 

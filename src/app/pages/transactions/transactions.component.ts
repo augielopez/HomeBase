@@ -15,6 +15,7 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { MenuModule } from 'primeng/menu';
+import { TooltipModule } from 'primeng/tooltip';
 import { finalize, interval, take } from 'rxjs';
 
 @Component({
@@ -34,7 +35,8 @@ import { finalize, interval, take } from 'rxjs';
         ToolbarModule,
         ProgressSpinnerModule,
         ProgressBarModule,
-        MenuModule
+        MenuModule,
+        TooltipModule
     ],
     providers: [MessageService],
     template: `
@@ -97,8 +99,8 @@ import { finalize, interval, take } from 'rxjs';
 
             <!-- Filters -->
             <div class="card mb-4">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
+                <div class="flex flex-wrap items-end gap-8">
+                    <div class="flex-1 min-w-[200px]">
                         <label class="block text-sm font-medium mb-2">Search</label>
                         <input 
                             pInputText 
@@ -107,7 +109,7 @@ import { finalize, interval, take } from 'rxjs';
                             (input)="applyFilters()"
                             class="w-full" />
                     </div>
-                    <div>
+                    <div class="flex-1 min-w-[180px]">
                         <label class="block text-sm font-medium mb-2">Account</label>
                         <p-dropdown 
                             [options]="accountOptions" 
@@ -116,27 +118,45 @@ import { finalize, interval, take } from 'rxjs';
                             (onChange)="applyFilters()"
                             optionLabel="name"
                             optionValue="account_id"
-                            [showClear]="true">
+                            [showClear]="true"
+                            class="w-full">
                         </p-dropdown>
                     </div>
-                    <div>
+                    <div class="flex-1 min-w-[220px]">
                         <label class="block text-sm font-medium mb-2">Date Range</label>
-                        <p-calendar 
-                            [(ngModel)]="filters.dateRange"
-                            selectionMode="range"
-                            placeholder="Select date range"
-                            (onSelect)="applyFilters()"
-                            [showIcon]="true">
-                        </p-calendar>
+                        <div class="flex gap-2">
+                            <p-calendar 
+                                [(ngModel)]="filters.dateRange"
+                                selectionMode="range"
+                                placeholder="Select date range"
+                                (onSelect)="applyFilters()"
+                                [showIcon]="true"
+                                class="flex-1"
+                                [style]="{'width':'100%'}" class="w-full">
+                            </p-calendar>
+                        </div>
                     </div>
-                    <div>
+                    <div class="flex-1 min-w-[150px]">
                         <label class="block text-sm font-medium mb-2">Status</label>
                         <p-dropdown 
                             [options]="statusOptions" 
                             [(ngModel)]="filters.status"
                             placeholder="All Status"
                             (onChange)="applyFilters()"
-                            [showClear]="true">
+                            [showClear]="true"
+                            class="w-full">
+                        </p-dropdown>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-sm font-medium mb-2">Source</label>
+                        <p-dropdown 
+                            [options]="importMethodOptions" 
+                            [(ngModel)]="filters.importMethod"
+                            placeholder="All Sources"
+                            (onChange)="applyFilters()"
+                            optionLabel="label"
+                            optionValue="value"
+                            class="w-full">
                         </p-dropdown>
                     </div>
                 </div>
@@ -148,7 +168,7 @@ import { finalize, interval, take } from 'rxjs';
                     [value]="filteredTransactions" 
                     [paginator]="true" 
                     [rows]="20"
-                    [globalFilterFields]="['name', 'merchant_name', 'category']"
+                    [globalFilterFields]="['name', 'category']"
                     [tableStyle]="{ 'min-width': '75rem' }"
                     [rowHover]="true"
                     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} transactions"
@@ -159,10 +179,10 @@ import { finalize, interval, take } from 'rxjs';
                         <tr>
                             <th pSortableColumn="date">Date <p-sortIcon field="date"></p-sortIcon></th>
                             <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
-                            <th pSortableColumn="merchant_name">Merchant <p-sortIcon field="merchant_name"></p-sortIcon></th>
                             <th pSortableColumn="amount">Amount <p-sortIcon field="amount"></p-sortIcon></th>
                             <th>Category</th>
-                            <th>Account</th>
+                            <th>Bank</th>
+                            <th>Source</th>
                             <th>Status</th>
                         </tr>
                     </ng-template>
@@ -171,7 +191,6 @@ import { finalize, interval, take } from 'rxjs';
                         <tr>
                             <td>{{ transaction.date | date:'MMM dd, yyyy' }}</td>
                             <td>{{ transaction.name }}</td>
-                            <td>{{ transaction.merchant_name || '-' }}</td>
                             <td>
                                 <span class="font-bold" 
                                       [class.text-red-600]="transaction.amount < 0" 
@@ -180,13 +199,39 @@ import { finalize, interval, take } from 'rxjs';
                                 </span>
                             </td>
                             <td>
-                                <span *ngIf="transaction.category?.length" class="text-sm text-gray-600">
-                                    {{ transaction.category.join(' > ') }}
+                                <span *ngIf="transaction.category?.name" class="text-sm text-gray-600">
+                                    {{ transaction.category.name }}
                                 </span>
-                                <span *ngIf="!transaction.category?.length" class="text-sm text-gray-400">-</span>
+                                <span *ngIf="!transaction.category?.name" class="text-sm text-gray-400">-</span>
                             </td>
                             <td>
-                                <span class="text-sm">{{ getAccountName(transaction.account_id) }}</span>
+                                <ng-container *ngIf="getBankLogo(transaction.account_id); else accountNameText">
+                                    <img [src]="getBankLogo(transaction.account_id)" 
+                                         alt="Bank Logo" 
+                                         class="w-6 h-6 object-cover rounded-full border border-gray-200" 
+                                         [title]="getAccountName(transaction.account_id)"
+                                         [pTooltip]="getAccountName(transaction.account_id)"
+                                         tooltipPosition="top">
+                                </ng-container>
+                                <ng-template #accountNameText>
+                                    <span class="text-sm text-gray-600">{{ getAccountName(transaction.account_id) }}</span>
+                                </ng-template>
+                            </td>
+                            <td>
+                                <ng-container *ngIf="getImportMethodIcon(transaction.import_method); else importMethodText">
+                                    <img [src]="getImportMethodIcon(transaction.import_method)" 
+                                         alt="Import Method" 
+                                         class="w-6 h-6 object-cover rounded-full border border-gray-200" 
+                                         [title]="transaction.import_method + (transaction.bank_source ? ' - ' + transaction.bank_source : '')"
+                                         [pTooltip]="transaction.import_method + (transaction.bank_source ? ' - ' + transaction.bank_source : '')"
+                                         tooltipPosition="top">
+                                </ng-container>
+                                <ng-template #importMethodText>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-medium">{{ transaction.import_method || 'unknown' }}</span>
+                                        <span class="text-xs text-gray-500">{{ transaction.bank_source || '-' }}</span>
+                                    </div>
+                                </ng-template>
                             </td>
                             <td>
                                 <p-tag 
@@ -253,13 +298,20 @@ export class TransactionsComponent implements OnInit {
         search: '',
         account: null,
         dateRange: null,
-        status: null
+        status: null,
+        importMethod: null
     };
     
     accountOptions: any[] = [];
     statusOptions = [
         { label: 'Posted', value: false },
         { label: 'Pending', value: true }
+    ];
+    importMethodOptions = [
+        { label: 'All Sources', value: null },
+        { label: 'Plaid', value: 'plaid' },
+        { label: 'CSV Import', value: 'csv' },
+        { label: 'Manual', value: 'manual' }
     ];
 
     constructor(
@@ -291,30 +343,83 @@ export class TransactionsComponent implements OnInit {
 
     private async loadPlaidData() {
         try {
-            const { data, error } = await this.supabaseService.getClient().functions.invoke('get-plaid-data');
+            // Get user ID
+            const userId = await this.supabaseService.getCurrentUserId();
             
-            if (error) throw error;
+            // Load accounts from hb_plaid_accounts
+            const { data: plaidAccountsData, error: plaidAccountsError } = await this.supabaseService.getClient()
+                .from('hb_plaid_accounts')
+                .select('*')
+                .eq('user_id', userId);
             
-            // Load accounts
-            this.linkedAccounts = data.accounts || [];
-            this.accountOptions = this.linkedAccounts.map(account => ({
-                name: `${account.name} (****${account.mask})`,
-                account_id: account.account_id
-            }));
+            if (plaidAccountsError) throw plaidAccountsError;
             
-            // Load transactions (we need to get them separately since get-plaid-data doesn't return full transaction data)
-            const { data: transactionsData, error: transactionsError } = await this.supabaseService.getClient().functions.invoke('get-transactions');
+            // Load unique accounts from transactions (includes CSV imports)
+            const { data: transactionsData, error: transactionsError } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .select(`
+                    *,
+                    category:category_id(*)
+                `)
+                .eq('user_id', userId)
+                .order('date', { ascending: false });
             
             if (transactionsError) throw transactionsError;
             
-            this.transactions = transactionsData.transactions || [];
+            // Combine Plaid accounts with unique accounts from transactions
+            const plaidAccounts = plaidAccountsData || [];
+            const transactionAccounts = transactionsData || [];
+            
+            // Create a map of unique accounts from transactions
+            const uniqueTransactionAccounts = new Map();
+            transactionAccounts.forEach(t => {
+                if (t.account_id && t.account_name) {
+                    uniqueTransactionAccounts.set(t.account_id, {
+                        name: t.account_name,
+                        account_id: t.account_id,
+                        import_method: t.import_method
+                    });
+                }
+            });
+            
+            // Combine accounts, prioritizing Plaid accounts
+            const allAccounts = [...plaidAccounts];
+            uniqueTransactionAccounts.forEach((account, accountId) => {
+                const existingPlaidAccount = plaidAccounts.find(pa => pa.account_id === accountId);
+                if (!existingPlaidAccount) {
+                    allAccounts.push({
+                        name: account.name,
+                        account_id: account.account_id,
+                        mask: 'CSV',
+                        import_method: account.import_method
+                    });
+                }
+            });
+            
+            this.linkedAccounts = allAccounts;
+            this.accountOptions = this.linkedAccounts.map(account => ({
+                name: `${account.name} (****${account.mask || 'CSV'})`,
+                account_id: account.account_id
+            }));
+            
+            this.transactions = transactionAccounts || [];
             this.filteredTransactions = [...this.transactions];
             this.calculateStats();
             this.applyFilters();
             
         } catch (error) {
-            console.error('Error loading Plaid data:', error);
+            console.error('Error loading transaction data:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to load transaction data'
+            });
         }
+    }
+
+    clearDateRange() {
+        this.filters.dateRange = null;
+        this.applyFilters();
     }
 
     private calculateStats() {
@@ -346,7 +451,8 @@ export class TransactionsComponent implements OnInit {
                 const matchesSearch = 
                     transaction.name.toLowerCase().includes(searchTerm) ||
                     (transaction.merchant_name && transaction.merchant_name.toLowerCase().includes(searchTerm)) ||
-                    (transaction.category && transaction.category.some((cat: string) => cat.toLowerCase().includes(searchTerm)));
+                    (transaction.description && transaction.description.toLowerCase().includes(searchTerm)) ||
+                    (transaction.category && transaction.category.name && transaction.category.name.toLowerCase().includes(searchTerm));
                 
                 if (!matchesSearch) return false;
             }
@@ -372,6 +478,11 @@ export class TransactionsComponent implements OnInit {
                 return false;
             }
 
+            // Import method filter
+            if (this.filters.importMethod !== null && transaction.import_method !== this.filters.importMethod) {
+                return false;
+            }
+
             return true;
         });
     }
@@ -379,6 +490,35 @@ export class TransactionsComponent implements OnInit {
     getAccountName(accountId: string): string {
         const account = this.linkedAccounts.find(a => a.account_id === accountId);
         return account ? `${account.name} (****${account.mask})` : accountId;
+    }
+
+    getBankLogo(accountId: string): string {
+        const accountName = this.getAccountName(accountId);
+        const accountNameLower = accountName.toLowerCase();
+        
+        if (accountNameLower.includes('fidelity')) {
+            return 'assets/images/fidelity.png';
+        } else if (accountNameLower.includes('firsttech') || accountNameLower.includes('first tech')) {
+            return 'assets/images/firsttech.png';
+        } else if (accountNameLower.includes('us bank') || accountNameLower.includes('usbank')) {
+            return 'assets/images/usbank.png';
+        }
+        
+        // Return null for no logo instead of a non-existent default
+        return '';
+    }
+
+    getImportMethodIcon(importMethod: string): string {
+        const methodLower = importMethod?.toLowerCase();
+        
+        if (methodLower === 'csv') {
+            return 'assets/images/csv.png';
+        } else if (methodLower === 'plaid') {
+            return 'assets/images/plaid.png';
+        }
+        
+        // Return empty string for unknown methods
+        return '';
     }
 
     setupMenuItems() {
