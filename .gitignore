@@ -14,3 +14,6 @@
 
 # Angular CLI cache and diagnostics
 .angular/
+
+# Angular build output
+/dist/

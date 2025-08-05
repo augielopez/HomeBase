@@ -58,8 +58,7 @@ export class ReconciliationService {
             .select(`
                 *,
                 category:category_id(*),
-                bill:bill_id(*),
-                account:account_id(*)
+                bill:bill_id(*)
             `)
             .gte('date', startDate)
             .lte('date', endDate)

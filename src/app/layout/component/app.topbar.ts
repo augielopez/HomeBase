@@ -1,10 +1,11 @@
 import { Component } from '@angular/core';
 import { MenuItem } from 'primeng/api';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { StyleClassModule } from 'primeng/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '../service/layout.service';
+import { AuthService } from '../../pages/service/auth.service';
 
 @Component({
     selector: 'app-topbar',
@@ -15,7 +16,7 @@ import { LayoutService } from '../service/layout.service';
             <button class="layout-menu-button layout-topbar-action" (click)="layoutService.onMenuToggle()">
                 <i class="pi pi-bars"></i>
             </button>
-            <a class="layout-topbar-logo" routerLink="/">
+            <a class="layout-topbar-logo" routerLink="/dashboard">
                 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
                     <!-- Home plate shape -->
                     <path 
@@ -68,6 +69,10 @@ import { LayoutService } from '../service/layout.service';
 
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
+                    <button type="button" class="layout-topbar-action" (click)="logout()">
+                        <i class="pi pi-sign-out"></i>
+                        <span>Logout</span>
+                    </button>
                     <button type="button" class="layout-topbar-action">
                         <i class="pi pi-calendar"></i>
                         <span>Calendar</span>
@@ -88,9 +93,22 @@ import { LayoutService } from '../service/layout.service';
 export class AppTopbar {
     items!: MenuItem[];
 
-    constructor(public layoutService: LayoutService) {}
+    constructor(
+        public layoutService: LayoutService,
+        private authService: AuthService,
+        private router: Router
+    ) {}
 
     toggleDarkMode() {
         this.layoutService.layoutConfig.update((state) => ({ ...state, darkTheme: !state.darkTheme }));
+    }
+
+    async logout() {
+        try {
+            await this.authService.signOut();
+            this.router.navigate(['/auth/login']);
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
     }
 }

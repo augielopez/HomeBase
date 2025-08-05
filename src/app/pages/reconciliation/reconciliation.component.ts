@@ -6,6 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { ChipModule } from 'primeng/chip';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
 import { CalendarModule } from 'primeng/calendar';
@@ -34,6 +35,7 @@ import { Bill } from '../../interfaces/bill.interface';
         CardModule,
         TableModule,
         TagModule,
+        ChipModule,
         InputTextModule,
         DropdownModule,
         CalendarModule,
@@ -73,18 +75,22 @@ import { Bill } from '../../interfaces/bill.interface';
             <div class="card mb-6">
                 <div class="flex items-center gap-4">
                     <label class="font-medium">Select Month:</label>
-                    <div class="flex gap-1 flex-wrap">
-                        <div 
+                    <div class="flex gap-2 flex-wrap">
+                        <p-chip 
                             *ngFor="let month of recentMonths; let i = index" 
-                            class="px-3 py-1.5 rounded-full cursor-pointer text-xs font-medium transition-all duration-200 hover:shadow-md border border-gray-300"
+                            [label]="month.label"
+                            [removable]="false"
                             [style.background-color]="getBirthstoneColor(month.month)"
                             [style.color]="getContrastColor(getBirthstoneColor(month.month))"
                             [class.ring-2]="selectedMonth === month.value"
                             [class.ring-blue-500]="selectedMonth === month.value"
                             [class.ring-offset-2]="selectedMonth === month.value"
+                            [class.cursor-pointer]="true"
+                            [class.hover:shadow-lg]="true"
+                            [class.transition-all]="true"
+                            [class.duration-200]="true"
                             (click)="selectedMonth = month.value; loadMonthData()">
-                            {{ month.label }}
-                        </div>
+                        </p-chip>
                     </div>
                 </div>
             </div>
@@ -646,18 +652,18 @@ export class ReconciliationComponent implements OnInit {
      */
     getBirthstoneColor(month: string): string {
         const colors: { [key: string]: string } = {
-            'Jan': '#FF6B6B', // Garnet
-            'Feb': '#4ECDC4', // Amethyst
-            'Mar': '#45B7D1', // Aquamarine
-            'Apr': '#96CEB4', // Diamond
-            'May': '#FFEAA7', // Emerald
-            'Jun': '#DDA0DD', // Pearl
-            'Jul': '#FF8B94', // Ruby
-            'Aug': '#87CEEB', // Peridot
-            'Sep': '#DDA0DD', // Sapphire
-            'Oct': '#FFB347', // Opal
-            'Nov': '#98D8C8', // Topaz
-            'Dec': '#F7DC6F'  // Turquoise
+            'Jan': '#8B0000', // Garnet (Siam) - Deep rich red
+            'Feb': '#663399', // Amethyst - Vibrant purple
+            'Mar': '#7FFFD4', // Aquamarine - Light clear blue
+            'Apr': '#FFFFFF', // Diamond (Crystal) - Clear colorless
+            'May': '#228B22', // Emerald - Deep green
+            'Jun': '#E6E6FA', // Alexandrite (Lt. Amethyst) - Light lavender
+            'Jul': '#DC143C', // Ruby (Siam) - Deep dark red
+            'Aug': '#90EE90', // Peridot - Light bright green
+            'Sep': '#000080', // Sapphire - Deep blue
+            'Oct': '#FF69B4', // Tourmaline (Rose) - Bright pink
+            'Nov': '#FFD700', // Topaz - Golden yellow/amber
+            'Dec': '#00CED1'  // Blue Topaz (Blue Zircon) - Vibrant turquoise
         };
         return colors[month] || '#E5E7EB';
     }

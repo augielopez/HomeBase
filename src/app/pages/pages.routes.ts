@@ -6,6 +6,8 @@ import { AccountsComponent } from './accounts/accounts';
 import { SettingsComponent } from './settings/settings.component';
 import { TransactionsComponent } from './transactions/transactions.component';
 import { ReconciliationComponent } from './reconciliation/reconciliation.component';
+import { FinancialInsightsComponent } from './financial-insights/financial-insights.component';
+import { CategorizationRulesComponent } from './categorization-rules/categorization-rules.component';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -15,6 +17,8 @@ export default [
     { path: 'settings', component: SettingsComponent },
     { path: 'transactions', component: TransactionsComponent },
     { path: 'reconciliation', component: ReconciliationComponent },
+    { path: 'financial-insights', component: FinancialInsightsComponent },
+    { path: 'categorization-rules', component: CategorizationRulesComponent },
     { path: '**', redirectTo: '/notfound' }
 ] as Routes;
 

@@ -1,0 +1,439 @@
+import { Injectable } from '@angular/core';
+import { SupabaseService } from './supabase.service';
+import { Transaction, TransactionCategory } from '../../interfaces';
+import { Observable, from, map, switchMap } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+export interface CategorizationResult {
+    categoryId: string | null;
+    confidence: number;
+    method: 'csv' | 'rules' | 'ai_similarity' | 'openai' | 'default';
+    matchedTransaction?: Transaction;
+    similarity?: number;
+}
+
+export interface EmbeddingRequest {
+    text: string;
+    model?: string;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class AiCategorizationService {
+    private readonly OPENAI_API_KEY = environment.openaiApiKey;
+    private readonly OPENAI_API_URL = `${environment.openaiApiUrl}/embeddings`;
+    private readonly SIMILARITY_THRESHOLD = 0.8;
+    private readonly MAX_SIMILAR_RESULTS = 5;
+
+    constructor(private supabaseService: SupabaseService) {}
+
+    /**
+     * Categorize a transaction using multiple methods
+     */
+    categorizeTransaction(transaction: any): Observable<CategorizationResult> {
+        return from(this.categorizeWithMultipleMethods(transaction));
+    }
+
+    /**
+     * Categorize using multiple methods in order of preference
+     */
+    private async categorizeWithMultipleMethods(transaction: any): Promise<CategorizationResult> {
+        // 1. Check if CSV provided category
+        if (transaction.category && transaction.category.trim()) {
+            const categoryId = await this.findOrCreateCategory(transaction.category);
+            if (categoryId) {
+                return {
+                    categoryId,
+                    confidence: 1.0,
+                    method: 'csv'
+                };
+            }
+        }
+
+        // 2. Apply rules-based categorization
+        const rulesResult = await this.applyCategorizationRules(transaction);
+        if (rulesResult.categoryId) {
+            return rulesResult;
+        }
+
+        // 3. AI similarity search
+        const similarityResult = await this.aiSimilaritySearch(transaction);
+        if (similarityResult.categoryId && similarityResult.confidence > 0.7) {
+            return similarityResult;
+        }
+
+        // 4. OpenAI categorization (if enabled)
+        const openaiResult = await this.openaiCategorization(transaction);
+        if (openaiResult.categoryId) {
+            return openaiResult;
+        }
+
+        // 5. Default category
+        return {
+            categoryId: await this.getDefaultCategoryId(),
+            confidence: 0.0,
+            method: 'default'
+        };
+    }
+
+    /**
+     * Apply user-defined categorization rules
+     */
+    private async applyCategorizationRules(transaction: any): Promise<CategorizationResult> {
+        const { data: rules, error } = await this.supabaseService.getClient()
+            .from('hb_categorization_rules')
+            .select('*')
+            .eq('is_active', true)
+            .order('priority', { ascending: false });
+
+        if (error || !rules) {
+            return { categoryId: null, confidence: 0, method: 'rules' };
+        }
+
+        for (const rule of rules) {
+            if (this.matchesRule(transaction, rule)) {
+                return {
+                    categoryId: rule.category_id,
+                    confidence: 0.9,
+                    method: 'rules'
+                };
+            }
+        }
+
+        return { categoryId: null, confidence: 0, method: 'rules' };
+    }
+
+    /**
+     * Check if transaction matches a categorization rule
+     */
+    private matchesRule(transaction: any, rule: any): boolean {
+        const conditions = rule.rule_conditions;
+        
+        switch (rule.rule_type) {
+            case 'keyword':
+                const searchText = `${transaction.name} ${transaction.description || ''} ${transaction.merchant_name || ''}`.toLowerCase();
+                return conditions.keywords.some((keyword: string) => 
+                    searchText.includes(keyword.toLowerCase())
+                );
+            
+            case 'merchant':
+                return conditions.merchants.some((merchant: string) => 
+                    transaction.merchant_name?.toLowerCase().includes(merchant.toLowerCase()) ||
+                    transaction.name.toLowerCase().includes(merchant.toLowerCase())
+                );
+            
+            case 'amount_range':
+                const amount = Math.abs(transaction.amount);
+                return amount >= conditions.min_amount && amount <= conditions.max_amount;
+            
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * AI similarity search using vector embeddings
+     */
+    private async aiSimilaritySearch(transaction: any): Promise<CategorizationResult> {
+        try {
+            // Generate embedding for the transaction
+            const embedding = await this.generateEmbedding(transaction);
+            if (!embedding) {
+                return { categoryId: null, confidence: 0, method: 'ai_similarity' };
+            }
+
+            // Search for similar transactions
+            const { data: similarTransactions, error } = await this.supabaseService.getClient()
+                .rpc('match_transactions', {
+                    query_embedding: embedding,
+                    match_threshold: this.SIMILARITY_THRESHOLD,
+                    match_count: this.MAX_SIMILAR_RESULTS
+                });
+
+            if (error || !similarTransactions || similarTransactions.length === 0) {
+                return { categoryId: null, confidence: 0, method: 'ai_similarity' };
+            }
+
+            // Find the most common category among similar transactions
+            const categoryCounts = new Map<string, { count: number; totalSimilarity: number }>();
+            
+            similarTransactions.forEach((similar: any) => {
+                if (similar.category_id) {
+                    const current = categoryCounts.get(similar.category_id) || { count: 0, totalSimilarity: 0 };
+                    categoryCounts.set(similar.category_id, {
+                        count: current.count + 1,
+                        totalSimilarity: current.totalSimilarity + similar.similarity
+                    });
+                }
+            });
+
+            // Find the category with highest count and average similarity
+            let bestCategory: string | null = null;
+            let bestConfidence = 0;
+
+            categoryCounts.forEach((stats, categoryId) => {
+                const avgSimilarity = stats.totalSimilarity / stats.count;
+                const confidence = (stats.count / similarTransactions.length) * avgSimilarity;
+                
+                if (confidence > bestConfidence) {
+                    bestConfidence = confidence;
+                    bestCategory = categoryId;
+                }
+            });
+
+            return {
+                categoryId: bestCategory,
+                confidence: bestConfidence,
+                method: 'ai_similarity',
+                matchedTransaction: similarTransactions[0],
+                similarity: bestConfidence
+            };
+
+        } catch (error) {
+            console.error('Error in AI similarity search:', error);
+            return { categoryId: null, confidence: 0, method: 'ai_similarity' };
+        }
+    }
+
+    /**
+     * Generate embedding for transaction text
+     */
+    private async generateEmbedding(transaction: any): Promise<number[] | null> {
+        try {
+            const text = `${transaction.name} ${transaction.description || ''} ${transaction.merchant_name || ''}`.trim();
+            
+            if (!text) {
+                return null;
+            }
+
+            const response = await fetch(this.OPENAI_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    input: text,
+                    model: 'text-embedding-ada-002'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`OpenAI API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.data[0].embedding;
+
+        } catch (error) {
+            console.error('Error generating embedding:', error);
+            return null;
+        }
+    }
+
+    /**
+     * OpenAI-based categorization
+     */
+    private async openaiCategorization(transaction: any): Promise<CategorizationResult> {
+        try {
+            const categories = await this.getAvailableCategories();
+            if (!categories.length) {
+                return { categoryId: null, confidence: 0, method: 'openai' };
+            }
+
+            const prompt = this.buildCategorizationPrompt(transaction, categories);
+            const response = await this.callOpenAI(prompt);
+            
+            if (response) {
+                const categoryName = this.extractCategoryFromResponse(response);
+                const categoryId = categories.find(c => 
+                    c.name.toLowerCase() === categoryName.toLowerCase()
+                )?.id;
+
+                if (categoryId) {
+                    return {
+                        categoryId,
+                        confidence: 0.8,
+                        method: 'openai'
+                    };
+                }
+            }
+
+            return { categoryId: null, confidence: 0, method: 'openai' };
+
+        } catch (error) {
+            console.error('Error in OpenAI categorization:', error);
+            return { categoryId: null, confidence: 0, method: 'openai' };
+        }
+    }
+
+    /**
+     * Build prompt for OpenAI categorization
+     */
+    private buildCategorizationPrompt(transaction: any, categories: TransactionCategory[]): string {
+        const categoryList = categories.map(c => c.name).join(', ');
+        
+        return `Categorize this transaction into one of the following categories: ${categoryList}
+
+Transaction details:
+- Name: ${transaction.name}
+- Description: ${transaction.description || 'N/A'}
+- Merchant: ${transaction.merchant_name || 'N/A'}
+- Amount: $${Math.abs(transaction.amount).toFixed(2)}
+
+Please respond with only the category name from the list above.`;
+    }
+
+    /**
+     * Call OpenAI API
+     */
+    private async callOpenAI(prompt: string): Promise<string | null> {
+        try {
+            const response = await fetch(`${environment.openaiApiUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 50,
+                    temperature: 0.1
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`OpenAI API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0]?.message?.content?.trim() || null;
+
+        } catch (error) {
+            console.error('Error calling OpenAI:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Extract category name from OpenAI response
+     */
+    private extractCategoryFromResponse(response: string): string {
+        // Clean up the response and extract just the category name
+        return response.replace(/[^\w\s&]/g, '').trim();
+    }
+
+    /**
+     * Find or create a category by name
+     */
+    private async findOrCreateCategory(categoryName: string): Promise<string | null> {
+        const normalizedName = this.normalizeCategoryName(categoryName);
+        
+        // First, try to find existing category
+        const { data: existingCategory } = await this.supabaseService.getClient()
+            .from('hb_transaction_categories')
+            .select('id')
+            .ilike('name', normalizedName)
+            .single();
+
+        if (existingCategory) {
+            return existingCategory.id;
+        }
+
+        // Create new category if not found
+        const { data: newCategory, error } = await this.supabaseService.getClient()
+            .from('hb_transaction_categories')
+            .insert({
+                name: normalizedName,
+                description: `Auto-created from CSV import: ${categoryName}`,
+                created_by: 'SYSTEM'
+            })
+            .select('id')
+            .single();
+
+        if (error) {
+            console.error('Error creating category:', error);
+            return null;
+        }
+
+        return newCategory?.id || null;
+    }
+
+    /**
+     * Normalize category name
+     */
+    private normalizeCategoryName(name: string): string {
+        return name
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    /**
+     * Get available categories
+     */
+    private async getAvailableCategories(): Promise<TransactionCategory[]> {
+        const { data: categories, error } = await this.supabaseService.getClient()
+            .from('hb_transaction_categories')
+            .select('*')
+            .eq('is_active', true)
+            .order('name');
+
+        if (error) {
+            console.error('Error fetching categories:', error);
+            return [];
+        }
+
+        return categories || [];
+    }
+
+    /**
+     * Get default category ID
+     */
+    private async getDefaultCategoryId(): Promise<string | null> {
+        const { data: defaultCategory, error } = await this.supabaseService.getClient()
+            .from('hb_transaction_categories')
+            .select('id')
+            .eq('name', 'Other')
+            .single();
+
+        if (error) {
+            console.error('Error fetching default category:', error);
+            return null;
+        }
+
+        return defaultCategory?.id || null;
+    }
+
+    /**
+     * Store embedding for a transaction
+     */
+    async storeTransactionEmbedding(transactionId: string, embedding: number[]): Promise<boolean> {
+        try {
+            const { error } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .update({ embedding })
+                .eq('id', transactionId);
+
+            if (error) {
+                console.error('Error storing embedding:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error storing embedding:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Batch categorize multiple transactions
+     */
+    batchCategorize(transactions: any[]): Observable<CategorizationResult[]> {
+        return from(Promise.all(transactions.map(t => this.categorizeWithMultipleMethods(t))));
+    }
+} 

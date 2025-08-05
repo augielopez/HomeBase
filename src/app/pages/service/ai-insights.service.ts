@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { Transaction, TransactionCategory } from '../../interfaces';
 import { Observable, from, map, switchMap } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface SpendingInsight {
     type: 'budget_leak' | 'subscription' | 'anomaly' | 'trend' | 'recommendation';
@@ -33,8 +34,12 @@ export interface MonthlySpendingSummary {
     providedIn: 'root'
 })
 export class AiInsightsService {
-    private readonly OPENAI_API_KEY: '<REDACTED>'; // Should be in environment
-    private readonly OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+    private readonly OPENAI_API_KEY = environment.openaiApiKey;
+    private readonly OPENAI_API_URL = environment.openaiApiUrl + '/chat/completions';
+    private lastApiCall = 0;
+    private readonly RATE_LIMIT_DELAY = 2000; // 2 seconds between calls
+    private aiInsightsDisabled = false;
+    private disableUntil = 0;
 
     constructor(private supabaseService: SupabaseService) {}
 
@@ -129,18 +134,42 @@ export class AiInsightsService {
     private async generateAiInsights(summary: MonthlySpendingSummary): Promise<SpendingInsight[]> {
         const insights: SpendingInsight[] = [];
 
-        // Generate spending analysis prompt
-        const prompt = this.buildAnalysisPrompt(summary);
-        
-        try {
-            const aiResponse = await this.callOpenAI(prompt);
-            const parsedInsights = this.parseAiResponse(aiResponse, summary);
-            insights.push(...parsedInsights);
-        } catch (error) {
-            console.error('Error generating AI insights:', error);
+        // Check if OpenAI API key is configured and AI insights are enabled
+        const aiInsightsEnabled = this.OPENAI_API_KEY && 
+                                 this.OPENAI_API_KEY !== 'your-openai-api-key' &&
+                                 this.OPENAI_API_KEY.length > 10 &&
+                                 !this.aiInsightsDisabled &&
+                                 Date.now() > this.disableUntil;
+
+        if (!aiInsightsEnabled) {
+            if (this.aiInsightsDisabled) {
+                console.warn('AI insights temporarily disabled due to rate limits');
+            } else {
+                console.warn('OpenAI API key not configured, using rule-based insights only');
+            }
+        } else {
+            // Generate spending analysis prompt
+            const prompt = this.buildAnalysisPrompt(summary);
+            
+            try {
+                const aiResponse = await this.callOpenAI(prompt);
+                const parsedInsights = this.parseAiResponse(aiResponse, summary);
+                insights.push(...parsedInsights);
+            } catch (error: any) {
+                console.error('Error generating AI insights:', error);
+                
+                // If rate limit error, temporarily disable AI insights
+                if (error?.message?.includes('rate limit')) {
+                    this.aiInsightsDisabled = true;
+                    this.disableUntil = Date.now() + (5 * 60 * 1000); // Disable for 5 minutes
+                    console.warn('AI insights temporarily disabled for 5 minutes due to rate limits');
+                }
+                
+                // Don't throw error, just fall back to rule-based insights
+            }
         }
 
-        // Add rule-based insights
+        // Add rule-based insights (always available)
         insights.push(...this.generateRuleBasedInsights(summary));
 
         return insights;
@@ -187,9 +216,20 @@ Format your response as JSON with this structure:
     }
 
     /**
-     * Call OpenAI API
+     * Call OpenAI API with rate limiting
      */
     private async callOpenAI(prompt: string): Promise<string> {
+        // Rate limiting: ensure at least 2 seconds between API calls
+        const now = Date.now();
+        const timeSinceLastCall = now - this.lastApiCall;
+        
+        if (timeSinceLastCall < this.RATE_LIMIT_DELAY) {
+            const delay = this.RATE_LIMIT_DELAY - timeSinceLastCall;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        this.lastApiCall = Date.now();
+
         const response = await fetch(this.OPENAI_API_URL, {
             method: 'POST',
             headers: {
@@ -197,7 +237,7 @@ Format your response as JSON with this structure:
                 'Authorization': `Bearer ${this.OPENAI_API_KEY}`
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini', // Use cheaper model to reduce rate limits
                 messages: [
                     {
                         role: 'system',
@@ -208,13 +248,19 @@ Format your response as JSON with this structure:
                         content: prompt
                     }
                 ],
-                max_tokens: 1000,
+                max_tokens: 800, // Reduced tokens to avoid rate limits
                 temperature: 0.3
             })
         });
 
         if (!response.ok) {
-            throw new Error(`OpenAI API error: ${response.statusText}`);
+            if (response.status === 429) {
+                throw new Error('OpenAI API rate limit exceeded. Please wait a moment and try again.');
+            } else if (response.status === 401) {
+                throw new Error('OpenAI API key is invalid or expired.');
+            } else {
+                throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+            }
         }
 
         const data = await response.json();
