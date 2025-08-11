@@ -314,7 +314,7 @@ Please respond with only the category name from the list above.`;
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+                    model: 'gpt-4.1-nano',
                     messages: [{ role: 'user', content: prompt }],
                     max_tokens: 50,
                     temperature: 0.1

@@ -227,7 +227,7 @@ supabase functions deploy ai-categorize-transaction
 ## 📊 Usage Guide
 
 ### Importing CSV Files
-1. Navigate to the Reconciliation & Insights page
+1. Navigate to the Reconciliation page
 2. Click "Import CSV" button
 3. Select your bank's CSV export file
 4. The system will automatically detect the bank format

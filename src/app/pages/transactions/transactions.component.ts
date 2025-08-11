@@ -16,7 +16,13 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { MenuModule } from 'primeng/menu';
 import { TooltipModule } from 'primeng/tooltip';
+import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
+import { CheckboxModule } from 'primeng/checkbox';
 import { finalize, interval, take } from 'rxjs';
+import { CsvImportService } from '../service/csv-import.service';
+import { ReconciliationService } from '../service/reconciliation.service';
+import { Bill } from '../../interfaces/bill.interface';
 
 @Component({
     selector: 'app-transactions',
@@ -36,7 +42,10 @@ import { finalize, interval, take } from 'rxjs';
         ProgressSpinnerModule,
         ProgressBarModule,
         MenuModule,
-        TooltipModule
+        TooltipModule,
+        DialogModule,
+        ToastModule,
+        CheckboxModule
     ],
     providers: [MessageService],
     template: `
@@ -46,7 +55,7 @@ import { finalize, interval, take } from 'rxjs';
                 <div class="flex gap-3">
                     <p-button 
                         icon="pi pi-chart-line" 
-                        label="Reconciliation & Insights"
+                        label="Reconciliation"
                         routerLink="/pages/reconciliation"
                         severity="info"
                         [outlined]="true">
@@ -71,6 +80,14 @@ import { finalize, interval, take } from 'rxjs';
 
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" *ngIf="transactionStats">
+            
+            <!-- Selection Info -->
+                <div class="p-4 rounded-lg border border-purple-200">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-600">{{ transactionStats.unique_accounts }}</div>
+                        <div class="text-sm text-purple-500">Accounts</div>
+                    </div>
+                </div>
                 <div class="p-4 rounded-lg border border-blue-200">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-blue-600">{{ transactionStats.total_transactions }}</div>
@@ -79,20 +96,14 @@ import { finalize, interval, take } from 'rxjs';
                 </div>
                 <div class="p-4 rounded-lg border border-green-200">
                     <div class="text-center">
-                        <div class="text-2xl font-bold text-green-600">{{ transactionStats.total_spent | currency }}</div>
-                        <div class="text-sm text-green-500">Total Spent</div>
+                        <div class="text-2xl font-bold text-green-600">{{ transactionStats.total_income | currency }}</div>
+                        <div class="text-sm text-green-500">Total Income</div>
                     </div>
                 </div>
-                <div class="p-4 rounded-lg border border-purple-200">
+                <div class="p-4 rounded-lg border border-red-200">
                     <div class="text-center">
-                        <div class="text-2xl font-bold text-purple-600">{{ transactionStats.unique_accounts }}</div>
-                        <div class="text-sm text-purple-500">Accounts</div>
-                    </div>
-                </div>
-                <div class="p-4 rounded-lg border border-orange-200">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-orange-600">{{ transactionStats.pending_count }}</div>
-                        <div class="text-sm text-orange-500">Pending</div>
+                        <div class="text-2xl font-bold text-red-600">{{ transactionStats.total_spent | currency }}</div>
+                        <div class="text-sm text-red-500">Total Spent</div>
                     </div>
                 </div>
             </div>
@@ -177,18 +188,34 @@ import { finalize, interval, take } from 'rxjs';
                     
                     <ng-template pTemplate="header">
                         <tr>
+                            <th>
+                                <p-checkbox 
+                                    [binary]="true" 
+                                    [(ngModel)]="selectAll"
+                                    (onChange)="toggleSelectAll($event)"
+                                    [style]="{'width': '20px', 'height': '20px'}">
+                                </p-checkbox>
+                            </th>
                             <th pSortableColumn="date">Date <p-sortIcon field="date"></p-sortIcon></th>
                             <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
                             <th pSortableColumn="amount">Amount <p-sortIcon field="amount"></p-sortIcon></th>
                             <th>Category</th>
                             <th>Bank</th>
                             <th>Source</th>
-                            <th>Status</th>
+                            <th>Action</th>
                         </tr>
                     </ng-template>
                     
                     <ng-template pTemplate="body" let-transaction>
                         <tr>
+                            <td>
+                                <p-checkbox 
+                                    [binary]="true" 
+                                    [(ngModel)]="transaction.selected"
+                                    (onChange)="toggleTransactionSelection(transaction)"
+                                    [style]="{'width': '20px', 'height': '20px'}">
+                                </p-checkbox>
+                            </td>
                             <td>{{ transaction.date | date:'MMM dd, yyyy' }}</td>
                             <td>{{ transaction.name }}</td>
                             <td>
@@ -199,10 +226,10 @@ import { finalize, interval, take } from 'rxjs';
                                 </span>
                             </td>
                             <td>
-                                <span *ngIf="transaction.category?.name" class="text-sm text-gray-600">
+                                <span *ngIf="transaction.category?.name" class="text-sm">
                                     {{ transaction.category.name }}
                                 </span>
-                                <span *ngIf="!transaction.category?.name" class="text-sm text-gray-400">-</span>
+                                <span *ngIf="!transaction.category?.name" class="text-sm">-</span>
                             </td>
                             <td>
                                 <ng-container *ngIf="getBankLogo(transaction.account_id); else accountNameText">
@@ -234,17 +261,22 @@ import { finalize, interval, take } from 'rxjs';
                                 </ng-template>
                             </td>
                             <td>
-                                <p-tag 
-                                    [value]="transaction.pending ? 'Pending' : 'Posted'" 
-                                    [severity]="transaction.pending ? 'warning' : 'success'">
-                                </p-tag>
+                                <p-button 
+                                    icon="pi pi-link" 
+                                    size="small"
+                                    severity="info"
+                                    [outlined]="true"
+                                    (onClick)="showManualMatchDialog(transaction); $event.stopPropagation()"
+                                    pTooltip="Match to bill"
+                                    type="button">
+                                </p-button>
                             </td>
                         </tr>
                     </ng-template>
                     
                     <ng-template pTemplate="emptymessage">
                         <tr>
-                            <td colspan="7" class="text-center py-8">
+                            <td colspan="8" class="text-center py-8">
                                 <div *ngIf="loading" class="flex justify-center">
                                     <p-progressSpinner></p-progressSpinner>
                                 </div>
@@ -259,6 +291,114 @@ import { finalize, interval, take } from 'rxjs';
                 </p-table>
             </div>
         </div>
+        <!-- CSV Upload Dialog -->
+        <p-dialog 
+            header="Import CSV Transactions" 
+            [(visible)]="showCsvUpload" 
+            [modal]="true" 
+            [style]="{ width: '600px' }">
+            <div class="space-y-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input 
+                        type="file" 
+                        #fileInput
+                        accept=".csv"
+                        (change)="onFileSelected($event)"
+                        class="hidden">
+                    <div class="space-y-2">
+                        <i class="pi pi-upload text-3xl text-gray-400"></i>
+                        <p class="text-gray-600">Drop your CSV file here or click to browse</p>
+                        <p-button 
+                            label="Choose File" 
+                            (onClick)="fileInput.click()"
+                            [outlined]="true">
+                        </p-button>
+                    </div>
+                </div>
+                
+                <div *ngIf="selectedFile" class="p-4 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium">{{ selectedFile.name }}</div>
+                            <div class="text-sm text-gray-500">{{ (selectedFile.size / 1024).toFixed(1) }} KB</div>
+                        </div>
+                        <p-button 
+                            icon="pi pi-times" 
+                            size="small"
+                            severity="danger"
+                            [outlined]="true"
+                            (onClick)="selectedFile = null">
+                        </p-button>
+                    </div>
+                </div>
+
+                <div *ngIf="importing" class="text-center">
+                    <p-progressSpinner></p-progressSpinner>
+                    <p class="mt-2">Importing transactions...</p>
+                </div>
+            </div>
+            
+            <ng-template pTemplate="footer">
+                <p-button 
+                    label="Cancel" 
+                    (onClick)="showCsvUpload = false"
+                    [outlined]="true">
+                </p-button>
+                <p-button 
+                    label="Import" 
+                    (onClick)="importCsv()"
+                    [disabled]="!selectedFile || importing"
+                    [loading]="importing">
+                </p-button>
+            </ng-template>
+        </p-dialog>
+
+        <!-- Manual Match Dialog -->
+        <p-dialog 
+            header="Manual Match" 
+            [(visible)]="showManualMatch" 
+            [modal]="true" 
+            [style]="{ width: '500px' }"
+            appendTo="body">
+            <div class="space-y-4" *ngIf="selectedItem">
+                <div class="p-4 rounded-lg">
+                    <h4 class="font-medium mb-2">Selected Transaction:</h4>
+                    <div class="text-sm">
+                        <div><strong>Description:</strong> {{ selectedItem.name }}</div>
+                        <div><strong>Amount:</strong> {{ selectedItem.amount | currency:selectedItem.iso_currency_code }}</div>
+                        <div><strong>Date:</strong> {{ selectedItem.date | date }}</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">Select Bill to Match:</label>
+                    <p-dropdown 
+                        [options]="availableBills || []" 
+                        [(ngModel)]="selectedBillId"
+                        optionLabel="description"
+                        optionValue="id"
+                        placeholder="Choose a bill"
+                        [showClear]="true"
+                        appendTo="body">
+                    </p-dropdown>
+                </div>
+            </div>
+            
+            <ng-template pTemplate="footer">
+                <p-button 
+                    label="Cancel" 
+                    (onClick)="showManualMatch = false"
+                    [outlined]="true">
+                </p-button>
+                <p-button 
+                    label="Match" 
+                    (onClick)="applyManualMatch()"
+                    [disabled]="!selectedBillId">
+                </p-button>
+            </ng-template>
+        </p-dialog>
+        
+        <p-toast></p-toast>
     `,
     styles: [`
         .card {
@@ -291,7 +431,19 @@ export class TransactionsComponent implements OnInit {
     uploading: boolean = false;
     uploadedFiles: any[] = [];
     menuItems: any[] = [];
-    
+    showCsvUpload = false;
+    selectedFile: File | null = null;
+        importing = false;
+
+    // Manual match dialog properties
+    showManualMatch = false;
+    selectedItem: any = null;
+    selectedBillId: string | null = null;
+    availableBills: Bill[] = [];
+
+    // Selection properties
+    selectAll = false;
+
     @ViewChild('menu') menu!: any;
     
     filters = {
@@ -316,7 +468,9 @@ export class TransactionsComponent implements OnInit {
 
     constructor(
         private supabaseService: SupabaseService,
-        private messageService: MessageService
+        private messageService: MessageService,
+        private csvImportService: CsvImportService,
+        private reconciliationService: ReconciliationService,
     ) {}
 
     async ngOnInit() {
@@ -402,10 +556,13 @@ export class TransactionsComponent implements OnInit {
                 account_id: account.account_id
             }));
             
-            this.transactions = transactionAccounts || [];
+            // Initialize selected property for each transaction
+            this.transactions = (transactionAccounts || []).map(t => ({ ...t, selected: false }));
             this.filteredTransactions = [...this.transactions];
+            this.selectAll = false;
             this.calculateStats();
             this.applyFilters();
+            this.setupMenuItems(); // Refresh menu items to update recategorize button state
             
         } catch (error) {
             console.error('Error loading transaction data:', error);
@@ -432,14 +589,17 @@ export class TransactionsComponent implements OnInit {
             .filter(t => t.amount < 0)
             .reduce((sum, t) => sum + Math.abs(t.amount), 0);
             
+        const totalIncome = this.transactions
+            .filter(t => t.amount > 0)
+            .reduce((sum, t) => sum + t.amount, 0);
+            
         const uniqueAccounts = new Set(this.transactions.map(t => t.account_id)).size;
-        const pendingCount = this.transactions.filter(t => t.pending).length;
 
         this.transactionStats = {
             total_transactions: this.transactions.length,
             total_spent: totalSpent,
-            unique_accounts: uniqueAccounts,
-            pending_count: pendingCount
+            total_income: totalIncome,
+            unique_accounts: uniqueAccounts
         };
     }
 
@@ -485,6 +645,10 @@ export class TransactionsComponent implements OnInit {
 
             return true;
         });
+        
+        // Reset selection state when filters change
+        this.selectAll = false;
+        this.updateMenuItems();
     }
 
     getAccountName(accountId: string): string {
@@ -529,12 +693,15 @@ export class TransactionsComponent implements OnInit {
                 command: () => this.loadTransactions()
             },
             {
-                separator: true
-            },
-            {
-                label: 'Upload CSV/Excel',
+                label: 'Import CSV',
                 icon: 'pi pi-upload',
                 command: () => this.triggerFileUpload()
+            },
+            {
+                label: 'Recategorize Selected',
+                icon: 'pi pi-tags',
+                command: () => this.recategorizeSelected(),
+                disabled: !this.hasSelectedTransactions()
             }
         ];
     }
@@ -553,11 +720,7 @@ export class TransactionsComponent implements OnInit {
         fileInput.onchange = (event: any) => {
             const file = event.target.files[0];
             if (file) {
-                // Simulate the upload event
-                const uploadEvent = {
-                    files: [file]
-                };
-                this.onUpload(uploadEvent);
+                this.importCsvFile(file);
             }
         };
         
@@ -588,5 +751,247 @@ export class TransactionsComponent implements OnInit {
             .subscribe(() => {
                 this.progress += 2; // Increment by 2 to reach 100%
             });
+    }
+
+    /**
+    * Handle file selection
+    */
+    onFileSelected(event: any) {
+        const file = event.target.files[0];
+        if (file && file.type === 'text/csv') {
+            this.selectedFile = file;
+        } else {
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Invalid File',
+                detail: 'Please select a valid CSV file'
+            });
+        }
+    }
+    
+    /**
+     * Import CSV file directly from file input
+     */
+    importCsvFile(file: File) {
+        this.importing = true;
+        this.csvImportService.importTransactions(file).subscribe({
+            next: (result) => {
+                this.importing = false;
+                
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Import Complete',
+                    detail: `CSV file '${file.name}' imported successfully with ${result.imported_rows} transactions`
+                });
+                
+                // Reload transactions data
+                this.loadTransactions();
+            },
+            error: (error) => {
+                this.importing = false;
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Import Failed',
+                    detail: error.message || 'Failed to import CSV file'
+                });
+            }
+        });
+    }
+
+    /**
+     * Import CSV file from dialog
+     */
+    importCsv() {
+        if (!this.selectedFile) return;
+
+        this.importing = true;
+        this.csvImportService.importTransactions(this.selectedFile).subscribe({
+            next: (result) => {
+                this.importing = false;
+                this.showCsvUpload = false;
+                this.selectedFile = null;
+                
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Import Complete',
+                    detail: `Imported ${result.imported_rows} transactions`
+                });
+                
+                // Reload transactions data
+                this.loadTransactions();
+            },
+            error: (error) => {
+                this.importing = false;
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Import Failed',
+                    detail: error.message || 'Failed to import CSV file'
+                });
+            }
+        });
+    }
+
+    /**
+     * Show manual match dialog
+     */
+    showManualMatchDialog(transaction: any) {
+        console.log('Opening manual match dialog for transaction:', transaction);
+        
+        this.selectedItem = transaction;
+        this.selectedBillId = null;
+        
+        // Load available bills for matching
+        this.loadAvailableBills();
+        
+        this.showManualMatch = true;
+    }
+
+    /**
+     * Load available bills for matching
+     */
+    private async loadAvailableBills() {
+        try {
+            // Get bills from the reconciliation service or directly from supabase
+            const { data: bills, error } = await this.supabaseService.getClient()
+                .from('bills')
+                .select('*')
+                .eq('user_id', await this.supabaseService.getCurrentUserId());
+            
+            if (error) {
+                console.error('Error loading bills:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to load available bills'
+                });
+                return;
+            }
+            
+            this.availableBills = bills || [];
+            console.log('Available bills for matching:', this.availableBills);
+        } catch (error) {
+            console.error('Error loading bills:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to load available bills'
+            });
+        }
+    }
+
+    /**
+     * Apply manual match
+     */
+    applyManualMatch() {
+        if (!this.selectedItem || !this.selectedBillId) return;
+
+        // Use the reconciliation service to create the match
+        this.reconciliationService.manualMatch(this.selectedItem.id, this.selectedBillId).subscribe({
+            next: (success) => {
+                if (success) {
+                    this.showManualMatch = false;
+                    this.messageService.add({
+                        severity: 'success',
+                        summary: 'Match Applied',
+                        detail: 'Transaction has been matched to bill'
+                    });
+                    
+                    // Reload transactions to reflect the change
+                    this.loadTransactions();
+                }
+            },
+            error: (error) => {
+                console.error('Error applying match:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Match Failed',
+                    detail: error.message || 'Failed to match transaction to bill'
+                });
+            }
+        });
+    }
+
+    /**
+     * Toggle select all transactions
+     */
+    toggleSelectAll(event: any) {
+        const checked = event.checked;
+        // Update both arrays to keep them in sync
+        this.transactions.forEach(transaction => {
+            transaction.selected = checked;
+        });
+        this.filteredTransactions.forEach(transaction => {
+            transaction.selected = checked;
+        });
+        this.updateMenuItems();
+    }
+
+    /**
+     * Toggle individual transaction selection
+     */
+    toggleTransactionSelection(transaction: any) {
+        // Also update the same transaction in the main transactions array
+        const mainTransaction = this.transactions.find(t => t.id === transaction.id);
+        if (mainTransaction) {
+            mainTransaction.selected = transaction.selected;
+        }
+        this.updateSelectAllState();
+        this.updateMenuItems();
+    }
+
+    /**
+     * Update select all checkbox state
+     */
+    private updateSelectAllState() {
+        // Check against filtered transactions since that's what the user sees
+        const selectedCount = this.filteredTransactions.filter(t => t.selected).length;
+        const totalCount = this.filteredTransactions.length;
+        this.selectAll = selectedCount === totalCount && totalCount > 0;
+    }
+
+    /**
+     * Check if any transactions are selected
+     */
+    hasSelectedTransactions(): boolean {
+        // Check filtered transactions since that's what the user sees
+        return this.filteredTransactions.some(t => t.selected);
+    }
+
+    /**
+     * Get selected transactions
+     */
+    getSelectedTransactions(): any[] {
+        // Return selected transactions from filtered transactions
+        return this.filteredTransactions.filter(t => t.selected);
+    }
+
+    /**
+     * Update menu items (enable/disable recategorize button)
+     */
+    private updateMenuItems() {
+        this.setupMenuItems();
+    }
+
+    /**
+     * Recategorize selected transactions
+     */
+    recategorizeSelected() {
+        const selectedTransactions = this.getSelectedTransactions();
+        if (selectedTransactions.length === 0) {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'No Selection',
+                detail: 'Please select at least one transaction to recategorize'
+            });
+            return;
+        }
+
+        console.log('Recategorizing transactions:', selectedTransactions);
+        // TODO: Implement recategorization dialog
+        this.messageService.add({
+            severity: 'info',
+            summary: 'Recategorization',
+            detail: `Ready to recategorize ${selectedTransactions.length} selected transaction(s)`
+        });
     }
 } 

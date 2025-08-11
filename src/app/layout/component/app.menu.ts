@@ -38,7 +38,7 @@ export class AppMenu {
                         routerLink: ['/dashboard/pages/transactions']
                     },
                     {
-                        label: 'Reconciliation & Insights',
+                        label: 'Reconciliation',
                         icon: 'pi pi-fw pi-chart-line',
                         routerLink: ['/dashboard/pages/reconciliation']
                     },

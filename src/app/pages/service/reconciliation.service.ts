@@ -69,7 +69,57 @@ export class ReconciliationService {
             return [];
         }
 
-        return transactions || [];
+        // Ensure data types are correct before returning
+        const validatedTransactions = (transactions || []).map(t => ({
+            ...t,
+            amount: this.validateAmount(t.amount),
+            date: this.validateDate(t.date)
+        }));
+        
+        return validatedTransactions;
+    }
+
+    /**
+     * Validate and convert amount to number
+     */
+    private validateAmount(amount: any): number {
+        if (amount === null || amount === undefined) return 0;
+        
+        if (typeof amount === 'number') return amount;
+        
+        if (typeof amount === 'string') {
+            const cleanAmount = amount.replace(/[$,]/g, '');
+            const parsed = parseFloat(cleanAmount);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        
+        return 0;
+    }
+
+    /**
+     * Validate and convert date to proper format
+     */
+    private validateDate(date: any): string {
+        if (date === null || date === undefined) return '';
+        
+        if (typeof date === 'string') {
+            // Check if it's already in ISO format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                return date;
+            }
+            
+            // Try to parse and convert
+            const parsedDate = new Date(date);
+            if (!isNaN(parsedDate.getTime())) {
+                return parsedDate.toISOString().split('T')[0];
+            }
+        }
+        
+        if (date instanceof Date) {
+            return date.toISOString().split('T')[0];
+        }
+        
+        return '';
     }
 
     /**
@@ -79,8 +129,6 @@ export class ReconciliationService {
         const { data: bills, error } = await this.supabaseService.getClient()
             .from('hb_bills')
             .select('*')
-            .gte('due_date', startDate)
-            .lte('due_date', endDate)
             .eq('status', 'Active')
             .order('due_date', { ascending: true });
 
@@ -89,7 +137,14 @@ export class ReconciliationService {
             return [];
         }
 
-        return bills || [];
+        // Ensure data types are correct before returning
+        const validatedBills = (bills || []).map(b => ({
+            ...b,
+            amount_due: this.validateAmount(b.amount_due),
+            due_date: this.validateDate(b.due_date)
+        }));
+        
+        return validatedBills;
     }
 
     /**

@@ -242,14 +242,12 @@ export class AccountsComponent implements OnInit {
         await this.loadData();
 
         this.extendeds.forEach((account) => {
-            // Log each account for debugging
-            console.log('Account:', account);
+            // Account data loaded
         });
     }
 
     onGlobalFilter(table: Table, event: Event) {
         const value = (event.target as HTMLInputElement).value;
-        console.log('Searching for:', value);
         
         // Use custom filtering logic
         if (value) {

@@ -133,7 +133,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                             <h4 class="font-semibold mb-1">{{ insight.title }}</h4>
                             <p class="text-sm">{{ insight.description }}</p>
                             <div *ngIf="insight.amount" class="mt-2 text-sm font-medium">
-                                Amount: {{ insight.amount | currency }}
+                                Amount: {{ insight.amount }}
                             </div>
                         </div>
                     </div>

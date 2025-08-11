@@ -12,7 +12,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { CalendarModule } from 'primeng/calendar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DialogModule } from 'primeng/dialog';
-import { ChartModule } from 'primeng/chart';
+
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService } from 'primeng/api';
@@ -41,7 +41,6 @@ import { Bill } from '../../interfaces/bill.interface';
         CalendarModule,
         ProgressSpinnerModule,
         DialogModule,
-        ChartModule,
         ToastModule,
         ConfirmDialogModule
     ],
@@ -51,8 +50,8 @@ import { Bill } from '../../interfaces/bill.interface';
             <!-- Header -->
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h1 class="text-3xl font-bold">Financial Reconciliation & Insights</h1>
-                    <p class="mt-2">Manage your transactions, reconcile bills, and get AI-powered insights</p>
+                    <h1 class="text-3xl font-bold">Financial Reconciliation</h1>
+                    <p class="mt-2">Manage your transactions and reconcile bills</p>
                 </div>
                 <div class="flex gap-3">
                     <p-button 
@@ -103,7 +102,14 @@ import { Bill } from '../../interfaces/bill.interface';
                 <div class="p-6 rounded-lg border border-blue-200">
                     <div class="flex items-center justify-between">
                         <div>
-                            <div class="text-2xl font-bold text-blue-600">{{ monthlySummary.totalSpent | currency }}</div>
+                            <div class="text-2xl font-bold text-blue-600">
+                                <span *ngIf="monthlySummary.totalSpent !== null && monthlySummary.totalSpent !== undefined; else noSpent">
+                                    {{ monthlySummary.totalSpent | currency }}
+                                </span>
+                                <ng-template #noSpent>
+                                    <span class="text-gray-400">N/A</span>
+                                </ng-template>
+                            </div>
                             <div class="text-sm text-blue-500">Total Spent</div>
                         </div>
                         <i class="pi pi-dollar text-2xl text-blue-400"></i>
@@ -112,7 +118,14 @@ import { Bill } from '../../interfaces/bill.interface';
                 <div class="p-6 rounded-lg border border-green-200">
                     <div class="flex items-center justify-between">
                         <div>
-                            <div class="text-2xl font-bold text-green-600">{{ monthlySummary.totalIncome | currency }}</div>
+                            <div class="text-2xl font-bold text-green-600">
+                                <span *ngIf="monthlySummary.totalIncome !== null && monthlySummary.totalIncome !== undefined; else noIncome">
+                                    {{ monthlySummary.totalIncome | currency }}
+                                </span>
+                                <ng-template #noIncome>
+                                    <span class="text-gray-400">N/A</span>
+                                </ng-template>
+                            </div>
                             <div class="text-sm text-green-500">Total Income</div>
                         </div>
                         <i class="pi pi-arrow-up text-2xl text-green-400"></i>
@@ -121,7 +134,14 @@ import { Bill } from '../../interfaces/bill.interface';
                 <div class="p-6 rounded-lg border border-purple-200">
                     <div class="flex items-center justify-between">
                         <div>
-                            <div class="text-2xl font-bold text-purple-600">{{ monthlySummary.netAmount | currency }}</div>
+                            <div class="text-2xl font-bold text-purple-600">
+                                <span *ngIf="monthlySummary.netAmount !== null && monthlySummary.netAmount !== undefined; else noNetAmount">
+                                    {{ monthlySummary.netAmount | currency }}
+                                </span>
+                                <ng-template #noNetAmount>
+                                    <span class="text-gray-400">N/A</span>
+                                </ng-template>
+                            </div>
                             <div class="text-sm text-purple-500">Net Amount</div>
                         </div>
                         <i class="pi pi-chart-line text-2xl text-purple-400"></i>
@@ -168,18 +188,37 @@ import { Bill } from '../../interfaces/bill.interface';
                                     <td>
                                         <div>
                                             <div class="font-medium">{{ match.transaction.name }}</div>
-                                            <div class="text-sm text-gray-500">{{ match.transaction.date | date:'MMM dd' }}</div>
+                                            <div class="text-sm text-gray-500">
+                                                <span *ngIf="match.transaction.date; else noTransactionDate">
+                                                    {{ match.transaction.date | date:'MMM dd' }}
+                                                </span>
+                                                <ng-template #noTransactionDate>
+                                                    <span class="text-gray-400">N/A</span>
+                                                </ng-template>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div>
                                             <div class="font-medium">{{ match.bill.description }}</div>
-                                            <div class="text-sm text-gray-500">Due: {{ match.bill.due_date | date:'MMM dd' }}</div>
+                                            <div class="text-sm text-gray-500">
+                                                Due: <span *ngIf="match.bill.due_date; else noBillDate">
+                                                    {{ match.bill.due_date | date:'MMM dd' }}
+                                                </span>
+                                                <ng-template #noBillDate>
+                                                    <span class="text-gray-400">N/A</span>
+                                                </ng-template>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         <span class="font-bold text-red-600">
-                                            {{ match.transaction.amount | currency }}
+                                            <span *ngIf="match.transaction.amount !== null && match.transaction.amount !== undefined; else noAmount">
+                                                {{ match.transaction.amount | currency }}
+                                            </span>
+                                            <ng-template #noAmount>
+                                                <span class="text-gray-400">N/A</span>
+                                            </ng-template>
                                         </span>
                                     </td>
                                     <td>
@@ -235,7 +274,8 @@ import { Bill } from '../../interfaces/bill.interface';
                         <p-table 
                             [value]="unmatchedItems || []" 
                             [tableStyle]="{ 'min-width': '50rem' }"
-                            [rowHover]="true">
+                            [rowHover]="true"
+                            [loading]="!unmatchedItems || unmatchedItems.length === 0">
                             <ng-template pTemplate="header">
                                 <tr>
                                     <th>Type</th>
@@ -262,11 +302,26 @@ import { Bill } from '../../interfaces/bill.interface';
                                         <span class="font-bold" 
                                               [class.text-red-600]="item.type === 'transaction' && item.amount < 0"
                                               [class.text-green-600]="item.type === 'transaction' && item.amount > 0">
-                                            {{ item.amount | currency }}
+                                            <span *ngIf="item.amount !== null && item.amount !== undefined; else noAmount">
+                                                {{ item.amount | currency }}
+                                            </span>
+                                            <ng-template #noAmount>
+                                                <span class="text-gray-400">N/A</span>
+                                            </ng-template>
                                         </span>
                                     </td>
                                     <td>
-                                        {{ item.type === 'transaction' ? (item.date | date:'MMM dd') : (item.due_date | date:'MMM dd') }}
+                                        <span *ngIf="item.type === 'transaction' && item.date; else billDate">
+                                            {{ item.date | date:'MMM dd' }}
+                                        </span>
+                                        <ng-template #billDate>
+                                            <span *ngIf="item.due_date; else noDate">
+                                                {{ item.due_date | date:'MMM dd' }}
+                                            </span>
+                                            <ng-template #noDate>
+                                                <span class="text-gray-400">N/A</span>
+                                            </ng-template>
+                                        </ng-template>
                                     </td>
                                     <td>
                                         <p-button 
@@ -274,8 +329,9 @@ import { Bill } from '../../interfaces/bill.interface';
                                             size="small"
                                             severity="info"
                                             [outlined]="true"
-                                            (onClick)="showManualMatchDialog(item)"
-                                            pTooltip="Manual match">
+                                            (onClick)="showManualMatchDialog(item); $event.stopPropagation()"
+                                            pTooltip="Manual match"
+                                            type="button">
                                         </p-button>
                                     </td>
                                 </tr>
@@ -283,7 +339,13 @@ import { Bill } from '../../interfaces/bill.interface';
                             <ng-template pTemplate="emptymessage">
                                 <tr>
                                     <td colspan="5" class="text-center py-8 text-gray-500">
-                                        All items are matched!
+                                        <div *ngIf="!unmatchedItems || unmatchedItems.length === 0; else allMatched">
+                                            <p-progressSpinner *ngIf="reconciling"></p-progressSpinner>
+                                            <p *ngIf="!reconciling">No unmatched items found</p>
+                                        </div>
+                                        <ng-template #allMatched>
+                                            All items are matched!
+                                        </ng-template>
                                     </td>
                                 </tr>
                             </ng-template>
@@ -292,70 +354,9 @@ import { Bill } from '../../interfaces/bill.interface';
                 </div>
             </div>
 
-            <!-- Category Breakdown -->
-            <div class="card mb-6" *ngIf="monthlySummary">
-                <h3 class="text-lg font-semibold mb-4">Category Breakdown</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <p-chart 
-                            type="pie" 
-                            [data]="pieChartData" 
-                            [options]="pieChartOptions"
-                            [style]="{ width: '100%', height: '300px' }">
-                        </p-chart>
-                    </div>
-                                            <div class="space-y-3">
-                        <div 
-                            *ngFor="let category of (monthlySummary?.categoryBreakdown || []).slice(0, 8)" 
-                            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center gap-3">
-                                <div 
-                                    class="w-4 h-4 rounded-full" 
-                                    [style.background-color]="getCategoryColor(category.category)">
-                                </div>
-                                <span class="font-medium">{{ category.category }}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="font-bold">{{ category.amount | currency }}</div>
-                                <div class="text-sm text-gray-500">{{ category.percentage.toFixed(1) }}%</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- AI Insights -->
-            <div class="card" *ngIf="monthlySummary && monthlySummary.insights && monthlySummary.insights.length > 0">
-                <h3 class="text-lg font-semibold mb-4">AI-Powered Insights</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <div 
-                    *ngFor="let insight of monthlySummary?.insights || []" 
-                    class="p-4 rounded-lg border"
-                    [class.border-red-200]="insight.severity === 'high'"
-                    [class.border-yellow-200]="insight.severity === 'medium'"
-                    [class.border-green-200]="insight.severity === 'low'"
-                    [class.bg-red-50]="insight.severity === 'high'"
-                    [class.bg-yellow-50]="insight.severity === 'medium'"
-                    [class.bg-green-50]="insight.severity === 'low'">
-                        <div class="flex items-start justify-between mb-2">
-                            <h4 class="font-semibold">{{ insight.title }}</h4>
-                            <p-tag 
-                                [value]="insight.type.replace('_', ' ')" 
-                                [severity]="getInsightSeverity(insight.severity)">
-                            </p-tag>
-                        </div>
-                        <p class="text-sm text-gray-600 mb-2">{{ insight.description }}</p>
-                        <div class="flex items-center justify-between text-sm">
-                            <span *ngIf="insight.amount" class="font-medium">
-                                {{ insight.amount | currency }}
-                            </span>
-                            <span *ngIf="insight.percentage" class="text-gray-500">
-                                {{ insight.percentage.toFixed(1) }}% of total
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
+
         </div>
 
         <!-- CSV Upload Dialog -->
@@ -425,14 +426,37 @@ import { Bill } from '../../interfaces/bill.interface';
             header="Manual Match" 
             [(visible)]="showManualMatch" 
             [modal]="true" 
-            [style]="{ width: '500px' }">
+            [style]="{ width: '500px' }"
+            appendTo="body">
             <div class="space-y-4" *ngIf="selectedItem">
+                <div class="p-4 bg-blue-50 rounded-lg mb-4">
+                    <p class="text-sm text-blue-600">Debug: Dialog is open, selectedItem: {{ selectedItem ? 'Yes' : 'No' }}</p>
+                </div>
                 <div class="p-4 bg-gray-50 rounded-lg">
                     <h4 class="font-medium mb-2">Selected Item:</h4>
                     <div class="text-sm">
                         <div><strong>Description:</strong> {{ selectedItem.type === 'transaction' ? selectedItem.name : selectedItem.description }}</div>
-                        <div><strong>Amount:</strong> {{ selectedItem.amount | currency }}</div>
-                        <div><strong>Date:</strong> {{ selectedItem.type === 'transaction' ? (selectedItem.date | date) : (selectedItem.due_date | date) }}</div>
+                                        <div><strong>Amount:</strong> 
+                    <span *ngIf="selectedItem.amount !== null && selectedItem.amount !== undefined; else noAmount">
+                        {{ selectedItem.amount | currency }}
+                    </span>
+                    <ng-template #noAmount>
+                        <span class="text-gray-400">N/A</span>
+                    </ng-template>
+                </div>
+                <div><strong>Date:</strong> 
+                    <span *ngIf="selectedItem.type === 'transaction' && selectedItem.date; else billDate">
+                        {{ selectedItem.date | date }}
+                    </span>
+                    <ng-template #billDate>
+                        <span *ngIf="selectedItem.due_date; else noDate">
+                            {{ selectedItem.due_date | date }}
+                        </span>
+                        <ng-template #noDate>
+                            <span class="text-gray-400">N/A</span>
+                        </ng-template>
+                    </ng-template>
+                </div>
                     </div>
                 </div>
 
@@ -459,7 +483,7 @@ import { Bill } from '../../interfaces/bill.interface';
                 <p-button 
                     label="Match" 
                     (onClick)="applyManualMatch()"
-                    [disabled]="!selectedBillId">
+                    [disabled]="!selectedItem || !selectedBillId">
                 </p-button>
             </ng-template>
         </p-dialog>
@@ -508,9 +532,6 @@ export class ReconciliationComponent implements OnInit {
     availableBills: Bill[] = [];
     
     reconciling = false;
-    
-    pieChartData: any;
-    pieChartOptions: any;
 
     constructor(
         private supabaseService: SupabaseService,
@@ -570,7 +591,6 @@ export class ReconciliationComponent implements OnInit {
         this.aiInsightsService.generateMonthlyInsights(year, month).subscribe({
             next: (summary) => {
                 this.monthlySummary = summary;
-                this.updatePieChart();
             },
             error: (error) => {
                 console.error('Error loading monthly data:', error);
@@ -585,11 +605,25 @@ export class ReconciliationComponent implements OnInit {
         // Load reconciliation data
         this.reconciliationService.reconcileMonth(year, month).subscribe({
             next: (result) => {
-                this.reconciliationResult = result;
-                this.updateUnmatchedItems();
+                try {
+                    this.reconciliationResult = result;
+                    this.updateUnmatchedItems();
+                } catch (error) {
+                    console.error('Error processing reconciliation result:', error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Processing Error',
+                        detail: 'Failed to process reconciliation data'
+                    });
+                }
             },
             error: (error) => {
                 console.error('Error loading reconciliation data:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Loading Error',
+                    detail: 'Failed to load reconciliation data'
+                });
             }
         });
     }
@@ -598,58 +632,147 @@ export class ReconciliationComponent implements OnInit {
      * Update unmatched items list
      */
     private updateUnmatchedItems() {
-        if (!this.reconciliationResult) {
-            this.unmatchedItems = [];
-            return;
-        }
+        try {
+            if (!this.reconciliationResult) {
+                this.unmatchedItems = [];
+                return;
+            }
 
-        this.unmatchedItems = [
-            ...(this.reconciliationResult.unmatchedTransactions || []).map(t => ({ ...t, type: 'transaction' })),
-            ...(this.reconciliationResult.unmatchedBills || []).map(b => ({ ...b, type: 'bill' }))
-        ];
+            const transactions = (this.reconciliationResult.unmatchedTransactions || []).map(t => ({ 
+                ...t, 
+                type: 'transaction',
+                // Ensure amount is a number
+                amount: this.parseAmount(t.amount),
+                // Ensure date is a valid date string
+                date: this.parseDate(t.date)
+            }));
+            const bills = (this.reconciliationResult.unmatchedBills || []).map(b => ({ 
+                ...b, 
+                type: 'bill',
+                // Ensure amount_due is a number
+                amount_due: this.parseAmount(b.amount_due),
+                // Ensure due_date is a valid date string
+                due_date: this.parseDate(b.due_date)
+            }));
+            
+            this.unmatchedItems = [...transactions, ...bills];
+            console.log('Updated unmatched items:', this.unmatchedItems);
+            
+            // Log any data validation issues for debugging
+            this.logDataValidationIssues(transactions, 'transactions');
+            this.logDataValidationIssues(bills, 'bills');
+        } catch (error) {
+            console.error('Error updating unmatched items:', error);
+            this.unmatchedItems = [];
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Data Error',
+                detail: 'Failed to process reconciliation data'
+            });
+        }
     }
 
     /**
-     * Update pie chart data
+     * Parse and validate amount values
      */
-    private updatePieChart() {
-        if (!this.monthlySummary || !this.monthlySummary.categoryBreakdown) {
-            this.pieChartData = {
-                labels: [],
-                datasets: [{
-                    data: [],
-                    backgroundColor: [],
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
-            };
-            return;
+    private parseAmount(amount: any): number {
+        try {
+            if (amount === null || amount === undefined) return 0;
+            
+            // If it's already a number, return it
+            if (typeof amount === 'number') {
+                return isNaN(amount) ? 0 : amount;
+            }
+            
+            // If it's a string, try to parse it
+            if (typeof amount === 'string') {
+                // Remove currency symbols, commas, and spaces
+                const cleanAmount = amount.replace(/[$,]/g, '').trim();
+                if (cleanAmount === '') return 0;
+                
+                const parsed = parseFloat(cleanAmount);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+            
+            return 0;
+        } catch (error) {
+            console.warn('Error parsing amount:', amount, error);
+            return 0;
         }
+    }
 
-        this.pieChartData = {
-            labels: this.monthlySummary.categoryBreakdown.map(c => c.category),
-            datasets: [{
-                data: this.monthlySummary.categoryBreakdown.map(c => c.amount),
-                backgroundColor: this.monthlySummary.categoryBreakdown.map(c => this.getCategoryColor(c.category)),
-                borderWidth: 2,
-                borderColor: '#ffffff'
-            }]
-        };
-
-        this.pieChartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
-                    }
+    /**
+     * Parse and validate date values
+     */
+    private parseDate(date: any): string {
+        try {
+            if (date === null || date === undefined) return '';
+            
+            // If it's already a valid date string, return it
+            if (typeof date === 'string' && this.isValidDateString(date)) {
+                return date;
+            }
+            
+            // If it's a Date object, convert to ISO string
+            if (date instanceof Date) {
+                return date.toISOString().split('T')[0];
+            }
+            
+            // Try to parse the date string
+            if (typeof date === 'string') {
+                const parsedDate = new Date(date);
+                if (!isNaN(parsedDate.getTime())) {
+                    return parsedDate.toISOString().split('T')[0];
                 }
             }
-        };
+            
+            return '';
+        } catch (error) {
+            console.warn('Error parsing date:', date, error);
+            return '';
+        }
     }
+
+    /**
+     * Check if a string is a valid date string
+     */
+    private isValidDateString(dateString: string): boolean {
+        try {
+            if (!dateString || typeof dateString !== 'string') return false;
+            
+            // Check if it's in ISO format (YYYY-MM-DD)
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                const date = new Date(dateString);
+                return !isNaN(date.getTime());
+            }
+            
+            // Check if it's a valid date format
+            const date = new Date(dateString);
+            return !isNaN(date.getTime());
+        } catch (error) {
+            console.warn('Error validating date string:', dateString, error);
+            return false;
+        }
+    }
+
+    /**
+     * Log data validation issues for debugging
+     */
+    private logDataValidationIssues(items: any[], type: string) {
+        const issues = items.filter(item => {
+            const hasAmountIssue = item.amount !== null && item.amount !== undefined && 
+                                 (typeof item.amount !== 'number' || isNaN(item.amount));
+            const hasDateIssue = item.date && !this.isValidDateString(item.date);
+            const hasDueDateIssue = item.due_date && !this.isValidDateString(item.due_date);
+            
+            return hasAmountIssue || hasDateIssue || hasDueDateIssue;
+        });
+        
+        if (issues.length > 0) {
+            console.warn(`Data validation issues found in ${type}:`, issues);
+        }
+    }
+
 
     /**
      * Get birthstone color for the given month
@@ -698,31 +821,7 @@ export class ReconciliationComponent implements OnInit {
         return luminance > 0.5 ? '#000000' : '#FFFFFF';
     }
 
-    /**
-     * Get category color
-     */
-    getCategoryColor(category: string): string {
-        const colors = [
-            '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6',
-            '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
-            '#14B8A6', '#64748B', '#F472B6', '#A78BFA', '#FBBF24'
-        ];
-        
-        const index = category.charCodeAt(0) % colors.length;
-        return colors[index];
-    }
 
-    /**
-     * Get insight severity
-     */
-    getInsightSeverity(severity: string): string {
-        switch (severity) {
-            case 'high': return 'danger';
-            case 'medium': return 'warning';
-            case 'low': return 'info';
-            default: return 'info';
-        }
-    }
 
     /**
      * Reconcile current month
@@ -833,11 +932,32 @@ export class ReconciliationComponent implements OnInit {
      * Show manual match dialog
      */
     showManualMatchDialog(item: any) {
-        this.selectedItem = item;
+        console.log('Opening manual match dialog for item:', item);
+        
+        // Ensure the item has proper data types before setting it
+        const validatedItem = {
+            ...item,
+            amount: this.parseAmount(item.amount),
+            date: this.parseDate(item.date),
+            due_date: this.parseDate(item.due_date)
+        };
+        
+        this.selectedItem = validatedItem;
         this.selectedBillId = null;
         this.availableBills = this.reconciliationResult?.unmatchedBills || [];
+        console.log('Available bills for matching:', this.availableBills);
         this.showManualMatch = true;
+        console.log('Dialog should be visible:', this.showManualMatch);
+        
+        // Force change detection
+        setTimeout(() => {
+            console.log('Dialog visibility after timeout:', this.showManualMatch);
+            const dialogElement = document.querySelector('p-dialog');
+            console.log('Dialog element found:', dialogElement);
+        }, 100);
     }
+
+
 
     /**
      * Apply manual match
@@ -861,4 +981,5 @@ export class ReconciliationComponent implements OnInit {
             });
         }
     }
+
 } 
