@@ -1,32 +1,31 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
-import { Table, TableModule } from 'primeng/table';
-import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
-import { DialogModule } from 'primeng/dialog';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
-import { SupabaseService } from '../service/supabase.service';
-import { AccountService } from '../service/account.service';
-import { MessageService } from 'primeng/api';
-import { ToastModule } from 'primeng/toast';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
-import { RippleModule } from 'primeng/ripple';
-import { TooltipModule } from 'primeng/tooltip';
-import { Tag } from 'primeng/tag';
-import { Toolbar } from 'primeng/toolbar';
-import { IconField } from 'primeng/iconfield';
-import { InputIcon } from 'primeng/inputicon';
-import { OverlayPanel, OverlayPanelModule } from 'primeng/overlaypanel';
-import { InputGroupAddon } from 'primeng/inputgroupaddon';
-import { InputGroup } from 'primeng/inputgroup';
+import {Component, OnInit, ViewChild} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {RouterModule} from '@angular/router';
+import {Table, TableModule} from 'primeng/table';
+import {ButtonModule} from 'primeng/button';
+import {InputTextModule} from 'primeng/inputtext';
+import {DropdownModule} from 'primeng/dropdown';
+import {DialogModule} from 'primeng/dialog';
+import {FormBuilder, FormsModule, ReactiveFormsModule} from '@angular/forms';
+import {SupabaseService} from '../service/supabase.service';
+import {AccountService} from '../service/account.service';
+import {ConfirmationService, MessageService} from 'primeng/api';
+import {ToastModule} from 'primeng/toast';
+import {ConfirmDialogModule} from 'primeng/confirmdialog';
+import {RippleModule} from 'primeng/ripple';
+import {TooltipModule} from 'primeng/tooltip';
+import {Tag} from 'primeng/tag';
+import {Toolbar} from 'primeng/toolbar';
+import {IconField} from 'primeng/iconfield';
+import {InputIcon} from 'primeng/inputicon';
+import {OverlayPanel, OverlayPanelModule} from 'primeng/overlaypanel';
+import {InputGroupAddon} from 'primeng/inputgroupaddon';
+import {InputGroup} from 'primeng/inputgroup';
 
-import { Chip } from 'primeng/chip';
-import { AccountWizardComponent } from './account-wizard/account-wizard.component';
-import { AccountExtended } from './account-extended.interface';
-import { Account } from '../../interfaces/account.interface';
+import {Chip} from 'primeng/chip';
+import {AccountWizardComponent} from './account-wizard/account-wizard.component';
+import {AccountExtended} from './account-extended.interface';
+import {Account} from '../../interfaces/account.interface';
 
 @Component({
     selector: 'app-accounts',
@@ -252,18 +251,16 @@ export class AccountsComponent implements OnInit {
         // Use custom filtering logic
         if (value) {
             const searchTerm = value.toLowerCase();
-            const filteredData = this.extendeds.filter(item => {
+            // Update the table's filtered value
+            table.value = this.extendeds.filter(item => {
                 const accountName = item.account?.name?.toLowerCase() || '';
                 const ownerName = item.owner?.name?.toLowerCase() || '';
                 const accountUrl = item.account?.url?.toLowerCase() || '';
-                
-                return accountName.includes(searchTerm) || 
-                       ownerName.includes(searchTerm) || 
-                       accountUrl.includes(searchTerm);
+
+                return accountName.includes(searchTerm) ||
+                    ownerName.includes(searchTerm) ||
+                    accountUrl.includes(searchTerm);
             });
-            
-            // Update the table's filtered value
-            table.value = filteredData;
         } else {
             // Reset to original data when search is empty
             table.value = this.extendeds;

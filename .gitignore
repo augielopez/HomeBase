@@ -25,6 +25,11 @@
 .env.test.local
 .env.production.local
 
+# Angular environment files
+src/environments/environment.ts
+src/environments/environment.prod.ts
+src/environments/environment.development.ts
+
 # IDE files
 .vscode/
 .idea/

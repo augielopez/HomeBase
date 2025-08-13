@@ -38,8 +38,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                     [(ngModel)]="selectedMonth"
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="Select Month"
-                    (onChange)="loadInsights()">
+                    placeholder="Select Month">
                 </p-dropdown>
                 <p-button 
                     icon="pi pi-refresh" 
@@ -170,7 +169,7 @@ export class FinancialInsightsComponent implements OnInit {
     ngOnInit() {
         this.initializeMonthOptions();
         this.initializeCharts();
-        this.loadInsights();
+        // this.loadInsights();
     }
 
     private initializeMonthOptions() {

@@ -22,6 +22,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { finalize, interval, take } from 'rxjs';
 import { CsvImportService } from '../service/csv-import.service';
 import { ReconciliationService } from '../service/reconciliation.service';
+import { AiCategorizationService } from '../service/ai-categorization.service';
 import { Bill } from '../../interfaces/bill.interface';
 
 @Component({
@@ -105,6 +106,25 @@ import { Bill } from '../../interfaces/bill.interface';
                         <div class="text-2xl font-bold text-red-600">{{ transactionStats.total_spent | currency }}</div>
                         <div class="text-sm text-red-500">Total Spent</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Selection Info -->
+            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg" *ngIf="hasSelectedTransactions()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-check-circle text-blue-600"></i>
+                        <span class="text-blue-800 font-medium">
+                            {{ getSelectedTransactions().length }} transaction(s) selected
+                        </span>
+                    </div>
+                    <p-button 
+                        label="Recategorize Selected" 
+                        icon="pi pi-tags"
+                        size="small"
+                        severity="primary"
+                        (onClick)="recategorizeSelected()">
+                    </p-button>
                 </div>
             </div>
 
@@ -471,6 +491,7 @@ export class TransactionsComponent implements OnInit {
         private messageService: MessageService,
         private csvImportService: CsvImportService,
         private reconciliationService: ReconciliationService,
+        private aiCategorizationService: AiCategorizationService,
     ) {}
 
     async ngOnInit() {
@@ -987,11 +1008,90 @@ export class TransactionsComponent implements OnInit {
         }
 
         console.log('Recategorizing transactions:', selectedTransactions);
-        // TODO: Implement recategorization dialog
+        
+        // Show loading message
         this.messageService.add({
             severity: 'info',
-            summary: 'Recategorization',
-            detail: `Ready to recategorize ${selectedTransactions.length} selected transaction(s)`
+            summary: 'Recategorization Started',
+            detail: `Processing ${selectedTransactions.length} selected transaction(s)...`
         });
+
+        // Call AI categorization service to recategorize selected transactions
+        this.aiCategorizationService.batchCategorize(selectedTransactions).subscribe({
+            next: (results: any[]) => {
+                // Process the categorization results
+                this.processCategorizationResults(selectedTransactions, results);
+            },
+            error: (error: any) => {
+                console.error('Error during batch categorization:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Recategorization Failed',
+                    detail: 'An error occurred while recategorizing transactions. Please try again.'
+                });
+            }
+        });
+    }
+
+    /**
+     * Process categorization results and update transactions
+     */
+    private async processCategorizationResults(transactions: any[], results: any[]) {
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Process each transaction result
+        for (let i = 0; i < transactions.length; i++) {
+            const transaction = transactions[i];
+            const result = results[i];
+
+            if (result && result.categoryId) {
+                try {
+                    // Update the transaction in the database
+                    const { error: updateError } = await this.supabaseService.getClient()
+                        .from('hb_transactions')
+                        .update({ 
+                            category_id: result.categoryId,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', transaction.id);
+
+                    if (updateError) {
+                        console.error('Error updating transaction:', updateError);
+                        errorCount++;
+                    } else {
+                        // Update the local transaction object
+                        transaction.category_id = result.categoryId;
+                        if (transaction.category) {
+                            transaction.category.id = result.categoryId;
+                        }
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error('Error updating transaction:', error);
+                    errorCount++;
+                }
+            } else {
+                errorCount++;
+            }
+        }
+
+        // Show results message
+        if (successCount > 0) {
+            this.messageService.add({
+                severity: 'success',
+                summary: 'Recategorization Complete',
+                detail: `Successfully recategorized ${successCount} transaction(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+            });
+
+            // Reload transactions to reflect the changes
+            this.loadTransactions();
+        } else {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'Recategorization Failed',
+                detail: `Failed to recategorize any transactions. Please try again.`
+            });
+        }
     }
 } 

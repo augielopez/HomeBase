@@ -38,6 +38,11 @@ export class AppMenu {
                         routerLink: ['/dashboard/pages/transactions']
                     },
                     {
+                        label: 'Money Flow',
+                        icon: 'pi pi-fw pi-sitemap',
+                        routerLink: ['/dashboard/pages/money-flow']
+                    },
+                    {
                         label: 'Reconciliation',
                         icon: 'pi pi-fw pi-chart-line',
                         routerLink: ['/dashboard/pages/reconciliation']

@@ -40,8 +40,8 @@ export class AiCategorizationService {
      */
     private async categorizeWithMultipleMethods(transaction: any): Promise<CategorizationResult> {
         // 1. Check if CSV provided category
-        if (transaction.category && transaction.category.trim()) {
-            const categoryId = await this.findOrCreateCategory(transaction.category);
+        if (transaction.category && transaction.category.name.trim()) {
+            const categoryId = await this.findOrCreateCategory(transaction.category.name);
             if (categoryId) {
                 return {
                     categoryId,
