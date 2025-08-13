@@ -1,0 +1,89 @@
+<div class="card">
+    <div class="flex align-items-center justify-content-between mb-5">
+        <div>
+            <span class="block text-900 font-bold text-5xl mb-2">Money Flow</span>
+            <span class="text-700 text-lg">Visual representation of your financial inflows, accounts, and outflows</span>
+        </div>
+    </div>
+
+    <div *ngIf="loading" class="loading-container">
+        <p-progressSpinner></p-progressSpinner>
+    </div>
+    
+    <p-toast></p-toast>
+    
+    <div class="grid" *ngIf="!loading">
+        <div class="col-12">
+            <div class="card">
+                <h5>Money Flow</h5>
+                <p style="font-size: 1rem; color: #4a5568; margin-top: 1rem;">
+                    <strong>This diagram shows where my money flows every month:</strong><br/>
+                    • <strong>Centene</strong> pays every two weeks<br/>
+                    • <strong>Orion</strong> pays on the <em>1st and 15th</em><br/>
+                    • <strong>SuitOne</strong> rent is deposited on the <em>1st of each month</em><br/>
+                    • <strong>Real Broker</strong> pays whenever a <em>transaction closes</em>
+                </p>
+                <div class="mermaid">{{ chart }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid mt-4">
+        <div class="col-12 md:col-6 lg:col-3">
+            <div class="card mb-0">
+                <div class="flex justify-content-between mb-3">
+                    <div>
+                        <span class="block text-500 font-medium mb-3">Income Sources</span>
+                        <div class="text-900 font-medium text-xl">4 Sources</div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-green-100 border-round" style="width:2.5rem;height:2.5rem">
+                        <i class="pi pi-dollar text-green-500 text-xl"></i>
+                    </div>
+                </div>
+                <span class="text-green-500 font-medium">Real Broker, Centene, SuitOne, Orion</span>
+            </div>
+        </div>
+        <div class="col-12 md:col-6 lg:col-3">
+            <div class="card mb-0">
+                <div class="flex justify-content-between mb-3">
+                    <div>
+                        <span class="block text-500 font-medium mb-3">Financial Accounts</span>
+                        <div class="text-900 font-medium text-xl">5 Accounts</div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-blue-100 border-round" style="width:2.5rem;height:2.5rem">
+                        <i class="pi pi-building text-blue-500 text-xl"></i>
+                    </div>
+                </div>
+                <span class="text-blue-500 font-medium">Fidelity, First Tech, Marcus</span>
+            </div>
+        </div>
+        <div class="col-12 md:col-6 lg:col-3">
+            <div class="card mb-0">
+                <div class="flex justify-content-between mb-3">
+                    <div>
+                        <span class="block text-500 font-medium mb-3">Expenses</span>
+                        <div class="text-900 font-medium text-xl">5 Categories</div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-red-100 border-round" style="width:2.5rem;height:2.5rem">
+                        <i class="pi pi-credit-card text-red-500 text-xl"></i>
+                    </div>
+                </div>
+                <span class="text-red-500 font-medium">Bills, Groceries, Gas, Credit Cards</span>
+            </div>
+        </div>
+        <div class="col-12 md:col-6 lg:col-3">
+            <div class="card mb-0">
+                <div class="flex justify-content-between mb-3">
+                    <div>
+                        <span class="block text-500 font-medium mb-3">Investments</span>
+                        <div class="text-900 font-medium text-xl">2 Platforms</div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-yellow-100 border-round" style="width:2.5rem;height:2.5rem">
+                        <i class="pi pi-chart-line text-yellow-500 text-xl"></i>
+                    </div>
+                </div>
+                <span class="text-yellow-500 font-medium">Vanguard, Coinbase</span>
+            </div>
+        </div>
+    </div>
+</div>
