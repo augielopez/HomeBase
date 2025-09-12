@@ -75,18 +75,23 @@ import { TransactionCategory, CategorizationRule } from '../../interfaces';
                             <td>{{ rule.priority }}</td>
                             <td>{{ rule.is_active ? 'Active' : 'Inactive' }}</td>
                             <td>
-                                <p-button 
-                                    icon="pi pi-pencil" 
-                                    size="small"
-                                    (onClick)="editRule(rule)">
-                                </p-button>
-                                <p-button 
-                                    icon="pi pi-trash" 
-                                    size="small"
-                                    severity="danger"
-                                    (onClick)="deleteRule(rule)">
-                                </p-button>
+                                <div class="flex items-center gap-2">
+                                    <p-button
+                                            icon="pi pi-pencil"
+                                            size="small"
+                                            (onClick)="editRule(rule)"
+                                            outlined="true">
+                                    </p-button>
+                                    <p-button
+                                            icon="pi pi-trash"
+                                            size="small"
+                                            severity="danger"
+                                            (onClick)="deleteRule(rule)"
+                                            outlined="true">
+                                    </p-button>
+                                </div>
                             </td>
+
                         </tr>
                     </ng-template>
                 </p-table>
@@ -138,7 +143,7 @@ import { TransactionCategory, CategorizationRule } from '../../interfaces';
 
             <ng-template pTemplate="footer">
                 <div class="flex justify-end gap-2">
-                    <p-button label="Cancel" (onClick)="cancelEdit()" severity="secondary" [outlined]="true"></p-button>
+                    <p-button label="Cancel" (onClick)="cancelEdit()" severity="secondary" outlined="true" ></p-button>
                     <p-button label="Save" (onClick)="saveRule()" [loading]="saving"></p-button>
                 </div>
             </ng-template>

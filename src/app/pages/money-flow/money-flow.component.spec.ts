@@ -20,3 +20,4 @@ describe('MoneyFlowComponent', () => {
     expect(component).toBeTruthy();
   });
 });
+

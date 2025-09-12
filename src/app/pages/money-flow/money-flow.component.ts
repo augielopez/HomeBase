@@ -13,7 +13,7 @@ import mermaid from 'mermaid';
 })
 export class MoneyFlowComponent implements AfterViewInit {
   loading = false;
-  chart = `
+chart = `
   graph TD
 
     %% --- Style Definitions ---
@@ -32,73 +32,63 @@ export class MoneyFlowComponent implements AfterViewInit {
     %% --- Bank Accounts (stacked) ---
     Fidelity["Fidelity 🏦"]
     MelissaFT["Melissa First Tech 🏦"]
-    AugieFT["Augie First Tech 🏦"]
-    NonMonthlyFT["Non-Monthly First Tech 🏦"]
     Marcus["Marcus 🏦"]
-    class Fidelity,MelissaFT,AugieFT,NonMonthlyFT,Marcus bank;
+    class Fidelity,MelissaFT,AugieFT,Marcus bank;
     
     %% --- Investment Node ---
     Vanguard["Vanguard 💹"]
     Coinbase["Coinbase 💹"]
     class Vanguard,Coinbase investment;
     
-     %% --- Add Credit Card node ---
+    %% --- Credit Card node ---
     USBankCC["US Bank CC 💳"]
 
     %% --- Expense Nodes ---
     Groceries["Groceries 🛒"]
     Gas["Gas ⛽"]
     Bills["Bills 🧾"]
-    NonMonthlyBills["Non Monthly Bills 🧾"]
-    class Groceries,Gas,Bills,NonMonthlyBills,USBankCC expense;
+    class Groceries,Gas,Bills,USBankCC expense;
 
     %% --- Connections from Income to Banks ---
     Orion --> |"$X"|Fidelity
     Orion --> |"1000"|MelissaFT
-    Orion -->|"250"|AugieFT
-    Orion --> |"$750"|NonMonthlyFT
     Centene --> Fidelity
     SuitOne --> Fidelity
     RealBroker --> Fidelity
     Fidelity --> |"$X"|USBankCC
     USBankCC --> |"$X"|Bills
 
-    %% --- Expense Connection ---
+    %% --- Expense Connections ---
     MelissaFT --> |"$600"|Groceries
     MelissaFT --> |"$400"|Gas
-    AugieFT --> |"$250"|Gas
     Fidelity --> |"$X"|Bills
     Fidelity --> |"$1000"|Marcus
-    NonMonthlyFT --> |"$X"|NonMonthlyBills
     
-    %% --- Investment Connection ---
+    %% --- Investment Connections ---
     Marcus --> |"$400"|Vanguard
     Marcus --> |"$400"|Coinbase
     
     %% --- Clickable Nodes ---
-    click Bills "http://localhost:4200/#/apps/bills" _blank
-    click NonMonthlyBills "http://localhost:4200/#/apps/bills" _blank
-    click Fidelity "https://fidelity.com" _blank
-    click MelissaFT "https://banking.firsttechfed.com/Authentication" _blank
-    click AugieFT "https://banking.firsttechfed.com/Authentication" _blank
-    click NonMonthlyFT "https://banking.firsttechfed.com/Authentication" _blank
-    click Marcus "https://www.marcus.com/us/en/login" _blank
-    click USBankCC "https://www.usbank.com/index.html" _blank
-    click Vanguard "https://logon.vanguard.com/logon" _blank
-    click Coinbase "https://login.coinbase.com/signin?client_id=258660e1-9cfe-4202-9eda-d3beedb3e118&oauth_challenge=e466ae8c-54ac-4b0b-ac50-32cb3b9eeabf" _blank
-    click SuitOne "https://sayland.appfolio.com/connect/users/sign_in?a=cw&utm_source=apmsites_v3&utm_campaign=tportal_login" _blank
+    click Bills href "http://localhost:4200/#/apps/bills" "Open Bills" _blank
+    click Fidelity href "https://fidelity.com" "Open Fidelity" _blank
+    click MelissaFT href "https://banking.firsttechfed.com/Authentication" "Open First Tech (Melissa)" _blank
+    click AugieFT href "https://banking.firsttechfed.com/Authentication" "Open First Tech (Augie)" _blank
+    click Marcus href "https://www.marcus.com/us/en/login" "Open Marcus" _blank
+    click USBankCC href "https://www.usbank.com/index.html" "Open US Bank CC" _blank
+    click Vanguard href "https://logon.vanguard.com/logon" "Open Vanguard" _blank
+    click Coinbase href "https://login.coinbase.com/signin" "Open Coinbase" _blank
+    click SuitOne href "https://sayland.appfolio.com/connect/users/sign_in" "Open SuitOne" _blank
       
     %% --- Layout: Force income sources in left-to-right order ---
     RealBroker --> Centene
     Centene --> SuitOne
     SuitOne --> Orion
     
-    %% Hide layout lines visually
-    linkStyle 17 stroke:transparent
-    linkStyle 18 stroke:transparent
-    linkStyle 19 stroke:transparent
-
-`;
+    %% Hide layout line visually (adjust index if needed)
+    linkStyle 13 stroke:transparent
+    linkStyle 14 stroke:transparent
+    linkStyle 15 stroke:transparent
+  `
 
   ngAfterViewInit(): void {
     mermaid.initialize({ 
@@ -107,7 +97,9 @@ export class MoneyFlowComponent implements AfterViewInit {
       flowchart: {
         useMaxWidth: true,
         htmlLabels: true,
-        curve: 'basis'
+        curve: 'basis',
+        nodeSpacing: 150,   // more horizontal space between nodes
+        rankSpacing: 100   // more vertical space between layers
       }
     });
     mermaid.contentLoaded();

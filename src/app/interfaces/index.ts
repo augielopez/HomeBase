@@ -5,4 +5,5 @@ export * from './payment-type.interface';
 export * from './priority-type.interface';
 export * from './transaction-category.interface';
 export * from './transaction.interface';
-export * from './bill.interface'; 
+export * from './bill.interface';
+export * from './error-log.interface'; 

@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { Transaction, BankAccount, CsvImport, TransactionCategory } from '../../interfaces';
 import { Observable, from, map, switchMap, forkJoin, catchError } from 'rxjs';
 import { AiCategorizationService, CategorizationResult } from './ai-categorization.service';
+import { ErrorLogService } from './error-log.service';
 
 export interface CsvTransaction {
     date: string;
@@ -131,12 +132,27 @@ export class CsvImportService {
             },
             dateFormat: 'MM/dd/yyyy',
             amountFormat: 'positive_negative'
+        },
+        {
+            name: 'Augie Export Format',
+            patterns: ['augie', 'export'],
+            fieldMapping: {
+                date: 'Transaction ID',
+                description: 'Transaction ID',
+                amount: 'Transaction ID',
+                merchant: 'Transaction ID',
+                category: 'Transaction Category',
+                account: 'Transaction ID'
+            },
+            dateFormat: 'YYYYMMDD',
+            amountFormat: 'positive_negative'
         }
     ];
 
     constructor(
         private supabaseService: SupabaseService,
-        private aiCategorizationService: AiCategorizationService
+        private aiCategorizationService: AiCategorizationService,
+        private errorLogService: ErrorLogService
     ) {}
 
     /**
@@ -289,6 +305,26 @@ export class CsvImportService {
                 });
             }
 
+            // Special handling for Augie Export Format - parse concatenated Transaction ID
+            if (schema.name === 'Augie Export Format' && dateStr) {
+                const parsedData = this.parseAugieTransactionId(dateStr);
+                if (parsedData) {
+                    console.log('Augie transaction parsing:', {
+                        originalTransactionId: dateStr,
+                        parsedData
+                    });
+                    
+                    return {
+                        date: parsedData.date,
+                        description: `Transaction ${parsedData.referenceNumber}`,
+                        amount: parsedData.amount,
+                        merchant: `Transaction ${parsedData.referenceNumber}`,
+                        category: category.trim() || undefined,
+                        account: 'Augie Account'
+                    };
+                }
+            }
+
             if (!dateStr || !description || !amountStr) {
                 console.log('Missing required fields:', { dateStr, description, amountStr });
                 return null;
@@ -312,6 +348,57 @@ export class CsvImportService {
             };
         } catch (error) {
             console.error('Error normalizing transaction:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Parse Augie Export Format Transaction ID
+     * Format: YYYYMMDD 2787083 2,500 202,509,035,305
+     */
+    private parseAugieTransactionId(transactionId: string): { date: string; referenceNumber: string; amount: number } | null {
+        try {
+            const parts = transactionId.trim().split(' ');
+            if (parts.length < 4) {
+                console.log('Invalid Augie transaction ID format:', transactionId);
+                return null;
+            }
+
+            const dateStr = parts[0]; // YYYYMMDD
+            const referenceNumber = parts[1]; // 2787083
+            const amountStr = parts[2]; // 2,500
+            // parts[3] is the long reference number (202,509,035,305)
+
+            // Parse date from YYYYMMDD format
+            if (dateStr.length !== 8 || !/^\d{8}$/.test(dateStr)) {
+                console.log('Invalid date format in Augie transaction ID:', dateStr);
+                return null;
+            }
+
+            const year = parseInt(dateStr.substring(0, 4));
+            const month = parseInt(dateStr.substring(4, 6)) - 1; // JavaScript months are 0-based
+            const day = parseInt(dateStr.substring(6, 8));
+            const date = new Date(year, month, day);
+
+            if (isNaN(date.getTime())) {
+                console.log('Invalid date:', dateStr);
+                return null;
+            }
+
+            // Parse amount (remove commas and convert to number)
+            const amount = parseFloat(amountStr.replace(/,/g, ''));
+            if (isNaN(amount)) {
+                console.log('Invalid amount:', amountStr);
+                return null;
+            }
+
+            return {
+                date: date.toISOString().split('T')[0], // YYYY-MM-DD format
+                referenceNumber,
+                amount
+            };
+        } catch (error) {
+            console.error('Error parsing Augie transaction ID:', error);
             return null;
         }
     }
@@ -422,6 +509,7 @@ export class CsvImportService {
      */
     private async processTransactions(transactions: CsvTransaction[], importId: string, bankSource: string, filename?: string): Promise<CsvImport> {
         const supabase = this.supabaseService.getClient();
+        const startTime = Date.now();
         let importedCount = 0;
         let failedCount = 0;
         const errors: string[] = [];
@@ -474,6 +562,27 @@ export class CsvImportService {
                             console.error('Error inserting transaction:', error);
                             failedCount++;
                             errors.push(`Transaction ${csvTransaction.description}: ${error.message}`);
+                            
+                            // Log the error to the error log table
+                            await this.errorLogService.logErrorAsync({
+                                error_type: 'csv_import',
+                                error_category: 'error',
+                                error_code: error.code,
+                                error_message: `Failed to insert transaction: ${error.message}`,
+                                error_stack: error.stack || undefined,
+                                operation: 'csv_import',
+                                component: 'csv-import.service',
+                                function_name: 'processTransactions',
+                                error_data: {
+                                    csvTransaction,
+                                    transaction,
+                                    rowIndex: j,
+                                    batchIndex: i
+                                },
+                                file_name: filename,
+                                row_number: (i * batchSize) + j + 1, // Convert to 1-based row number
+                                batch_id: importId
+                            });
                         } else {
                             importedCount++;
                             
@@ -485,32 +594,85 @@ export class CsvImportService {
                                 }
                             }
                         }
-                    } catch (error) {
+                    } catch (error: any) {
                         console.error('Error processing transaction:', error);
                         failedCount++;
-                        errors.push(`Transaction ${csvTransaction.description}: ${error}`);
+                        errors.push(`Transaction ${csvTransaction.description}: ${error.message || error}`);
+                        
+                        // Log the error to the error log table
+                        await this.errorLogService.logErrorAsync({
+                            error_type: 'csv_import',
+                            error_category: 'error',
+                            error_code: error.code,
+                            error_message: `Error processing transaction: ${error.message || error}`,
+                            error_stack: error.stack,
+                            operation: 'csv_import',
+                            component: 'csv-import.service',
+                            function_name: 'processTransactions',
+                            error_data: {
+                                csvTransaction,
+                                rowIndex: j,
+                                batchIndex: i,
+                                originalError: error
+                            },
+                            file_name: filename,
+                            row_number: (i * batchSize) + j + 1,
+                            batch_id: importId
+                        });
                     }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error processing batch:', error);
                 failedCount += batch.length;
-                errors.push(`Batch processing error: ${error}`);
+                errors.push(`Batch processing error: ${error.message || error}`);
+                
+                // Log the batch error to the error log table
+                await this.errorLogService.logErrorAsync({
+                    error_type: 'csv_import',
+                    error_category: 'error',
+                    error_code: error.code,
+                    error_message: `Batch processing error: ${error.message || error}`,
+                    error_stack: error.stack,
+                    operation: 'csv_import',
+                    component: 'csv-import.service',
+                    function_name: 'processTransactions',
+                    error_data: {
+                        batch,
+                        batchIndex: i,
+                        batchSize: batch.length,
+                        originalError: error
+                    },
+                    file_name: filename,
+                    batch_id: importId
+                });
             }
         }
 
         // Update import record
-        const { data: updatedImport } = await supabase
+        const { data: updatedImport, error: updateError } = await supabase
             .from('hb_csv_imports')
             .update({
                 imported_rows: importedCount,
                 failed_rows: failedCount,
                 status: failedCount === 0 ? 'completed' : 'completed_with_errors',
                 error_message: errors.length > 0 ? errors.join('; ') : null,
-                processing_time_ms: Date.now() - new Date().getTime()
+                processing_time_ms: Date.now() - startTime
             })
             .eq('id', importId)
             .select()
             .single();
+
+        if (updateError || !updatedImport) {
+            console.error('Error updating import record:', updateError);
+            // Return a fallback object with the counts
+            return {
+                id: importId,
+                imported_rows: importedCount,
+                failed_rows: failedCount,
+                status: failedCount === 0 ? 'completed' : 'completed_with_errors',
+                error_message: errors.length > 0 ? errors.join('; ') : null
+            } as CsvImport;
+        }
 
         return updatedImport;
     }

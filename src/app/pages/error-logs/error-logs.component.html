@@ -1,0 +1,276 @@
+<div class="card">
+    <div class="flex justify-content-between align-items-center mb-4">
+        <h1>Error Logs</h1>
+        <div class="flex gap-2">
+            <p-button 
+                label="Refresh" 
+                icon="pi pi-refresh" 
+                (onClick)="loadErrorLogs()"
+                [loading]="loading">
+            </p-button>
+            <p-button 
+                label="Export CSV" 
+                icon="pi pi-download" 
+                (onClick)="exportErrorLogs()"
+                severity="secondary">
+            </p-button>
+        </div>
+    </div>
+
+    <!-- Error Statistics -->
+    <div class="grid mb-4" *ngIf="errorStats">
+        <div class="col-12 md:col-3">
+            <div class="surface-card border-round p-3">
+                <div class="text-900 font-medium mb-2">Total Errors</div>
+                <div class="text-900 text-2xl font-bold">{{ errorStats.total_errors }}</div>
+            </div>
+        </div>
+        <div class="col-12 md:col-3">
+            <div class="surface-card border-round p-3">
+                <div class="text-900 font-medium mb-2">Unresolved</div>
+                <div class="text-900 text-2xl font-bold text-red-500">{{ errorStats.unresolved_count }}</div>
+            </div>
+        </div>
+        <div class="col-12 md:col-3">
+            <div class="surface-card border-round p-3">
+                <div class="text-900 font-medium mb-2">Critical</div>
+                        <div class="text-900 text-2xl font-bold text-red-600">{{ errorStats.errors_by_severity?.['critical'] || 0 }}</div>
+            </div>
+        </div>
+        <div class="col-12 md:col-3">
+            <div class="surface-card border-round p-3">
+                <div class="text-900 font-medium mb-2">CSV Import Errors</div>
+                        <div class="text-900 text-2xl font-bold text-orange-500">{{ errorStats.errors_by_type?.['csv_import'] || 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="surface-card border-round p-4 mb-4">
+        <h3 class="text-900 font-medium mb-3">Filters</h3>
+        <div class="grid">
+            <div class="col-12 md:col-3">
+                <label for="errorType" class="block text-900 font-medium mb-2">Error Type</label>
+                <p-dropdown 
+                    id="errorType"
+                    [(ngModel)]="filters.error_type"
+                    [options]="errorTypes"
+                    placeholder="All Types"
+                    [showClear]="true"
+                    class="w-full">
+                </p-dropdown>
+            </div>
+            <div class="col-12 md:col-3">
+                <label for="errorCategory" class="block text-900 font-medium mb-2">Category</label>
+                <p-dropdown 
+                    id="errorCategory"
+                    [(ngModel)]="filters.error_category"
+                    [options]="errorCategories"
+                    placeholder="All Categories"
+                    [showClear]="true"
+                    class="w-full">
+                </p-dropdown>
+            </div>
+            <div class="col-12 md:col-3">
+                <label for="severity" class="block text-900 font-medium mb-2">Severity</label>
+                <p-dropdown 
+                    id="severity"
+                    [(ngModel)]="filters.severity"
+                    [options]="errorSeverities"
+                    placeholder="All Severities"
+                    [showClear]="true"
+                    class="w-full">
+                </p-dropdown>
+            </div>
+            <div class="col-12 md:col-3">
+                <label for="resolved" class="block text-900 font-medium mb-2">Status</label>
+                <p-dropdown 
+                    id="resolved"
+                    [(ngModel)]="filters.resolved"
+                    [options]="[{label: 'All', value: undefined}, {label: 'Resolved', value: true}, {label: 'Unresolved', value: false}]"
+                    placeholder="All Statuses"
+                    class="w-full">
+                </p-dropdown>
+            </div>
+        </div>
+        <div class="flex gap-2 mt-3">
+            <p-button 
+                label="Apply Filters" 
+                icon="pi pi-filter" 
+                (onClick)="applyFilters()">
+            </p-button>
+            <p-button 
+                label="Clear Filters" 
+                icon="pi pi-times" 
+                (onClick)="clearFilters()"
+                severity="secondary">
+            </p-button>
+        </div>
+    </div>
+
+    <!-- Error Logs Table -->
+    <div class="surface-card border-round">
+        <p-table 
+            [value]="errorLogs" 
+            [loading]="loading"
+            [paginator]="true" 
+            [rows]="20"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+            [tableStyle]="{'min-width': '50rem'}">
+            
+            <ng-template pTemplate="header">
+                <tr>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Severity</th>
+                    <th>Message</th>
+                    <th>Component</th>
+                    <th>File</th>
+                    <th>Row</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </ng-template>
+            
+            <ng-template pTemplate="body" let-error>
+                <tr>
+                    <td>{{ formatDate(error.created_at) }}</td>
+                    <td>
+                        <span class="inline-flex align-items-center px-2 py-1 border-round text-xs font-medium"
+                              [style.background-color]="getCategoryColor(error.error_category) + '20'"
+                              [style.color]="getCategoryColor(error.error_category)">
+                            {{ error.error_type }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="inline-flex align-items-center px-2 py-1 border-round text-xs font-medium"
+                              [style.background-color]="getSeverityColor(error.severity) + '20'"
+                              [style.color]="getSeverityColor(error.severity)">
+                            {{ error.severity }}
+                        </span>
+                    </td>
+                    <td>
+                        <span [title]="error.error_message">
+                            {{ truncateText(error.error_message, 80) }}
+                        </span>
+                    </td>
+                    <td>{{ error.component || '-' }}</td>
+                    <td>{{ error.file_name || '-' }}</td>
+                    <td>{{ error.row_number || '-' }}</td>
+                    <td>
+                        <span *ngIf="error.resolved" class="text-green-600 font-medium">Resolved</span>
+                        <span *ngIf="!error.resolved" class="text-red-600 font-medium">Unresolved</span>
+                    </td>
+                    <td>
+                        <div class="flex gap-1">
+                            <p-button 
+                                icon="pi pi-eye" 
+                                size="small"
+                                severity="secondary"
+                                [text]="true"
+                                (onClick)="viewErrorDetails(error)"
+                                pTooltip="View Details">
+                            </p-button>
+                            <p-button 
+                                *ngIf="!error.resolved"
+                                icon="pi pi-check" 
+                                size="small"
+                                severity="success"
+                                [text]="true"
+                                (onClick)="markAsResolved(error)"
+                                pTooltip="Mark as Resolved">
+                            </p-button>
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </div>
+</div>
+
+<!-- Error Details Dialog -->
+<p-dialog 
+    header="Error Details" 
+    [(visible)]="showErrorDetails"
+    [modal]="true" 
+    [style]="{width: '80vw', maxWidth: '800px'}"
+    (onHide)="closeErrorDetails()">
+    
+    <div *ngIf="selectedError" class="grid">
+        <div class="col-12">
+            <div class="surface-card border-round p-4 mb-3">
+                <h4 class="text-900 font-medium mb-3">Error Information</h4>
+                <div class="grid">
+                    <div class="col-12 md:col-6">
+                        <strong>Error Type:</strong> {{ selectedError.error_type }}
+                    </div>
+                    <div class="col-12 md:col-6">
+                        <strong>Category:</strong> {{ selectedError.error_category }}
+                    </div>
+                    <div class="col-12 md:col-6">
+                        <strong>Severity:</strong> {{ selectedError.severity }}
+                    </div>
+                    <div class="col-12 md:col-6">
+                        <strong>Status:</strong> 
+                        <span *ngIf="selectedError.resolved" class="text-green-600 font-medium">Resolved</span>
+                        <span *ngIf="!selectedError.resolved" class="text-red-600 font-medium">Unresolved</span>
+                    </div>
+                    <div class="col-12 md:col-6">
+                        <strong>Created:</strong> {{ formatDate(selectedError.created_at) }}
+                    </div>
+                    <div class="col-12 md:col-6">
+                        <strong>Component:</strong> {{ selectedError.component || '-' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12">
+            <div class="surface-card border-round p-4 mb-3">
+                <h4 class="text-900 font-medium mb-3">Error Message</h4>
+                <div class="p-3 bg-red-50 border-round text-red-800">
+                    {{ selectedError.error_message }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12" *ngIf="selectedError.error_data">
+            <div class="surface-card border-round p-4 mb-3">
+                <h4 class="text-900 font-medium mb-3">Error Data</h4>
+                <pre class="p-3 bg-gray-50 border-round text-sm overflow-auto" style="max-height: 300px;">{{ selectedError.error_data | json }}</pre>
+            </div>
+        </div>
+        
+        <div class="col-12" *ngIf="selectedError.error_stack">
+            <div class="surface-card border-round p-4 mb-3">
+                <h4 class="text-900 font-medium mb-3">Stack Trace</h4>
+                <pre class="p-3 bg-gray-50 border-round text-xs overflow-auto" style="max-height: 300px;">{{ selectedError.error_stack }}</pre>
+            </div>
+        </div>
+        
+        <div class="col-12" *ngIf="selectedError.resolution_notes">
+            <div class="surface-card border-round p-4 mb-3">
+                <h4 class="text-900 font-medium mb-3">Resolution Notes</h4>
+                <div class="p-3 bg-green-50 border-round text-green-800">
+                    {{ selectedError.resolution_notes }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+        <p-button 
+            label="Close" 
+            icon="pi pi-times" 
+            (onClick)="closeErrorDetails()"
+            severity="secondary">
+        </p-button>
+        <p-button 
+            *ngIf="selectedError && !selectedError.resolved"
+            label="Mark as Resolved" 
+            icon="pi pi-check" 
+            (onClick)="markAsResolved(selectedError!)">
+        </p-button>
+    </ng-template>
+</p-dialog>

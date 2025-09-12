@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { Transaction, TransactionCategory } from '../../interfaces';
 import { Observable, from, map, switchMap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ErrorLogService } from './error-log.service';
 
 export interface CategorizationResult {
     categoryId: string | null;
@@ -26,7 +27,10 @@ export class AiCategorizationService {
     private readonly SIMILARITY_THRESHOLD = 0.8;
     private readonly MAX_SIMILAR_RESULTS = 5;
 
-    constructor(private supabaseService: SupabaseService) {}
+    constructor(
+        private supabaseService: SupabaseService,
+        private errorLogService: ErrorLogService
+    ) {}
 
     /**
      * Categorize a transaction using multiple methods
@@ -40,14 +44,19 @@ export class AiCategorizationService {
      */
     private async categorizeWithMultipleMethods(transaction: any): Promise<CategorizationResult> {
         // 1. Check if CSV provided category
-        if (transaction.category && transaction.category.name.trim()) {
-            const categoryId = await this.findOrCreateCategory(transaction.category.name);
-            if (categoryId) {
-                return {
-                    categoryId,
-                    confidence: 1.0,
-                    method: 'csv'
-                };
+        if (transaction.category && typeof transaction.category === 'string' && transaction.category.trim()) {
+            try {
+                const categoryId = await this.findOrCreateCategory(transaction.category);
+                if (categoryId) {
+                    return {
+                        categoryId,
+                        confidence: 1.0,
+                        method: 'csv'
+                    };
+                }
+            } catch (error) {
+                console.error('Error processing CSV category:', error);
+                // Continue to other categorization methods if CSV category fails
             }
         }
 
@@ -314,7 +323,7 @@ Please respond with only the category name from the list above.`;
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4.1-nano',
+                    model: 'gpt-3.5-turbo',
                     messages: [{ role: 'user', content: prompt }],
                     max_tokens: 50,
                     temperature: 0.1
@@ -328,10 +337,19 @@ Please respond with only the category name from the list above.`;
             const data = await response.json();
             return data.choices[0]?.message?.content?.trim() || null;
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error calling OpenAI:', error);
-            // Re-throw the error so it can be caught by the calling method
-            throw error;
+            
+            // Handle specific error types
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                throw new Error('Network error: Unable to connect to OpenAI API');
+            } else if (error.message.includes('401')) {
+                throw new Error('OpenAI API key is invalid or expired');
+            } else if (error.message.includes('429')) {
+                throw new Error('OpenAI API rate limit exceeded');
+            } else {
+                throw error;
+            }
         }
     }
 
@@ -349,34 +367,133 @@ Please respond with only the category name from the list above.`;
     private async findOrCreateCategory(categoryName: string): Promise<string | null> {
         const normalizedName = this.normalizeCategoryName(categoryName);
         
-        // First, try to find existing category
-        const { data: existingCategory } = await this.supabaseService.getClient()
-            .from('hb_transaction_categories')
-            .select('id')
-            .ilike('name', normalizedName)
-            .single();
+        try {
+            // First, try to find existing category
+            const { data: existingCategory, error: selectError } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id')
+                .ilike('name', normalizedName)
+                .single();
 
-        if (existingCategory) {
-            return existingCategory.id;
-        }
+            if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
+                console.error('Error finding category:', selectError);
+            }
 
-        // Create new category if not found
-        const { data: newCategory, error } = await this.supabaseService.getClient()
-            .from('hb_transaction_categories')
-            .insert({
-                name: normalizedName,
-                description: `Auto-created from CSV import: ${categoryName}`,
-                created_by: 'SYSTEM'
-            })
-            .select('id')
-            .single();
+            if (existingCategory) {
+                return existingCategory.id;
+            }
 
-        if (error) {
-            console.error('Error creating category:', error);
+            // Create new category if not found
+            const { data: newCategory, error: insertError } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .insert({
+                    name: normalizedName,
+                    description: `Auto-created from CSV import: ${categoryName}`,
+                    created_by: 'SYSTEM'
+                })
+                .select('id')
+                .single();
+
+            if (insertError) {
+                console.error('Error creating category:', insertError);
+                
+                // Log the error to the error log table
+                await this.errorLogService.logErrorAsync({
+                    error_type: 'category_management',
+                    error_category: insertError.code === '42501' ? 'critical' : 'error',
+                    error_code: insertError.code,
+                    error_message: `Failed to create category: ${insertError.message}`,
+                    error_stack: insertError.stack || undefined,
+                    operation: 'category_creation',
+                    component: 'ai-categorization.service',
+                    function_name: 'findOrCreateCategory',
+                    error_data: {
+                        categoryName: normalizedName,
+                        originalCategoryName: categoryName,
+                        insertError
+                    }
+                });
+                
+                // If we can't create a new category due to RLS policy, try to find a similar existing category
+                if (insertError.code === '42501' || insertError.message.includes('row-level security')) {
+                    console.log('RLS policy violation - trying to find similar existing category');
+                    return await this.findSimilarCategory(normalizedName);
+                }
+                
+                return null;
+            }
+
+            return newCategory?.id || null;
+        } catch (error: any) {
+            console.error('Unexpected error in findOrCreateCategory:', error);
+            
+            // Log the error to the error log table
+            await this.errorLogService.logErrorAsync({
+                error_type: 'category_management',
+                error_category: 'error',
+                error_code: error.code,
+                error_message: `Unexpected error in findOrCreateCategory: ${error.message || error}`,
+                error_stack: error.stack,
+                operation: 'category_creation',
+                component: 'ai-categorization.service',
+                function_name: 'findOrCreateCategory',
+                error_data: {
+                    categoryName: normalizedName,
+                    originalCategoryName: categoryName,
+                    originalError: error
+                }
+            });
+            
             return null;
         }
+    }
 
-        return newCategory?.id || null;
+    /**
+     * Find a similar existing category when we can't create a new one
+     */
+    private async findSimilarCategory(categoryName: string): Promise<string | null> {
+        try {
+            // Try to find a category that contains the normalized name or vice versa
+            const { data: similarCategories } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id, name')
+                .or(`name.ilike.%${categoryName}%,name.ilike.${categoryName}%`)
+                .limit(1);
+
+            if (similarCategories && similarCategories.length > 0) {
+                console.log(`Found similar category: ${similarCategories[0].name} for ${categoryName}`);
+                return similarCategories[0].id;
+            }
+
+            // If no similar category found, try to get a default "Other" category
+            const { data: defaultCategory } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id')
+                .ilike('name', 'Other')
+                .single();
+
+            if (defaultCategory) {
+                console.log(`Using default "Other" category for ${categoryName}`);
+                return defaultCategory.id;
+            }
+
+            // If no "Other" category exists, get the first available category
+            const { data: anyCategory } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id')
+                .limit(1)
+                .single();
+
+            if (anyCategory) {
+                console.log(`Using fallback category for ${categoryName}`);
+                return anyCategory.id;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error finding similar category:', error);
+            return null;
+        }
     }
 
     /**
