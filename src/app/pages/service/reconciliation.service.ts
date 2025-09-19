@@ -52,17 +52,38 @@ export class ReconciliationService {
      */
     async getUnmatchedBills(year: number, month: number): Promise<any[]> {
         try {
-            // Use the specific query you provided
+            // Calculate start and end dates for the month
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0);
+            
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+
+            // First get all bill IDs that have transactions in the selected month
+            const { data: matchedBillIds, error: matchedError } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .select('bill_id')
+                .not('bill_id', 'is', null)
+                .gte('date', startDateStr)
+                .lte('date', endDateStr);
+
+            if (matchedError) {
+                console.error('Error fetching matched bill IDs:', matchedError);
+                throw matchedError;
+            }
+
+            const matchedIds = (matchedBillIds || []).map((t: any) => t.bill_id);
+
+            // Then get bills that are NOT in the matched list
             const { data: bills, error } = await this.supabaseService.getClient()
                 .from('hb_accounts')
                 .select(`
                     id,
                     name,
-                    bill:hb_bills!inner(
-                        *
-                    )
+                    bill:hb_bills!inner(*)
                 `)
                 .eq('bill.status', 'Active')
+                .not('bill.id', 'in', `(${matchedIds.join(',')})`)
                 .order('name', { ascending: true });
 
             if (error) {
@@ -70,7 +91,7 @@ export class ReconciliationService {
                 throw error;
             }
 
-            return bills;
+            return bills || [];
         } catch (error) {
             console.error('Error in getUnmatchedBills:', error);
             throw error;
@@ -89,28 +110,24 @@ export class ReconciliationService {
             const startDateStr = startDate.toISOString().split('T')[0];
             const endDateStr = endDate.toISOString().split('T')[0];
 
-            // Get user ID
-            const userId = await this.supabaseService.getCurrentUserId();
+            // Use account type strings directly (same as unreconciled)
+            const accountIds = ['CHECKING', 'Credit Card'];
 
-            // Query transactions that have a bill_id (matched)
+            // Query matched transactions with proper joins
             const { data: transactions, error } = await this.supabaseService.getClient()
                 .from('hb_transactions')
                 .select(`
                     *,
-                    category:hb_transaction_categories(*),
-                    account:hb_plaid_accounts!account_id(
-                        id,
-                        name,
-                        type,
-                        subtype
-                    ),
-                    bill:hb_bills!bill_id(
+                    bill:hb_bills!inner(
                         *,
-                        bill_type:hb_bill_types(*)
+                        account:hb_accounts!inner(
+                            id,
+                            name
+                        )
                     )
                 `)
-                .eq('user_id', userId)
                 .not('bill_id', 'is', null) // Has a bill_id (matched)
+                .in('account_id', accountIds) // Filter by transaction's account_id
                 .gte('date', startDateStr)
                 .lte('date', endDateStr)
                 .order('date', { ascending: false });

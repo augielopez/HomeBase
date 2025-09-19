@@ -96,7 +96,9 @@
                         
                         <div class="search-container">
                             <p-inputgroup>
-                                <input pInputText placeholder="Search Transactions" />
+                                <input pInputText 
+                                       placeholder="Search Transactions" 
+                                       [(ngModel)]="transactionSearchTerm" />
                                 <p-inputgroup-addon>
                                     <p-button icon="pi pi-search" severity="secondary" variant="text" />
                                 </p-inputgroup-addon>
@@ -107,7 +109,7 @@
                             <div *ngIf="loadingTransactions" class="loading-message">
                                 Loading transactions...
                             </div>
-                            <div *ngFor="let transaction of transactions" 
+                            <div *ngFor="let transaction of filteredTransactions" 
                                  class="transaction-item" 
                                  [class.selected]="isTransactionSelected(transaction)"
                                  (click)="onTransactionSelect(transaction)">
@@ -123,10 +125,22 @@
                                          [class.refund]="transaction.isRefund">{{ transaction.description }}</div>
                                     <div *ngIf="transaction.subtext" class="transaction-subtext">{{ transaction.subtext }}</div>
                                 </div>
-                                <div class="transaction-amount" 
+                                <div class="transaction-amount"
                                      [class.positive]="transaction.type === 'positive'"
                                      [class.negative]="transaction.type === 'negative'">{{ transaction.amount }}</div>
                             </div>
+                        </div>
+                        
+                        <!-- Transaction Pagination -->
+                        <div *ngIf="!loadingTransactions && totalFilteredTransactions > itemsPerPage" class="pagination-container">
+                            <p-paginator 
+                                [rows]="itemsPerPage" 
+                                [totalRecords]="totalFilteredTransactions"
+                                [first]="(currentTransactionPage - 1) * itemsPerPage"
+                                (onPageChange)="onTransactionPageChange($event)"
+                                [showCurrentPageReport]="true"
+                                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} transactions">
+                            </p-paginator>
                         </div>
                     </div>
 
@@ -141,7 +155,9 @@
                         
                         <div class="search-container">
                             <p-inputgroup>
-                                <input pInputText placeholder="Search Bills" />
+                                <input pInputText 
+                                       placeholder="Search Bills" 
+                                       [(ngModel)]="billSearchTerm" />
                                 <p-inputgroup-addon>
                                     <p-button icon="pi pi-search" severity="secondary" variant="text" />
                                 </p-inputgroup-addon>
@@ -152,7 +168,7 @@
                             <div *ngIf="loadingBills" class="loading-message">
                                 Loading bills...
                             </div>
-                            <div *ngFor="let bill of bills" 
+                            <div *ngFor="let bill of filteredBills" 
                                  class="bill-item" 
                                  [class.selected]="isBillSelected(bill)"
                                  (click)="onBillSelect(bill)">
@@ -173,6 +189,18 @@
                                 <div class="bill-amount">{{ bill.amount }}</div>
                             </div>
                         </div>
+                        
+                        <!-- Bill Pagination -->
+                        <div *ngIf="!loadingBills && totalFilteredBills > itemsPerPage" class="pagination-container">
+                            <p-paginator 
+                                [rows]="itemsPerPage" 
+                                [totalRecords]="totalFilteredBills"
+                                [first]="(currentBillPage - 1) * itemsPerPage"
+                                (onPageChange)="onBillPageChange($event)"
+                                [showCurrentPageReport]="true"
+                                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} bills">
+                            </p-paginator>
+                        </div>
                     </div>
                 </div>
             </p-tabpanel>
@@ -181,10 +209,10 @@
                 <div class="matched-content">
                     <div class="flex justify-between items-center mb-4">
                         <div class="panel-header">
-                            <h3 class="panel-title-with-badge">                                         
-                                <span>All Matches</span>
-                                <p-badge value="2" />
-                            </h3>
+                        <h3 class="panel-title-with-badge">
+                            <span>All Matches</span>
+                            <p-badge [value]="matchedCount" />
+                        </h3>
                         </div>
                         <div class="flex items-center gap-2">
                             <p-inputgroup>
@@ -201,22 +229,20 @@
                              [loading]="loadingMatched"
                              [tableStyle]="{'min-width': '75rem'}" 
                              responsiveLayout="scroll">
-                        <ng-template #header>
-                            <tr>
-                                <th style="width: 8rem">Date</th>
-                                <th style="width: 20rem">Transaction</th>
-                                <th style="width: 8rem">Amount</th>
-                                <th style="width: 8rem">Date</th>
-                                <th style="width: 20rem">Bill Name</th>
-                                <th style="width: 8rem">Amount</th>
-                            </tr>
-                        </ng-template>
+                   <ng-template #header>
+                       <tr>
+                           <th style="width: 8rem">Date</th>
+                           <th style="width: 20rem">Transaction</th>
+                           <th style="width: 8rem">Transaction Amount</th>
+                           <th style="width: 20rem">Bill Name</th>
+                           <th style="width: 8rem">Bill Amount</th>
+                       </tr>
+                   </ng-template>
                         <ng-template #body let-matched>
                             <tr>
                                 <td>{{ matched.transactionDate }}</td>
                                 <td>{{ matched.transactionDescription }}</td>
                                 <td>{{ matched.transactionAmount }}</td>
-                                <td>{{ matched.billDate }}</td>
                                 <td>
                                     <div class="flex flex-col">
                                         <span>{{ matched.billName }}</span>

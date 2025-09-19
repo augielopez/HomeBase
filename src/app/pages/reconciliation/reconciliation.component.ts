@@ -46,6 +46,7 @@ import { BadgeModule } from 'primeng/badge';
 import { InputGroupModule } from 'primeng/inputgroup';
 import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { TableModule } from 'primeng/table';
+import { PaginatorModule } from 'primeng/paginator';
 import { ReconciliationService } from '../service/reconciliation.service';
 import { Transaction as DbTransaction } from '../../interfaces/transaction.interface';
 
@@ -66,7 +67,8 @@ import { Transaction as DbTransaction } from '../../interfaces/transaction.inter
         BadgeModule,
         InputGroupModule,
         InputGroupAddonModule,
-        TableModule
+        TableModule,
+        PaginatorModule
     ],
     templateUrl: './reconciliation.component.html',
     styleUrls: ['./reconciliation.component.scss']
@@ -79,6 +81,7 @@ export class ReconciliationComponent {
     accountOptions: any[] = [];
     unreconciledCount: number = 3;
     billsCount: number = 3;
+    matchedCount: number = 0;
     
     // Data arrays
     transactions: Transaction[] = [];
@@ -93,6 +96,15 @@ export class ReconciliationComponent {
     // Selected transaction and bill data
     selectedTransaction: Transaction | null = null;
     selectedBill: Bill | null = null;
+
+    // Search functionality
+    transactionSearchTerm: string = '';
+    billSearchTerm: string = '';
+
+    // Pagination
+    itemsPerPage: number = 30;
+    currentTransactionPage: number = 1;
+    currentBillPage: number = 1;
 
     constructor(private reconciliationService: ReconciliationService) {
         this.initializeMonthOptions();
@@ -314,6 +326,72 @@ export class ReconciliationComponent {
         return this.selectedBill ? this.selectedBill.merchant : 'Selected Bill';
     }
 
+    // Filtered data for search functionality with pagination
+    get filteredTransactions(): Transaction[] {
+        let filtered = this.transactions;
+        
+        // Apply search filter if search term exists
+        if (this.transactionSearchTerm.trim()) {
+            const searchTerm = this.transactionSearchTerm.toLowerCase();
+            filtered = this.transactions.filter(transaction => 
+                transaction.description.toLowerCase().includes(searchTerm) ||
+                transaction.amount.toLowerCase().includes(searchTerm) ||
+                (transaction.subtext && transaction.subtext.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        // Apply pagination based on current page
+        const startIndex = (this.currentTransactionPage - 1) * this.itemsPerPage;
+        const endIndex = startIndex + this.itemsPerPage;
+        return filtered.slice(startIndex, endIndex);
+    }
+
+    get filteredBills(): Bill[] {
+        let filtered = this.bills;
+        
+        // Apply search filter if search term exists
+        if (this.billSearchTerm.trim()) {
+            const searchTerm = this.billSearchTerm.toLowerCase();
+            filtered = this.bills.filter(bill => 
+                bill.merchant.toLowerCase().includes(searchTerm) ||
+                bill.amount.toLowerCase().includes(searchTerm) ||
+                bill.category.name.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        // Apply pagination based on current page
+        const startIndex = (this.currentBillPage - 1) * this.itemsPerPage;
+        const endIndex = startIndex + this.itemsPerPage;
+        return filtered.slice(startIndex, endIndex);
+    }
+
+    // Get total counts for display
+    get totalFilteredTransactions(): number {
+        if (!this.transactionSearchTerm.trim()) {
+            return this.transactions.length;
+        }
+        
+        const searchTerm = this.transactionSearchTerm.toLowerCase();
+        return this.transactions.filter(transaction => 
+            transaction.description.toLowerCase().includes(searchTerm) ||
+            transaction.amount.toLowerCase().includes(searchTerm) ||
+            (transaction.subtext && transaction.subtext.toLowerCase().includes(searchTerm))
+        ).length;
+    }
+
+    get totalFilteredBills(): number {
+        if (!this.billSearchTerm.trim()) {
+            return this.bills.length;
+        }
+        
+        const searchTerm = this.billSearchTerm.toLowerCase();
+        return this.bills.filter(bill => 
+            bill.merchant.toLowerCase().includes(searchTerm) ||
+            bill.amount.toLowerCase().includes(searchTerm) ||
+            bill.category.name.toLowerCase().includes(searchTerm)
+        ).length;
+    }
+
     // Data loading methods
     async loadData() {
         if (this.selectedMonth) {
@@ -404,26 +482,34 @@ export class ReconciliationComponent {
                 }),
                 transactionDescription: t.name || t.description || 'Unknown Transaction',
                 transactionAmount: `$${t.amount.toFixed(2)} USD`,
-                billDate: t.bill?.due_date ? new Date(t.bill.due_date).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: '2-digit', 
-                    day: '2-digit' 
-                }) : '',
-                billName: t.bill?.name || 'Unknown Bill',
-                billAmount: t.bill ? `-$${t.bill.amount.toFixed(2)} USD` : '',
+                billDate: t.bill.due_date,
+                billName: t.bill?.account?.[0]?.name || t.bill?.account?.name || 'Unknown Bill',
+                billAmount: t.bill ? `-$${t.bill.amount_due.toFixed(2)} USD` : '',
                 billCategory: t.bill?.bill_type?.name || 'Other'
-            }));
-        } catch (error) {
-            console.error('Error loading matched transactions:', error);
-            this.matchedTransactions = [];
-        } finally {
-            this.loadingMatched = false;
-        }
+                   }));
+                   
+                   this.matchedCount = this.matchedTransactions.length;
+               } catch (error) {
+                   console.error('Error loading matched transactions:', error);
+                   this.matchedTransactions = [];
+                   this.matchedCount = 0;
+               } finally {
+                   this.loadingMatched = false;
+               }
     }
 
     // Handle month selection change
     onMonthChange() {
         this.loadData();
+    }
+
+    // Handle pagination changes
+    onTransactionPageChange(event: any) {
+        this.currentTransactionPage = event.page + 1; // PrimeNG uses 0-based indexing
+    }
+
+    onBillPageChange(event: any) {
+        this.currentBillPage = event.page + 1; // PrimeNG uses 0-based indexing
     }
 
     // Handle matching a transaction to a bill

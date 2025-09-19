@@ -219,6 +219,12 @@
     font-style: italic;
 }
 
+.pagination-container {
+    margin-top: 16px;
+    padding: 12px;
+    border-top: 1px solid var(--surface-border, #e5e7eb);
+}
+
 .transaction-checkbox, .bill-checkbox {
     flex-shrink: 0;
 }
