@@ -95,56 +95,48 @@ export class CsvImportService {
             name: 'Fidelity Bank',
             patterns: ['fidelity', 'history_for_account', 'x66402850', 'x67992518'],
             fieldMapping: {
-                date: 'Date',
+                date: 'Run Date',
                 description: 'Action',
-                amount: 'Amount',
-                merchant: 'Action',
-                category: 'Category',
-                account: 'Account Name'
+                amount: 'Amount'
             },
             dateFormat: 'MM/dd/yyyy',
             amountFormat: 'positive_negative'
         },
         {
             name: 'US Bank',
-            patterns: ['us bank', 'credit card'],
+            patterns: ['credit card'],
             fieldMapping: {
-                date: 'Transaction Date',
-                description: 'Description',
+                date: 'Date',
+                description: 'Name',
                 amount: 'Amount',
-                merchant: 'Description',
-                category: 'Category',
-                account: 'Account Name'
+                merchant: 'Name'
             },
-            dateFormat: 'MM/dd/yyyy',
+            dateFormat: 'yyyy-MM-dd',
             amountFormat: 'positive_negative'
         },
         {
             name: 'FirstTech CU',
             patterns: ['firsttech', 'exportedtransactions'],
             fieldMapping: {
-                date: 'Date',
+                date: 'Effective Date',
                 description: 'Description',
                 amount: 'Amount',
-                merchant: 'Description',
-                category: 'Category',
-                account: 'Account Name'
+                merchant: 'Extended Description',
+                category: 'Transaction Category'
             },
             dateFormat: 'MM/dd/yyyy',
             amountFormat: 'positive_negative'
         },
         {
-            name: 'Augie Export Format',
-            patterns: ['augie', 'export'],
+            name: 'Marcus',
+            patterns: ['marcus'],
             fieldMapping: {
-                date: 'Transaction ID',
-                description: 'Transaction ID',
-                amount: 'Transaction ID',
-                merchant: 'Transaction ID',
-                category: 'Transaction Category',
-                account: 'Transaction ID'
+                date: 'Date',
+                description: 'Description',
+                amount: 'Amount',
+                merchant: 'Description'
             },
-            dateFormat: 'YYYYMMDD',
+            dateFormat: 'MMM dd, yyyy',
             amountFormat: 'positive_negative'
         }
     ];
@@ -164,7 +156,95 @@ export class CsvImportService {
         console.log('Detecting bank for file:', filename);
         console.log('CSV headers:', headers);
         
-        // First try to match by filename patterns
+        // Check for specific filename patterns first
+        if (filenameLower.startsWith('credit card')) {
+            console.log('Matched Credit Card pattern');
+            return {
+                name: 'US Bank',
+                patterns: ['credit card'],
+                fieldMapping: {
+                    date: 'Date',
+                    description: 'Name',
+                    amount: 'Amount',
+                    merchant: 'Name'
+                },
+                dateFormat: 'yyyy-MM-dd',
+                amountFormat: 'positive_negative'
+            };
+        }
+        
+        if (filenameLower.startsWith('exportedtransactions')) {
+            console.log('Matched ExportedTransactions pattern');
+            return {
+                name: 'FirstTech CU',
+                patterns: ['exportedtransactions'],
+                fieldMapping: {
+                    date: 'Posting Date',
+                    description: 'Description',
+                    amount: 'Amount',
+                    merchant: 'Description',
+                    category: 'Transaction Category',
+                    account: 'Account Name'
+                },
+                dateFormat: 'M/d/yyyy',
+                amountFormat: 'positive_negative'
+            };
+        }
+        
+        if (filenameLower.startsWith('history_for_account')) {
+            console.log('Matched History_for_Account pattern');
+            console.log('CSV headers for History_for_Account:', headers);
+            
+            // Based on the actual CSV structure, map the correct fields
+            return {
+                name: 'Fidelity Bank',
+                patterns: ['fidelity', 'history_for_account', 'x66402850', 'x67992518'],
+                fieldMapping: {
+                    date: 'Run Date',
+                    description: 'Action',
+                    amount: 'Amount'
+                },
+                dateFormat: 'MM/dd/yyyy',
+                amountFormat: 'positive_negative'
+            };
+        }
+        
+        if (filenameLower === 'marcus') {
+            console.log('Matched Marcus pattern');
+            return {
+                name: 'Marcus',
+                patterns: ['marcus'],
+                fieldMapping: {
+                    date: 'Date',
+                    description: 'Description',
+                    amount: 'Amount',
+                    merchant: 'Description',
+                    account: 'Account Name'
+                },
+                dateFormat: 'MMM dd, yyyy',
+                amountFormat: 'positive_negative'
+            };
+        }
+
+        // Check for Marcus by headers if filename doesn't match exactly
+        if (filenameLower.includes('marcus')) {
+            console.log('Matched Marcus pattern by filename');
+            return {
+                name: 'Marcus',
+                patterns: ['marcus'],
+                fieldMapping: {
+                    date: 'Date',
+                    description: 'Description',
+                    amount: 'Amount',
+                    merchant: 'Description',
+                    account: 'Account Name'
+                },
+                dateFormat: 'MMM dd, yyyy',
+                amountFormat: 'positive_negative'
+            };
+        }
+        
+        // If no specific pattern matches, try generic bank schemas
         for (const schema of this.bankSchemas) {
             for (const pattern of schema.patterns) {
                 if (filenameLower.includes(pattern)) {
@@ -194,7 +274,7 @@ export class CsvImportService {
             }
         }
 
-        console.log('No bank schema matched');
+        console.log('No bank schema matched - file type not configured for import');
         return null;
     }
 
@@ -208,30 +288,108 @@ export class CsvImportService {
             reader.onload = (e) => {
                 try {
                     const csv = e.target?.result as string;
+                    console.log('CSV file loaded, length:', csv.length);
+                    
                     const lines = csv.split('\n');
+                    console.log('CSV lines split, total lines:', lines.length);
+                    
                     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                    console.log('CSV headers extracted:', headers);
                     
                     // Detect bank schema
-                    const bankSchema = this.detectBank(file.name, headers);
+                    console.log('Detecting bank schema for file:', file.name);
+                    let bankSchema = this.detectBank(file.name, headers);
+                    console.log('Bank schema detection result:', bankSchema?.name || 'No schema matched');
                     
                     if (!bankSchema) {
-                        observer.error(new Error('Unable to detect bank format. Please ensure the CSV has standard transaction fields.'));
-                        return;
+                        // Try to create a generic schema as fallback
+                        console.log('No predefined schema matched, attempting to create generic schema');
+                        const genericSchema = this.createGenericSchema(headers, file.name);
+                        if (genericSchema) {
+                            console.log('Created generic schema:', genericSchema);
+                            bankSchema = genericSchema;
+                        } else {
+                            observer.error(new Error('This type of file is not configured to be imported. Please check the filename format and try again.'));
+                            return;
+                        }
                     }
 
                     // Parse transactions
                     const transactions: CsvTransaction[] = [];
+                    const parsingErrors: string[] = [];
+                    
+                    // Log detailed information about the CSV file
+                    console.log('CSV File Analysis:', {
+                        filename: file.name,
+                        totalLines: lines.length,
+                        headers: headers,
+                        bankSchema: bankSchema?.name,
+                        fieldMapping: bankSchema?.fieldMapping
+                    });
+                    
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim();
                         if (!line) continue;
 
-                        const values = this.parseCsvLine(line);
-                        if (values.length < 3) continue; // Skip invalid lines
+                        try {
+                            const values = this.parseCsvLine(line);
+                            if (values.length < 3) {
+                                parsingErrors.push(`Row ${i + 1}: Insufficient columns (${values.length} found, need at least 3)`);
+                                continue; // Skip invalid lines
+                            }
 
-                        const transaction = this.normalizeTransaction(values, headers, bankSchema);
-                        if (transaction) {
-                            transactions.push(transaction);
+                            // Log first few rows for debugging
+                            if (i <= 3) {
+                                console.log(`Row ${i + 1} data:`, {
+                                    headers,
+                                    values,
+                                    bankSchema: bankSchema?.name,
+                                    fieldMapping: bankSchema?.fieldMapping
+                                });
+                            }
+
+                            const transaction = this.normalizeTransaction(values, headers, bankSchema);
+                            if (transaction) {
+                                transactions.push(transaction);
+                            } else {
+                                parsingErrors.push(`Row ${i + 1}: Failed to normalize transaction data`);
+                                // Log detailed failure info for first few rows
+                                if (i <= 3) {
+                                    console.log(`Row ${i + 1} normalization failed:`, {
+                                        headers,
+                                        values,
+                                        bankSchema: bankSchema?.name,
+                                        fieldMapping: bankSchema?.fieldMapping
+                                    });
+                                }
+                            }
+                        } catch (error: any) {
+                            parsingErrors.push(`Row ${i + 1}: ${error.message || error}`);
+                            console.error(`Error parsing line ${i + 1}:`, error);
                         }
+                    }
+
+                    // Log parsing errors if any
+                    if (parsingErrors.length > 0) {
+                        console.warn(`CSV parsing completed with ${parsingErrors.length} errors:`, parsingErrors);
+                        
+                        // Log parsing errors to error log (async, but don't await in this context)
+                        this.errorLogService.logErrorAsync({
+                            error_type: 'csv_import',
+                            error_category: 'warning',
+                            error_code: 'PARSING_ERRORS',
+                            error_message: `CSV parsing completed with ${parsingErrors.length} errors`,
+                            operation: 'csv_import',
+                            component: 'csv-import.service',
+                            function_name: 'parseCsvFile',
+                            error_data: {
+                                filename: file.name,
+                                totalLines: lines.length - 1,
+                                parsedTransactions: transactions.length,
+                                parsingErrors: parsingErrors.slice(0, 10) // Log first 10 errors
+                            },
+                            file_name: file.name
+                        }).catch(error => console.error('Failed to log parsing errors:', error));
                     }
 
                     observer.next({ transactions, bankSchema });
@@ -268,6 +426,14 @@ export class CsvImportService {
         }
         
         values.push(current.trim());
+        
+        // Debug logging for CSV parsing
+        console.log('CSV line parsed:', {
+            originalLine: line,
+            parsedValues: values,
+            valueCount: values.length
+        });
+        
         return values;
     }
 
@@ -278,7 +444,20 @@ export class CsvImportService {
         try {
             const getValue = (fieldName: string): string => {
                 const index = headers.findIndex(h => h.toLowerCase().includes(fieldName.toLowerCase()));
-                return index >= 0 ? values[index] : '';
+                const value = index >= 0 ? values[index] : '';
+                
+                // Debug logging for field extraction
+                if (schema.name.includes('Fidelity')) {
+                    console.log(`Field extraction: ${fieldName}`, {
+                        headerIndex: index,
+                        headerName: index >= 0 ? headers[index] : 'NOT_FOUND',
+                        extractedValue: value,
+                        allHeaders: headers,
+                        allValues: values
+                    });
+                }
+                
+                return value;
             };
 
             const dateStr = getValue(schema.fieldMapping.date);
@@ -289,8 +468,31 @@ export class CsvImportService {
             const account = getValue(schema.fieldMapping.account || '');
 
             // Debug logging for Fidelity files
-            if (schema.name === 'Fidelity Bank') {
+            if (schema.name.includes('Fidelity')) {
                 console.log('Fidelity transaction parsing:', {
+                    schemaName: schema.name,
+                    headers,
+                    values,
+                    fieldMapping: schema.fieldMapping,
+                    extracted: {
+                        dateStr,
+                        description,
+                        amountStr,
+                        merchant,
+                        category,
+                        account
+                    },
+                    fieldLookup: {
+                        dateIndex: headers.findIndex(h => h === schema.fieldMapping.date),
+                        descriptionIndex: headers.findIndex(h => h === schema.fieldMapping.description),
+                        amountIndex: headers.findIndex(h => h === schema.fieldMapping.amount)
+                    }
+                });
+            }
+
+            // Debug logging for Marcus files
+            if (schema.name === 'Marcus') {
+                console.log('Marcus transaction parsing:', {
                     headers,
                     values,
                     fieldMapping: schema.fieldMapping,
@@ -326,24 +528,46 @@ export class CsvImportService {
             }
 
             if (!dateStr || !description || !amountStr) {
-                console.log('Missing required fields:', { dateStr, description, amountStr });
+                console.log('Missing required fields:', { 
+                    dateStr, 
+                    description, 
+                    amountStr, 
+                    schema: schema.name,
+                    fieldMapping: schema.fieldMapping,
+                    headers,
+                    values
+                });
                 return null;
             }
 
             // Parse date
             const date = this.parseDate(dateStr, schema.dateFormat);
-            if (!date) return null;
+            if (!date) {
+                console.log('Date parsing failed:', { 
+                    dateStr, 
+                    format: schema.dateFormat, 
+                    schema: schema.name 
+                });
+                return null;
+            }
 
             // Parse amount
             const amount = this.parseAmount(amountStr, schema.amountFormat);
-            if (amount === null) return null;
+            if (amount === null) {
+                console.log('Amount parsing failed:', { 
+                    amountStr, 
+                    format: schema.amountFormat, 
+                    schema: schema.name 
+                });
+                return null;
+            }
 
             return {
                 date: date.toISOString().split('T')[0],
                 description: description.trim(),
                 amount,
                 merchant: merchant.trim() || undefined,
-                category: category.trim() || undefined,
+                category: this.parseCategory(category, schema.name),
                 account: account.trim() || undefined
             };
         } catch (error) {
@@ -414,7 +638,43 @@ export class CsvImportService {
                 return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             }
             
-            // Try ISO format
+            if (format === 'yyyy-MM-dd') {
+                // Handle ISO format like 2025-09-12
+                const [year, month, day] = dateStr.split('-');
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            }
+            
+            if (format === 'M/d/yyyy') {
+                // Handle format like 9/3/2025
+                const [month, day, year] = dateStr.split('/');
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            }
+            
+            if (format === 'MMM dd, yyyy') {
+                // Handle format like Sep 15, 2025
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+            
+            if (format === 'MMM d, yyyy') {
+                // Handle format like Sep 5, 2025 (single digit day)
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+            
+            if (format === 'MMM dd yyyy') {
+                // Handle format like Sep 15 2025 (no comma)
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+            
+            // Try ISO format as fallback
             const date = new Date(dateStr);
             if (!isNaN(date.getTime())) {
                 return date;
@@ -453,6 +713,38 @@ export class CsvImportService {
         } catch {
             return null;
         }
+    }
+
+    /**
+     * Parse category string according to bank schema
+     */
+    private parseCategory(categoryStr: string, bankName: string): string | undefined {
+        if (!categoryStr || !categoryStr.trim()) {
+            return undefined;
+        }
+
+        const category = categoryStr.trim();
+
+        // Handle US Bank numeric category codes
+        if (bankName === 'US Bank') {
+            // If category is purely numeric, it's likely a category code
+            if (/^\d+$/.test(category)) {
+                console.log(`US Bank numeric category code detected: ${category}`);
+                // Return undefined to let AI categorization handle it
+                return undefined;
+            }
+            
+            // If category contains semicolons and numbers, it's likely malformed
+            if (category.includes(';') && /\d+/.test(category)) {
+                console.log(`US Bank malformed category detected: ${category}`);
+                // Extract the first meaningful part or return undefined
+                const parts = category.split(';').map(p => p.trim()).filter(p => p && !/^\d+$/.test(p));
+                return parts.length > 0 ? parts[0] : undefined;
+            }
+        }
+
+        // For other banks, return the category as-is
+        return category;
     }
 
     /**
@@ -518,7 +810,7 @@ export class CsvImportService {
         const accountOwner = this.extractAccountOwnerFromFilename(filename, bankSource);
 
         // Process transactions in batches for better performance
-        const batchSize = 10;
+        const batchSize = 50; // Increased batch size for better performance
         for (let i = 0; i < transactions.length; i += batchSize) {
             const batch = transactions.slice(i, i + batchSize);
             
@@ -526,7 +818,10 @@ export class CsvImportService {
                 // Categorize batch of transactions using AI service
                 const categorizationResults = await this.aiCategorizationService.batchCategorize(batch).toPromise();
                 
-                // Process each transaction in the batch
+                // Prepare all transactions for batch insert
+                const transactionsToInsert: Partial<Transaction>[] = [];
+                const transactionMetadata: Array<{csvTransaction: CsvTransaction, categorization: any, rowIndex: number}> = [];
+                
                 for (let j = 0; j < batch.length; j++) {
                     const csvTransaction = batch[j];
                     const categorization = categorizationResults?.[j];
@@ -547,55 +842,19 @@ export class CsvImportService {
                             category_confidence: categorization?.confidence || 0,
                             bank_source: bankSource.toLowerCase().replace(/\s+/g, '_'),
                             import_method: 'csv',
-                            csv_filename: importId,
+                            csv_filename: filename || 'unknown.csv',
                             pending: false,
                             iso_currency_code: 'USD'
                         };
 
-                        const { data: insertedTransaction, error } = await supabase
-                            .from('hb_transactions')
-                            .insert([transaction])
-                            .select('id')
-                            .single();
-
-                        if (error) {
-                            console.error('Error inserting transaction:', error);
-                            failedCount++;
-                            errors.push(`Transaction ${csvTransaction.description}: ${error.message}`);
-                            
-                            // Log the error to the error log table
-                            await this.errorLogService.logErrorAsync({
-                                error_type: 'csv_import',
-                                error_category: 'error',
-                                error_code: error.code,
-                                error_message: `Failed to insert transaction: ${error.message}`,
-                                error_stack: error.stack || undefined,
-                                operation: 'csv_import',
-                                component: 'csv-import.service',
-                                function_name: 'processTransactions',
-                                error_data: {
-                                    csvTransaction,
-                                    transaction,
-                                    rowIndex: j,
-                                    batchIndex: i
-                                },
-                                file_name: filename,
-                                row_number: (i * batchSize) + j + 1, // Convert to 1-based row number
-                                batch_id: importId
-                            });
-                        } else {
-                            importedCount++;
-                            
-                            // Store embedding if available and categorization was AI-based
-                            if (categorization?.method === 'ai_similarity' && insertedTransaction?.id) {
-                                const embedding = await this.aiCategorizationService['generateEmbedding'](csvTransaction);
-                                if (embedding) {
-                                    await this.aiCategorizationService.storeTransactionEmbedding(insertedTransaction.id, embedding);
-                                }
-                            }
-                        }
+                        transactionsToInsert.push(transaction);
+                        transactionMetadata.push({
+                            csvTransaction,
+                            categorization,
+                            rowIndex: j
+                        });
                     } catch (error: any) {
-                        console.error('Error processing transaction:', error);
+                        console.error('Error preparing transaction:', error);
                         failedCount++;
                         errors.push(`Transaction ${csvTransaction.description}: ${error.message || error}`);
                         
@@ -604,7 +863,7 @@ export class CsvImportService {
                             error_type: 'csv_import',
                             error_category: 'error',
                             error_code: error.code,
-                            error_message: `Error processing transaction: ${error.message || error}`,
+                            error_message: `Error preparing transaction: ${error.message || error}`,
                             error_stack: error.stack,
                             operation: 'csv_import',
                             component: 'csv-import.service',
@@ -617,6 +876,100 @@ export class CsvImportService {
                             },
                             file_name: filename,
                             row_number: (i * batchSize) + j + 1,
+                            batch_id: importId
+                        });
+                    }
+                }
+
+                // Batch insert all transactions
+                if (transactionsToInsert.length > 0) {
+                    try {
+                        const { data: insertedTransactions, error: insertError } = await supabase
+                            .from('hb_transactions')
+                            .insert(transactionsToInsert)
+                            .select('id');
+
+                        if (insertError) {
+                            console.error('Error inserting batch:', insertError);
+                            failedCount += transactionsToInsert.length;
+                            errors.push(`Batch insert error: ${insertError.message}`);
+                            
+                            // Log the batch error to the error log table
+                            await this.errorLogService.logErrorAsync({
+                                error_type: 'csv_import',
+                                error_category: 'error',
+                                error_code: insertError.code,
+                                error_message: `Batch insert error: ${insertError.message}`,
+                                error_stack: insertError.stack,
+                                operation: 'csv_import',
+                                component: 'csv-import.service',
+                                function_name: 'processTransactions',
+                                error_data: {
+                                    batchSize: transactionsToInsert.length,
+                                    batchIndex: i,
+                                    originalError: insertError
+                                },
+                                file_name: filename,
+                                batch_id: importId
+                            });
+                        } else {
+                            importedCount += insertedTransactions.length;
+                            
+                            // Store embeddings for AI-categorized transactions
+                            for (let k = 0; k < insertedTransactions.length; k++) {
+                                const insertedTransaction = insertedTransactions[k];
+                                const metadata = transactionMetadata[k];
+                                
+                                if (metadata.categorization?.method === 'ai_similarity' && insertedTransaction?.id) {
+                                    try {
+                                        const embedding = await this.aiCategorizationService['generateEmbedding'](metadata.csvTransaction);
+                                        if (embedding) {
+                                            await this.aiCategorizationService.storeTransactionEmbedding(insertedTransaction.id, embedding);
+                                        }
+                                    } catch (embeddingError) {
+                                        console.error('Error storing embedding:', embeddingError);
+                                        // Log embedding error but don't fail the transaction
+                                        await this.errorLogService.logErrorAsync({
+                                            error_type: 'csv_import',
+                                            error_category: 'warning',
+                                            error_code: 'EMBEDDING_ERROR',
+                                            error_message: `Failed to store embedding for transaction: ${embeddingError}`,
+                                            operation: 'csv_import',
+                                            component: 'csv-import.service',
+                                            function_name: 'processTransactions',
+                                            error_data: {
+                                                transactionId: insertedTransaction.id,
+                                                csvTransaction: metadata.csvTransaction,
+                                                originalError: embeddingError
+                                            },
+                                            file_name: filename,
+                                            batch_id: importId
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error: any) {
+                        console.error('Error in batch insert:', error);
+                        failedCount += transactionsToInsert.length;
+                        errors.push(`Batch insert error: ${error.message || error}`);
+                        
+                        // Log the batch error to the error log table
+                        await this.errorLogService.logErrorAsync({
+                            error_type: 'csv_import',
+                            error_category: 'error',
+                            error_code: error.code,
+                            error_message: `Batch insert error: ${error.message || error}`,
+                            error_stack: error.stack,
+                            operation: 'csv_import',
+                            component: 'csv-import.service',
+                            function_name: 'processTransactions',
+                            error_data: {
+                                batchSize: transactionsToInsert.length,
+                                batchIndex: i,
+                                originalError: error
+                            },
+                            file_name: filename,
                             batch_id: importId
                         });
                     }
@@ -648,13 +1001,44 @@ export class CsvImportService {
             }
         }
 
+        // Check for potential missing transactions
+        const expectedRows = transactions.length;
+        const actualImported = importedCount + failedCount;
+        const missingRows = expectedRows - actualImported;
+        
+        if (missingRows > 0) {
+            const missingMessage = `Warning: ${missingRows} transactions were not processed (expected ${expectedRows}, processed ${actualImported})`;
+            errors.push(missingMessage);
+            console.warn(missingMessage);
+            
+            // Log missing transactions warning
+            await this.errorLogService.logErrorAsync({
+                error_type: 'csv_import',
+                error_category: 'warning',
+                error_code: 'MISSING_TRANSACTIONS',
+                error_message: missingMessage,
+                operation: 'csv_import',
+                component: 'csv-import.service',
+                function_name: 'processTransactions',
+                error_data: {
+                    expectedRows,
+                    actualImported,
+                    missingRows,
+                    importedCount,
+                    failedCount
+                },
+                file_name: filename,
+                batch_id: importId
+            });
+        }
+
         // Update import record
         const { data: updatedImport, error: updateError } = await supabase
             .from('hb_csv_imports')
             .update({
                 imported_rows: importedCount,
                 failed_rows: failedCount,
-                status: failedCount === 0 ? 'completed' : 'completed_with_errors',
+                status: failedCount === 0 && missingRows === 0 ? 'completed' : 'completed_with_errors',
                 error_message: errors.length > 0 ? errors.join('; ') : null,
                 processing_time_ms: Date.now() - startTime
             })
@@ -683,7 +1067,7 @@ export class CsvImportService {
     private async categorizeTransaction(transaction: CsvTransaction): Promise<string | null> {
         // First, try to use CSV-provided category
         if (transaction.category) {
-            const categoryId = await this.findOrCreateCategory(transaction.category);
+            const categoryId = await this.findExistingCategory(transaction.category);
             if (categoryId) return categoryId;
         }
 
@@ -700,34 +1084,94 @@ export class CsvImportService {
     }
 
     /**
-     * Find or create category by name
+     * Find existing category by name - NO AUTO-CREATION
      */
-    private async findOrCreateCategory(categoryName: string): Promise<string | null> {
+    private async findExistingCategory(categoryName: string): Promise<string | null> {
         const normalizedName = this.normalizeCategoryName(categoryName);
         
-        const { data: existingCategory } = await this.supabaseService.getClient()
-            .from('hb_transaction_categories')
-            .select('id')
-            .ilike('name', normalizedName)
-            .single();
+        try {
+            // Only look for existing categories - never create new ones
+            const { data: existingCategory, error: selectError } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id')
+                .ilike('name', normalizedName)
+                .single();
 
-        if (existingCategory) {
-            return existingCategory.id;
+            if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
+                console.error('Error finding category:', selectError);
+                
+                // Log the error to the error log table
+                this.errorLogService.logErrorAsync({
+                    error_type: 'category_management',
+                    error_category: 'warning',
+                    error_code: selectError.code,
+                    error_message: `Error finding category: ${selectError.message}`,
+                    operation: 'category_lookup',
+                    component: 'csv-import.service',
+                    function_name: 'findExistingCategory',
+                    error_data: {
+                        categoryName: normalizedName,
+                        originalCategoryName: categoryName,
+                        selectError
+                    }
+                }).catch(error => console.error('Failed to log category lookup error:', error));
+            }
+
+            if (existingCategory) {
+                return existingCategory.id;
+            }
+
+            // If no exact match found, try to find a similar category
+            console.log(`Category '${normalizedName}' not found, trying to find similar category`);
+            return await this.findSimilarCategory(normalizedName);
+            
+        } catch (error: any) {
+            console.error('Unexpected error in findExistingCategory:', error);
+            
+            // Log the error to the error log table
+            this.errorLogService.logErrorAsync({
+                error_type: 'category_management',
+                error_category: 'error',
+                error_code: error.code,
+                error_message: `Unexpected error in findExistingCategory: ${error.message || error}`,
+                operation: 'category_lookup',
+                component: 'csv-import.service',
+                function_name: 'findExistingCategory',
+                error_data: {
+                    categoryName: normalizedName,
+                    originalCategoryName: categoryName,
+                    error
+                }
+            }).catch(logError => console.error('Failed to log category lookup error:', logError));
+            
+            return null;
         }
+    }
 
-        // Create new category
-        const { data: newCategory } = await this.supabaseService.getClient()
-            .from('hb_transaction_categories')
-            .insert([{
-                name: normalizedName,
-                description: `Auto-created from CSV import: ${categoryName}`,
-                created_by: 'SYSTEM',
-                updated_by: 'SYSTEM'
-            }])
-            .select('id')
-            .single();
+    /**
+     * Find a similar existing category when exact match not found
+     */
+    private async findSimilarCategory(categoryName: string): Promise<string | null> {
+        try {
+            // Try to find a category that contains the normalized name or vice versa
+            const { data: similarCategories } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id, name')
+                .or(`name.ilike.%${categoryName}%,name.ilike.${categoryName}%`)
+                .limit(1);
 
-        return newCategory?.id || null;
+            if (similarCategories && similarCategories.length > 0) {
+                console.log(`Found similar category: ${similarCategories[0].name} for ${categoryName}`);
+                return similarCategories[0].id;
+            }
+
+            // If no similar category found, return null (uncategorized)
+            console.log(`No similar category found for: ${categoryName}`);
+            return null;
+        } catch (error: any) {
+            console.error('Error finding similar category:', error);
+            return null;
+        }
     }
 
     /**
@@ -773,26 +1217,134 @@ export class CsvImportService {
     }
 
     /**
+     * Create a generic schema when no predefined schema matches
+     */
+    private createGenericSchema(headers: string[], filename: string): BankSchema | null {
+        console.log('Creating generic schema for headers:', headers);
+        
+        // Try to find common field patterns
+        const findField = (patterns: string[]): string | null => {
+            for (const pattern of patterns) {
+                const found = headers.find(h => h.toLowerCase().includes(pattern.toLowerCase()));
+                if (found) return found;
+            }
+            return null;
+        };
+
+        const dateField = findField(['date', 'transaction date', 'run date', 'posting date']);
+        const descriptionField = findField(['description', 'action', 'transaction description', 'name', 'memo']);
+        const amountField = findField(['amount', 'amount ($)', 'transaction amount', 'value']);
+        const categoryField = findField(['category', 'type', 'action', 'memo']);
+        const accountField = findField(['account', 'account name', 'account number']);
+
+        if (!dateField || !descriptionField || !amountField) {
+            console.log('Generic schema creation failed - missing required fields:', {
+                dateField,
+                descriptionField,
+                amountField,
+                headers
+            });
+            return null;
+        }
+
+        // Determine date format by looking at sample data
+        let dateFormat = 'MM/dd/yyyy'; // Default
+        if (filename.toLowerCase().includes('fidelity') || filename.toLowerCase().includes('history_for_account')) {
+            dateFormat = 'MM/dd/yyyy';
+        }
+
+        const schema: BankSchema = {
+            name: 'Generic Schema',
+            patterns: ['generic'],
+            fieldMapping: {
+                date: dateField,
+                description: descriptionField,
+                amount: amountField,
+                merchant: descriptionField,
+                category: categoryField || undefined,
+                account: accountField || undefined
+            },
+            dateFormat: dateFormat,
+            amountFormat: 'positive_negative'
+        };
+
+        console.log('Created generic schema:', schema);
+        return schema;
+    }
+
+    /**
      * Extract account owner from filename for specific banks
      */
     private extractAccountOwnerFromFilename(filename: string | undefined, bankSource: string): string | null {
         if (!filename) return null;
 
-        // Handle FirstTech CU files
+        const filenameLower = filename.toLowerCase();
+
+        // Handle Credit Card files
+        if (filenameLower.startsWith('credit card')) {
+            return 'Credit Card';
+        }
+
+        // Handle ExportedTransactions files (FirstTech CU)
+        if (filenameLower.startsWith('exportedtransactions')) {
+            // Extract name from "ExportedTransactionsMelissa.csv" -> "Melissa"
+            const match = filename.match(/ExportedTransactions(.+)\.csv$/i);
+            if (match && match[1]) {
+                const extractedName = match[1].trim();
+                // Special case for Augie files - return a formatted account name
+                if (extractedName.toLowerCase() === 'augie') {
+                    return 'FirstTech CU - Augie';
+                }
+                return extractedName;
+            }
+        }
+
+        // Handle History_for_Account files (Fidelity Bank)
+        if (filenameLower.startsWith('history_for_account')) {
+            // Extract account type from filename based on account number patterns
+            if (filenameLower.includes('x66402850')) {
+                return 'CHECKING';
+            } else if (filenameLower.includes('x67992518')) {
+                return 'BACK UP CHECKING';
+            }
+            // Fallback for other Fidelity files
+            return 'Fidelity Account';
+        }
+
+        // Handle Marcus files
+        if (filenameLower === 'marcus' || filenameLower.includes('marcus')) {
+            return 'Saving';
+        }
+
+        // Handle legacy FirstTech CU files
         if (bankSource.toLowerCase().includes('firsttech')) {
             // Extract name from "ExportedTransactionsMelissa.csv" -> "Melissa"
             const match = filename.match(/ExportedTransactions(.+)\.csv$/i);
             if (match && match[1]) {
-                return match[1].trim();
+                const extractedName = match[1].trim();
+                // Special case for Augie files - return a formatted account name
+                if (extractedName.toLowerCase() === 'augie') {
+                    return 'FirstTech CU - Augie';
+                }
+                return extractedName;
             }
         }
 
-        // Handle Fidelity Bank files
+        // Handle legacy Fidelity Bank files
         if (bankSource.toLowerCase().includes('fidelity')) {
-            // Extract account type from "History_for_Account_X66402850.csv" -> "Checking"
-            // This would need to be mapped based on account number patterns
-            // For now, return a generic identifier
+            // Extract account type from filename based on account number patterns
+            if (filenameLower.includes('x66402850')) {
+                return 'CHECKING';
+            } else if (filenameLower.includes('x67992518')) {
+                return 'BACK UP CHECKING';
+            }
+            // Fallback for other Fidelity files
             return 'Fidelity Account';
+        }
+
+        // Handle Marcus files by bank source
+        if (bankSource.toLowerCase().includes('marcus')) {
+            return 'Saving';
         }
 
         return null;

@@ -1,0 +1,223 @@
+<div class="bank-reconciliation-container">
+    <div class="card">
+        <!-- Header Section -->
+        <div class="header-section">
+            <div class="header-left">
+                <h1>Bank Reconciliation</h1>
+            </div>
+            <div class="header-right">
+                <div class="month-selector">
+                    <p-dropdown 
+                        [options]="monthOptions" 
+                        [(ngModel)]="selectedMonth"
+                        placeholder="Select Month"
+                        optionLabel="label"
+                        optionValue="value"
+                        [style]="{'width': '200px'}"
+                        appendTo="body">
+                    </p-dropdown>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <div class="summary-row">
+                <div class="currently-reconciling">
+                    <span class="label">Currently Reconciling</span>
+                    <p-dropdown 
+                        [options]="accountOptions" 
+                        [(ngModel)]="selectedAccount"
+                        placeholder="Select Account"
+                        optionLabel="name"
+                        optionValue="id"
+                        [style]="{'width': '250px'}"
+                        appendTo="body">
+                    </p-dropdown>
+                </div>
+                
+                <div class="financial-overview">
+                    <div class="metric">
+                        <div class="metric-label">Total Spent</div>
+                        <div class="metric-value">$17,980.06</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Total Income</div>
+                        <div class="metric-value">$13,162.45</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Net Amount</div>
+                        <div class="metric-value">-$4,817.61</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Transactions</div>
+                        <div class="metric-value">74</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="selection-summary">
+                <div class="selection-box">
+                    <div class="selection-amount">$0.00</div>
+                    <div class="selection-label">Selected Transaction</div>
+                </div>
+                
+                <div class="mark-as-button">
+                    <p-button label="Match" [raised]="true"></p-button>
+                </div>
+                
+                <div class="selection-box">
+                    <div class="selection-amount">$0.00</div>
+                    <div class="selection-label">Selected Bill</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reconciliation Tabs -->
+    <p-tabs [value]="activeTabValue">
+        <p-tablist>
+            <p-tab value="0">Unmatched</p-tab>
+            <p-tab value="1">Matched</p-tab>
+        </p-tablist>
+        <p-tabpanels>
+            <p-tabpanel value="0">
+                <!-- Main Content Area -->
+                <div class="main-content">
+                    <!-- Left Panel: Unreconciled Transactions -->
+                    <div class="panel unreconciled-transactions">
+                        <div class="panel-header">
+                            <h3 class="panel-title-with-badge">                                         
+                                <span>Unreconciled Transactions</span>
+                                <p-badge value="2" />
+                            </h3>
+                        </div>
+                        
+                        <div class="search-container">
+                            <p-inputgroup>
+                                <input pInputText placeholder="Search Transactions" />
+                                <p-inputgroup-addon>
+                                    <p-button icon="pi pi-search" severity="secondary" variant="text" />
+                                </p-inputgroup-addon>
+                            </p-inputgroup>
+                        </div>
+                        
+                        <div class="transaction-list">
+                            <!-- Transaction Item 1 -->
+                            <div class="transaction-item">
+                                <div class="transaction-checkbox">
+                                    <input type="checkbox" class="checkbox">
+                                </div>
+                                <div class="transaction-content">
+                                    <div class="transaction-date">05/05/2023</div>
+                                    <div class="transaction-description">Interest Paid</div>
+                                </div>
+                                <div class="transaction-amount positive">$1.00 USD</div>
+                            </div>
+
+                            <!-- Transaction Item 2 -->
+                            <div class="transaction-item">
+                                <div class="transaction-checkbox">
+                                    <input type="checkbox" class="checkbox">
+                                </div>
+                                <div class="transaction-content">
+                                    <div class="transaction-date">04/28/2023</div>
+                                    <div class="transaction-description">EFT Withdrawal</div>
+                                </div>
+                                <div class="transaction-amount negative">-$473.46 USD</div>
+                            </div>
+
+                            <!-- Transaction Item 3 -->
+                            <div class="transaction-item">
+                                <div class="transaction-checkbox">
+                                    <input type="checkbox" class="checkbox">
+                                </div>
+                                <div class="transaction-content">
+                                    <div class="transaction-date">04/15/2023</div>
+                                    <div class="transaction-description refund">Refund</div>
+                                    <div class="transaction-subtext">Manually Added Transaction</div>
+                                </div>
+                                <div class="transaction-amount positive">$1,202.02 USD</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Bills -->
+                    <div class="panel bills">
+                        <div class="panel-header">
+                            <h3 class="panel-title-with-badge">
+                                <span>Bills</span>
+                                <p-badge value="2" />
+                            </h3>
+                        </div>
+                        
+                        <div class="search-container">
+                            <p-inputgroup>
+                                <input pInputText placeholder="Search Bills" />
+                                <p-inputgroup-addon>
+                                    <p-button icon="pi pi-search" severity="secondary" variant="text" />
+                                </p-inputgroup-addon>
+                            </p-inputgroup>
+                        </div>
+                        
+                        <div class="bill-list">
+                            <!-- Bill Item 1 -->
+                            <div class="bill-item">
+                                <div class="bill-checkbox">
+                                    <input type="checkbox" class="checkbox">
+                                </div>
+                                <div class="bill-content">
+                                    <div class="bill-date">05/05/2023</div>
+                                    <div class="bill-merchant">Kevin Roberts</div>
+                                    <div class="bill-category">
+                                        <i class="pi pi-send category-icon"></i>
+                                        <span>Advertising</span>
+                                    </div>
+                                </div>
+                                <div class="bill-amount">-$429.44 USD</div>
+                            </div>
+
+                            <!-- Bill Item 2 -->
+                            <div class="bill-item">
+                                <div class="bill-checkbox">
+                                    <input type="checkbox" class="checkbox">
+                                </div>
+                                <div class="bill-content">
+                                    <div class="bill-date">04/28/2023</div>
+                                    <div class="bill-merchant">Jane Jones - EFT Withdrawal</div>
+                                    <div class="bill-category">
+                                        <i class="pi pi-diamond category-icon"></i>
+                                        <span>Other Expenses</span>
+                                    </div>
+                                </div>
+                                <div class="bill-amount">-$473.46 USD</div>
+                            </div>
+
+                            <!-- Bill Item 3 -->
+                            <div class="bill-item">
+                                <div class="bill-checkbox">
+                                    <input type="checkbox" class="checkbox">
+                                </div>
+                                <div class="bill-content">
+                                    <div class="bill-date">05/05/2023</div>
+                                    <div class="bill-merchant">No Merchant</div>
+                                    <div class="bill-category">
+                                        <i class="pi pi-car category-icon"></i>
+                                        <span>Gas</span>
+                                    </div>
+                                </div>
+                                <div class="bill-amount">-$2.18 USD</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabpanel>
+            
+            <p-tabpanel value="1">
+                <div class="matched-content">
+                    <p class="m-0">Matched transactions will appear here.</p>
+                </div>
+            </p-tabpanel>
+        </p-tabpanels>
+    </p-tabs>
+</div>

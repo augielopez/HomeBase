@@ -21,7 +21,7 @@ import { ToastModule } from 'primeng/toast';
 import { CheckboxModule } from 'primeng/checkbox';
 import { finalize, interval, take } from 'rxjs';
 import { CsvImportService } from '../service/csv-import.service';
-import { ReconciliationService } from '../service/reconciliation.service';
+import { ReconciliationOldService } from '../service/reconciliation-old.service';
 import { AiCategorizationService } from '../service/ai-categorization.service';
 import { Bill } from '../../interfaces/bill.interface';
 import {MultiSelect} from "primeng/multiselect";
@@ -79,7 +79,7 @@ import {MultiSelect} from "primeng/multiselect";
                 [model]="menuItems"
                 appendTo="body">
             </p-menu>
-            <p-progressBar *ngIf="uploading" mode="indeterminate" [style]="{ height: '6px' }"></p-progressBar>
+            <p-progressBar *ngIf="importing || uploading" mode="indeterminate" [style]="{ height: '6px' }"></p-progressBar>
 
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" *ngIf="transactionStats">
@@ -165,7 +165,7 @@ import {MultiSelect} from "primeng/multiselect";
                     [value]="filteredTransactions" 
                     [paginator]="true" 
                     [rows]="20"
-                    [globalFilterFields]="['name', 'category', 'institution', 'account_name', 'source']"
+                    [globalFilterFields]="['name', 'category.name', 'bank_source', 'account_id', 'import_method']"
                     [tableStyle]="{ 'min-width': '75rem' }"
                     [rowHover]="true"
                     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} transactions"
@@ -190,7 +190,7 @@ import {MultiSelect} from "primeng/multiselect";
                                 <div class="flex justify-between items-center">
                                     Category
                                     <p-columnFilter
-                                            field="category"
+                                            field="category.name"
                                             matchMode="in"
                                             display="menu"
                                             [showMatchModes]="false"
@@ -222,7 +222,7 @@ import {MultiSelect} from "primeng/multiselect";
                                 <div class="flex justify-between items-center">
                                     Financial Institution
                                     <p-columnFilter
-                                            field="institution"
+                                            field="bank_source"
                                             matchMode="in"
                                             display="menu"
                                             [showMatchModes]="false"
@@ -254,7 +254,7 @@ import {MultiSelect} from "primeng/multiselect";
                                 <div class="flex justify-between items-center">
                                     Account Name
                                     <p-columnFilter
-                                            field="account_name"
+                                            field="account_id"
                                             matchMode="in"
                                             display="menu"
                                             [showMatchModes]="false"
@@ -286,7 +286,7 @@ import {MultiSelect} from "primeng/multiselect";
                                 <div class="flex justify-between items-center">
                                     Source
                                     <p-columnFilter
-                                            field="source"
+                                            field="import_method"
                                             matchMode="in"
                                             display="menu"
                                             [showMatchModes]="false"
@@ -343,22 +343,22 @@ import {MultiSelect} from "primeng/multiselect";
                                 <span *ngIf="!transaction.category?.name" class="text-sm">-</span>
                             </td>
                             <td class="p-0">
-                                <ng-container *ngIf="getBankLogo(transaction.account_id); else accountNameText">
+                                <ng-container *ngIf="getBankLogo(transaction.bank_source); else institutionNameText">
                                     <div class="flex items-center justify-center w-full h-full">
                                         <img
-                                                [src]="getBankLogo(transaction.account_id)"
+                                                [src]="getBankLogo(transaction.bank_source)"
                                                 alt="Bank Logo"
                                                 class="w-6 h-6 object-cover rounded-full"
-                                                [title]="getAccountName(transaction.account_id)"
-                                                [pTooltip]="getAccountName(transaction.account_id)"
+                                                [title]="getInstitutionName(transaction.bank_source)"
+                                                [pTooltip]="getInstitutionName(transaction.bank_source)"
                                                 tooltipPosition="top"
                                         />
                                     </div>
                                 </ng-container>
 
-                                <ng-template #accountNameText>
+                                <ng-template #institutionNameText>
                                     <div class="flex items-center justify-center w-full h-full">
-                                        <span class="text-sm text-gray-600">{{ getAccountName(transaction.account_id) }}</span>
+                                        <span class="text-sm text-gray-600">{{ getInstitutionName(transaction.bank_source) }}</span>
                                     </div>
                                 </ng-template>
                             </td>
@@ -605,7 +605,7 @@ export class TransactionsComponent implements OnInit {
         private supabaseService: SupabaseService,
         private messageService: MessageService,
         private csvImportService: CsvImportService,
-        private reconciliationService: ReconciliationService,
+        private reconciliationService: ReconciliationOldService,
         private aiCategorizationService: AiCategorizationService,
     ) {}
 
@@ -772,11 +772,11 @@ export class TransactionsComponent implements OnInit {
 
     // Call this after you load 'transactions' (your full dataset) or whenever it changes.
     buildFilterOptions() {
-        // Adjust field accessors if your property names differ
-        this.categoryOptions = this.toSelectItems(this.transactions.map((t: any) => t.category));
-        this.institutionOptions = this.toSelectItems(this.transactions.map((t: any) => t.institution));
-        this.accountNameOptions = this.toSelectItems(this.transactions.map((t: any) => t.account_name));
-        this.sourceOptions = this.toSelectItems(this.transactions.map((t: any) => t.source));
+        // Use correct field names that match the actual transaction data structure
+        this.institutionOptions = this.toSelectItems(this.transactions.map((t: any) => t.bank_source));
+        this.accountNameOptions = this.toSelectItems(this.transactions.map((t: any) => t.account_id));
+        this.sourceOptions = this.toSelectItems(this.transactions.map((t: any) => t.import_method));
+        // Note: categoryOptions is already loaded from the database in loadCategoryOptions()
     }
 
     applyFilters() {
@@ -832,30 +832,91 @@ export class TransactionsComponent implements OnInit {
 
     getAccountName(accountId: string): string {
         const account = this.linkedAccounts.find(a => a.account_id === accountId);
-        return account ? `${account.name} (****${account.mask})` : accountId;
+        if (account) {
+            return `${account.name} (****${account.mask})`;
+        }
+        
+        // Handle special case for FirstTech CU - Augie
+        if (accountId === 'FirstTech CU - Augie') {
+            return 'Augie';
+        }
+        
+        // Handle Fidelity Bank accounts
+        if (accountId === 'CHECKING') {
+            return 'CHECKING';
+        } else if (accountId === 'BACK UP CHECKING') {
+            return 'BACK UP CHECKING';
+        } else if (accountId === 'Fidelity Account') {
+            return 'Fidelity Account';
+        }
+        
+        // Handle Credit Card accounts
+        if (accountId === 'Credit Card') {
+            return 'Credit Card';
+        }
+        
+        // Handle Marcus accounts
+        if (accountId === 'Saving') {
+            return 'Saving';
+        }
+        
+        return accountId;
     }
 
     getAccountSubName(accountId: string): string {
+        // Handle special case for FirstTech CU - Augie
+        if (accountId === 'FirstTech CU - Augie') {
+            return 'Augie';
+        }
+        
         // Capture everything after the first '-' (with or without spaces)
         const match = accountId.match(/-\s*(.+)$/);
         // If no '-' is found, fall back to the full name
         return (match ? match[1] : accountId).trim();
     }
 
-    getBankLogo(accountId: string): string {
-        const accountName = this.getAccountName(accountId);
-        const accountNameLower = accountName.toLowerCase();
+    getBankLogo(bankSource: string): string {
+        const bankSourceLower = bankSource.toLowerCase();
         
-        if (accountNameLower.includes('fidelity')) {
+        if (bankSourceLower.includes('fidelity')) {
             return 'assets/images/fidelity.png';
-        } else if (accountNameLower.includes('firsttech') || accountNameLower.includes('first tech')) {
+        } else if (bankSourceLower.includes('firsttech') || bankSourceLower.includes('first tech')) {
             return 'assets/images/firsttech.png';
-        } else if (accountNameLower.includes('us bank') || accountNameLower.includes('usbank')) {
+        } else if (bankSourceLower.includes('us bank') || bankSourceLower.includes('usbank') || bankSourceLower === 'us_bank') {
             return 'assets/images/usbank.png';
+        } else if (bankSourceLower.includes('marcus')) {
+            return 'assets/images/marcus.png'; // Assuming you have a Marcus logo
         }
         
         // Return null for no logo instead of a non-existent default
         return '';
+    }
+
+    getInstitutionName(bankSource: string): string {
+        const bankSourceLower = bankSource.toLowerCase();
+        
+        // Handle Fidelity Bank
+        if (bankSourceLower.includes('fidelity')) {
+            return 'Fidelity Bank';
+        }
+        
+        // Handle FirstTech CU
+        if (bankSourceLower.includes('firsttech') || bankSourceLower.includes('first tech')) {
+            return 'FirstTech CU';
+        }
+        
+        // Handle US Bank
+        if (bankSourceLower.includes('us bank') || bankSourceLower.includes('usbank') || bankSourceLower === 'us_bank_credit_card') {
+            return 'US Bank';
+        }
+        
+        // Handle Marcus
+        if (bankSourceLower.includes('marcus')) {
+            return 'Marcus';
+        }
+        
+        // Default fallback
+        return bankSource;
     }
 
     getImportMethodIcon(importMethod: string): string {

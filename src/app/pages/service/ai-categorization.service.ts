@@ -8,7 +8,7 @@ import { ErrorLogService } from './error-log.service';
 export interface CategorizationResult {
     categoryId: string | null;
     confidence: number;
-    method: 'csv' | 'rules' | 'ai_similarity' | 'openai' | 'default';
+    method: 'csv' | 'rules' | 'ai_similarity' | 'openai' | 'default' | 'uncategorized';
     matchedTransaction?: Transaction;
     similarity?: number;
 }
@@ -46,7 +46,7 @@ export class AiCategorizationService {
         // 1. Check if CSV provided category
         if (transaction.category && typeof transaction.category === 'string' && transaction.category.trim()) {
             try {
-                const categoryId = await this.findOrCreateCategory(transaction.category);
+                const categoryId = await this.findExistingCategory(transaction.category);
                 if (categoryId) {
                     return {
                         categoryId,
@@ -83,11 +83,12 @@ export class AiCategorizationService {
             console.log('OpenAI categorization failed, using default category:', error.message);
         }
 
-        // 5. Default category
+        // 5. Default category or null if no default exists
+        const defaultCategoryId = await this.getDefaultCategoryId();
         return {
-            categoryId: await this.getDefaultCategoryId(),
-            confidence: 0.0,
-            method: 'default'
+            categoryId: defaultCategoryId,
+            confidence: defaultCategoryId ? 0.1 : 0,
+            method: defaultCategoryId ? 'default' : 'uncategorized'
         };
     }
 
@@ -362,13 +363,13 @@ Please respond with only the category name from the list above.`;
     }
 
     /**
-     * Find or create a category by name
+     * Find existing category by name - NO AUTO-CREATION
      */
-    private async findOrCreateCategory(categoryName: string): Promise<string | null> {
+    private async findExistingCategory(categoryName: string): Promise<string | null> {
         const normalizedName = this.normalizeCategoryName(categoryName);
         
         try {
-            // First, try to find existing category
+            // Only look for existing categories - never create new ones
             const { data: existingCategory, error: selectError } = await this.supabaseService.getClient()
                 .from('hb_transaction_categories')
                 .select('id')
@@ -377,70 +378,49 @@ Please respond with only the category name from the list above.`;
 
             if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
                 console.error('Error finding category:', selectError);
+                
+                // Log the error to the error log table
+                await this.errorLogService.logErrorAsync({
+                    error_type: 'category_management',
+                    error_category: 'warning',
+                    error_code: selectError.code,
+                    error_message: `Error finding category: ${selectError.message}`,
+                    operation: 'category_lookup',
+                    component: 'ai-categorization.service',
+                    function_name: 'findExistingCategory',
+                    error_data: {
+                        categoryName: normalizedName,
+                        originalCategoryName: categoryName,
+                        selectError
+                    }
+                });
             }
 
             if (existingCategory) {
                 return existingCategory.id;
             }
 
-            // Create new category if not found
-            const { data: newCategory, error: insertError } = await this.supabaseService.getClient()
-                .from('hb_transaction_categories')
-                .insert({
-                    name: normalizedName,
-                    description: `Auto-created from CSV import: ${categoryName}`,
-                    created_by: 'SYSTEM'
-                })
-                .select('id')
-                .single();
-
-            if (insertError) {
-                console.error('Error creating category:', insertError);
-                
-                // Log the error to the error log table
-                await this.errorLogService.logErrorAsync({
-                    error_type: 'category_management',
-                    error_category: insertError.code === '42501' ? 'critical' : 'error',
-                    error_code: insertError.code,
-                    error_message: `Failed to create category: ${insertError.message}`,
-                    error_stack: insertError.stack || undefined,
-                    operation: 'category_creation',
-                    component: 'ai-categorization.service',
-                    function_name: 'findOrCreateCategory',
-                    error_data: {
-                        categoryName: normalizedName,
-                        originalCategoryName: categoryName,
-                        insertError
-                    }
-                });
-                
-                // If we can't create a new category due to RLS policy, try to find a similar existing category
-                if (insertError.code === '42501' || insertError.message.includes('row-level security')) {
-                    console.log('RLS policy violation - trying to find similar existing category');
-                    return await this.findSimilarCategory(normalizedName);
-                }
-                
-                return null;
-            }
-
-            return newCategory?.id || null;
+            // If no exact match found, try to find a similar category
+            console.log(`Category '${normalizedName}' not found, trying to find similar category`);
+            return await this.findSimilarCategory(normalizedName);
+            
         } catch (error: any) {
-            console.error('Unexpected error in findOrCreateCategory:', error);
+            console.error('Unexpected error in findExistingCategory:', error);
             
             // Log the error to the error log table
             await this.errorLogService.logErrorAsync({
                 error_type: 'category_management',
                 error_category: 'error',
                 error_code: error.code,
-                error_message: `Unexpected error in findOrCreateCategory: ${error.message || error}`,
+                error_message: `Unexpected error in findExistingCategory: ${error.message || error}`,
                 error_stack: error.stack,
-                operation: 'category_creation',
+                operation: 'category_lookup',
                 component: 'ai-categorization.service',
-                function_name: 'findOrCreateCategory',
+                function_name: 'findExistingCategory',
                 error_data: {
                     categoryName: normalizedName,
                     originalCategoryName: categoryName,
-                    originalError: error
+                    error
                 }
             });
             
@@ -680,7 +660,7 @@ Please respond with only the category name from the list above.`;
     private async categorizeWithMultipleMethodsRateLimited(transaction: any): Promise<CategorizationResult> {
         // 1. Check if CSV provided category
         if (transaction.category && transaction.category.trim()) {
-            const categoryId = await this.findOrCreateCategory(transaction.category);
+            const categoryId = await this.findExistingCategory(transaction.category);
             if (categoryId) {
                 return {
                     categoryId,
@@ -703,11 +683,12 @@ Please respond with only the category name from the list above.`;
         }
 
         // 4. Skip OpenAI categorization to avoid rate limits
-        // 5. Default category
+        // 5. Default category or null if no default exists
+        const defaultCategoryId = await this.getDefaultCategoryId();
         return {
-            categoryId: await this.getDefaultCategoryId(),
-            confidence: 0.0,
-            method: 'default'
+            categoryId: defaultCategoryId,
+            confidence: defaultCategoryId ? 0.1 : 0,
+            method: defaultCategoryId ? 'default' : 'uncategorized'
         };
     }
 } 
