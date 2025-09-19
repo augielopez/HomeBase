@@ -10,6 +10,7 @@
                     <p-dropdown 
                         [options]="monthOptions" 
                         [(ngModel)]="selectedMonth"
+                        (onChange)="onMonthChange()"
                         placeholder="Select Month"
                         optionLabel="label"
                         optionValue="value"
@@ -58,17 +59,17 @@
 
             <div class="selection-summary">
                 <div class="selection-box">
-                    <div class="selection-amount">$0.00</div>
-                    <div class="selection-label">Selected Transaction</div>
+                    <div class="selection-amount">{{ selectedTransactionAmount }}</div>
+                    <div class="selection-label">{{ selectedTransactionDescription }}</div>
                 </div>
                 
                 <div class="mark-as-button">
-                    <p-button label="Match" [raised]="true"></p-button>
+                        <p-button label="Match" icon="pi pi-arrows-h" [raised]="true" (click)="onMatchTransaction()"></p-button>
                 </div>
                 
                 <div class="selection-box">
-                    <div class="selection-amount">$0.00</div>
-                    <div class="selection-label">Selected Bill</div>
+                    <div class="selection-amount">{{ selectedBillAmount }}</div>
+                    <div class="selection-label">{{ selectedBillDescription }}</div>
                 </div>
             </div>
         </div>
@@ -89,7 +90,7 @@
                         <div class="panel-header">
                             <h3 class="panel-title-with-badge">                                         
                                 <span>Unreconciled Transactions</span>
-                                <p-badge value="2" />
+                                <p-badge [value]="unreconciledCount" />
                             </h3>
                         </div>
                         
@@ -103,41 +104,28 @@
                         </div>
                         
                         <div class="transaction-list">
-                            <!-- Transaction Item 1 -->
-                            <div class="transaction-item">
-                                <div class="transaction-checkbox">
-                                    <input type="checkbox" class="checkbox">
-                                </div>
-                                <div class="transaction-content">
-                                    <div class="transaction-date">05/05/2023</div>
-                                    <div class="transaction-description">Interest Paid</div>
-                                </div>
-                                <div class="transaction-amount positive">$1.00 USD</div>
+                            <div *ngIf="loadingTransactions" class="loading-message">
+                                Loading transactions...
                             </div>
-
-                            <!-- Transaction Item 2 -->
-                            <div class="transaction-item">
+                            <div *ngFor="let transaction of transactions" 
+                                 class="transaction-item" 
+                                 [class.selected]="isTransactionSelected(transaction)"
+                                 (click)="onTransactionSelect(transaction)">
                                 <div class="transaction-checkbox">
-                                    <input type="checkbox" class="checkbox">
+                                    <input type="radio" 
+                                           name="selectedTransaction" 
+                                           [checked]="isTransactionSelected(transaction)"
+                                           (click)="onTransactionSelect(transaction)">
                                 </div>
                                 <div class="transaction-content">
-                                    <div class="transaction-date">04/28/2023</div>
-                                    <div class="transaction-description">EFT Withdrawal</div>
+                                    <div class="transaction-date">{{ transaction.date }}</div>
+                                    <div class="transaction-description" 
+                                         [class.refund]="transaction.isRefund">{{ transaction.description }}</div>
+                                    <div *ngIf="transaction.subtext" class="transaction-subtext">{{ transaction.subtext }}</div>
                                 </div>
-                                <div class="transaction-amount negative">-$473.46 USD</div>
-                            </div>
-
-                            <!-- Transaction Item 3 -->
-                            <div class="transaction-item">
-                                <div class="transaction-checkbox">
-                                    <input type="checkbox" class="checkbox">
-                                </div>
-                                <div class="transaction-content">
-                                    <div class="transaction-date">04/15/2023</div>
-                                    <div class="transaction-description refund">Refund</div>
-                                    <div class="transaction-subtext">Manually Added Transaction</div>
-                                </div>
-                                <div class="transaction-amount positive">$1,202.02 USD</div>
+                                <div class="transaction-amount" 
+                                     [class.positive]="transaction.type === 'positive'"
+                                     [class.negative]="transaction.type === 'negative'">{{ transaction.amount }}</div>
                             </div>
                         </div>
                     </div>
@@ -145,10 +133,10 @@
                     <!-- Right Panel: Bills -->
                     <div class="panel bills">
                         <div class="panel-header">
-                            <h3 class="panel-title-with-badge">
-                                <span>Bills</span>
-                                <p-badge value="2" />
-                            </h3>
+                        <h3 class="panel-title-with-badge">
+                            <span>Bills</span>
+                            <p-badge [value]="billsCount" />
+                        </h3>
                         </div>
                         
                         <div class="search-container">
@@ -161,52 +149,28 @@
                         </div>
                         
                         <div class="bill-list">
-                            <!-- Bill Item 1 -->
-                            <div class="bill-item">
-                                <div class="bill-checkbox">
-                                    <input type="checkbox" class="checkbox">
-                                </div>
-                                <div class="bill-content">
-                                    <div class="bill-date">05/05/2023</div>
-                                    <div class="bill-merchant">Kevin Roberts</div>
-                                    <div class="bill-category">
-                                        <i class="pi pi-send category-icon"></i>
-                                        <span>Advertising</span>
-                                    </div>
-                                </div>
-                                <div class="bill-amount">-$429.44 USD</div>
+                            <div *ngIf="loadingBills" class="loading-message">
+                                Loading bills...
                             </div>
-
-                            <!-- Bill Item 2 -->
-                            <div class="bill-item">
+                            <div *ngFor="let bill of bills" 
+                                 class="bill-item" 
+                                 [class.selected]="isBillSelected(bill)"
+                                 (click)="onBillSelect(bill)">
                                 <div class="bill-checkbox">
-                                    <input type="checkbox" class="checkbox">
+                                    <input type="radio" 
+                                           name="selectedBill" 
+                                           [checked]="isBillSelected(bill)"
+                                           (click)="onBillSelect(bill)">
                                 </div>
                                 <div class="bill-content">
-                                    <div class="bill-date">04/28/2023</div>
-                                    <div class="bill-merchant">Jane Jones - EFT Withdrawal</div>
+                                    <div class="bill-date">{{ bill.date }}</div>
+                                    <div class="bill-merchant">{{ bill.merchant }}</div>
                                     <div class="bill-category">
-                                        <i class="pi pi-diamond category-icon"></i>
-                                        <span>Other Expenses</span>
+                                        <i [class]="bill.category.icon + ' category-icon'"></i>
+                                        <span>{{ bill.category.name }}</span>
                                     </div>
                                 </div>
-                                <div class="bill-amount">-$473.46 USD</div>
-                            </div>
-
-                            <!-- Bill Item 3 -->
-                            <div class="bill-item">
-                                <div class="bill-checkbox">
-                                    <input type="checkbox" class="checkbox">
-                                </div>
-                                <div class="bill-content">
-                                    <div class="bill-date">05/05/2023</div>
-                                    <div class="bill-merchant">No Merchant</div>
-                                    <div class="bill-category">
-                                        <i class="pi pi-car category-icon"></i>
-                                        <span>Gas</span>
-                                    </div>
-                                </div>
-                                <div class="bill-amount">-$2.18 USD</div>
+                                <div class="bill-amount">{{ bill.amount }}</div>
                             </div>
                         </div>
                     </div>
@@ -215,7 +179,54 @@
             
             <p-tabpanel value="1">
                 <div class="matched-content">
-                    <p class="m-0">Matched transactions will appear here.</p>
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="panel-header">
+                            <h3 class="panel-title-with-badge">                                         
+                                <span>All Matches</span>
+                                <p-badge value="2" />
+                            </h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <p-inputgroup>
+                                <input pInputText placeholder="Search" />
+                                <p-inputgroup-addon>
+                                    <p-button icon="pi pi-search" severity="secondary" variant="text" />
+                                </p-inputgroup-addon>
+                            </p-inputgroup>
+                            <p-button icon="pi pi-filter" severity="secondary" variant="text" />
+                        </div>
+                    </div>
+                    
+                    <p-table [value]="matchedTransactions" 
+                             [loading]="loadingMatched"
+                             [tableStyle]="{'min-width': '75rem'}" 
+                             responsiveLayout="scroll">
+                        <ng-template #header>
+                            <tr>
+                                <th style="width: 8rem">Date</th>
+                                <th style="width: 20rem">Transaction</th>
+                                <th style="width: 8rem">Amount</th>
+                                <th style="width: 8rem">Date</th>
+                                <th style="width: 20rem">Bill Name</th>
+                                <th style="width: 8rem">Amount</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-matched>
+                            <tr>
+                                <td>{{ matched.transactionDate }}</td>
+                                <td>{{ matched.transactionDescription }}</td>
+                                <td>{{ matched.transactionAmount }}</td>
+                                <td>{{ matched.billDate }}</td>
+                                <td>
+                                    <div class="flex flex-col">
+                                        <span>{{ matched.billName }}</span>
+                                        <span class="text-sm text-gray-500">{{ matched.billCategory }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ matched.billAmount }}</td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
                 </div>
             </p-tabpanel>
         </p-tabpanels>

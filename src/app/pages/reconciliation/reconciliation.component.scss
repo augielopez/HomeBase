@@ -10,6 +10,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--surface-border, #e5e7eb);
 }
 
 .header-left h1.page-title {
@@ -201,6 +203,20 @@
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.transaction-item.selected, .bill-item.selected {
+    border-color: var(--primary-color, #1e3a8a);
+    background-color: var(--primary-50, rgba(30, 58, 138, 0.05));
+}
+
+.loading-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-color-secondary, #6b7280);
+    font-style: italic;
 }
 
 .transaction-checkbox, .bill-checkbox {
