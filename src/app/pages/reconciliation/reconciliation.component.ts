@@ -53,6 +53,7 @@ import { ReconciliationService } from '../service/reconciliation.service';
 import { SupabaseService } from '../service/supabase.service';
 import { AiMatchingService, MatchResult, AutoMatchConfig } from '../service/ai-matching.service';
 import { Transaction as DbTransaction } from '../../interfaces/transaction.interface';
+import { BillCreationDialogComponent } from './bill-creation-dialog/bill-creation-dialog.component';
 
 @Component({
     selector: 'app-reconciliation',
@@ -73,7 +74,8 @@ import { Transaction as DbTransaction } from '../../interfaces/transaction.inter
         InputGroupAddonModule,
         TableModule,
         PaginatorModule,
-        DialogModule
+        DialogModule,
+        BillCreationDialogComponent
     ],
     templateUrl: './reconciliation.component.html',
     styleUrls: ['./reconciliation.component.scss']
@@ -127,6 +129,9 @@ export class ReconciliationComponent {
     // Confirmation dialog properties
     showConfirmDialog: boolean = false;
     autoMatchCancelled: boolean = false;
+    
+    // Bill creation dialog properties
+    showBillCreationDialog: boolean = false;
 
     constructor(
         private reconciliationService: ReconciliationService,
@@ -825,5 +830,28 @@ export class ReconciliationComponent {
         if (confidence >= 80) return 'info';
         if (confidence >= 70) return 'warning';
         return 'danger';
+    }
+
+    /**
+     * Open the bill creation dialog
+     */
+    openBillCreationDialog() {
+        this.showBillCreationDialog = true;
+    }
+
+    /**
+     * Handle bill creation success
+     */
+    async onBillCreated(newBill: any) {
+        console.log('Bill created successfully:', newBill);
+        
+        // Reload the bills data to include the new bill
+        await this.loadUnmatchedBills();
+        
+        // Update the bills count
+        this.billsCount = this.bills.length;
+        
+        // Optionally select the newly created bill
+        // this.selectedBill = newBill;
     }
 }

@@ -175,10 +175,20 @@
                     <!-- Right Panel: Bills -->
                     <div class="panel bills">
                         <div class="panel-header">
-                        <h3 class="panel-title-with-badge">
-                            <span>Bills</span>
-                            <p-badge [value]="billsCount" />
-                        </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="panel-title-with-badge">
+                                    <span>Bills</span>
+                                    <p-badge [value]="billsCount" />
+                                </h3>
+                                <p-button 
+                                    label="Add Bill" 
+                                    icon="pi pi-plus" 
+                                    severity="secondary" 
+                                    size="small"
+                                    [outlined]="true"
+                                    (onClick)="openBillCreationDialog()">
+                                </p-button>
+                            </div>
                         </div>
                         
                         <div class="search-container">
@@ -406,3 +416,9 @@
         </div>
     </div>
 </p-dialog>
+
+<!-- Bill Creation Dialog -->
+<app-bill-creation-dialog 
+    [(visible)]="showBillCreationDialog"
+    (billCreated)="onBillCreated($event)">
+</app-bill-creation-dialog>

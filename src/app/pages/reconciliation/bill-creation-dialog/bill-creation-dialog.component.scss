@@ -1,0 +1,53 @@
+.bill-creation-form {
+  .field {
+    .font-medium {
+      color: var(--text-color);
+    }
+    
+    .text-red-500 {
+      color: var(--red-500);
+    }
+    
+    input, p-inputnumber, p-calendar, p-dropdown {
+      &.p-invalid {
+        border-color: var(--red-500);
+      }
+    }
+    
+    small {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+  }
+  
+  .flex {
+    display: flex;
+    
+    &.justify-end {
+      justify-content: flex-end;
+    }
+    
+    &.gap-3 {
+      gap: 0.75rem;
+    }
+  }
+}
+
+// Ensure proper spacing and alignment
+.p-dialog-content {
+  padding: 1.5rem;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .bill-creation-form {
+    .flex.gap-3 {
+      flex-direction: column;
+      gap: 0.5rem;
+      
+      p-button {
+        width: 100%;
+      }
+    }
+  }
+}

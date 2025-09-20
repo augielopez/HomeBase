@@ -1,0 +1,115 @@
+<p-dialog 
+    header="Create New Bill" 
+    [(visible)]="visible"
+    [modal]="true" 
+    [style]="{ width: '500px' }"
+    [closable]="true"
+    (onHide)="onVisibleChange(false)"
+    appendTo="body">
+    
+    <form [formGroup]="billForm" (ngSubmit)="onSubmit()" class="bill-creation-form">
+        
+        <!-- Bill Name -->
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium">
+                Bill Name <span class="text-red-500">*</span>
+            </label>
+            <input 
+                type="text" 
+                pInputText 
+                formControlName="billName"
+                placeholder="e.g., Electric Company, Rent, etc."
+                class="w-full"
+                [class.p-invalid]="hasFieldError('billName')" />
+            <small 
+                class="text-red-500 mt-1 block" 
+                *ngIf="hasFieldError('billName')">
+                {{ getFieldError('billName') }}
+            </small>
+        </div>
+
+        <!-- Amount -->
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium">
+                Amount <span class="text-red-500">*</span>
+            </label>
+            <p-inputNumber 
+                formControlName="amount"
+                mode="currency" 
+                currency="USD" 
+                [useGrouping]="true"
+                placeholder="0.00"
+                class="w-full"
+                [class.p-invalid]="hasFieldError('amount')" />
+            <small 
+                class="text-red-500 mt-1 block" 
+                *ngIf="hasFieldError('amount')">
+                {{ getFieldError('amount') }}
+            </small>
+        </div>
+
+        <!-- Due Date -->
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium">
+                Due Date <span class="text-red-500">*</span>
+            </label>
+            <p-calendar 
+                formControlName="dueDate"
+                dateFormat="mm/dd/yy"
+                [showIcon]="true"
+                placeholder="Select due date"
+                class="w-full"
+                [class.p-invalid]="hasFieldError('dueDate')" />
+            <small 
+                class="text-red-500 mt-1 block" 
+                *ngIf="hasFieldError('dueDate')">
+                {{ getFieldError('dueDate') }}
+            </small>
+        </div>
+
+        <!-- Bill Type -->
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium">
+                Bill Type
+            </label>
+            <p-dropdown 
+                [options]="billTypes"
+                optionLabel="label"
+                optionValue="value"
+                formControlName="billType"
+                placeholder="Select bill type"
+                class="w-full" />
+        </div>
+
+        <!-- Description -->
+        <div class="field mb-6">
+            <label class="block mb-2 font-medium">
+                Description
+            </label>
+            <input 
+                type="text" 
+                pInputText 
+                formControlName="description"
+                placeholder="Optional additional notes..."
+                class="w-full" />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end gap-3">
+            <p-button 
+                label="Cancel" 
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="closeDialog()"
+                [disabled]="isSubmitting">
+            </p-button>
+            <p-button 
+                label="Create Bill" 
+                icon="pi pi-plus"
+                type="submit"
+                [loading]="isSubmitting"
+                [disabled]="billForm.invalid || isSubmitting">
+            </p-button>
+        </div>
+    </form>
+</p-dialog>
