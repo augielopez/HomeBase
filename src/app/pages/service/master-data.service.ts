@@ -27,11 +27,11 @@ export class MasterDataService {
 
 
     // Observables for components to subscribe to
-    public billCategories$ = this.billCategoriesSubject.asObservable();
-    public billTypes$ = this.billTypesSubject.asObservable();
-    public frequencyTypes$ = this.frequencyTypesSubject.asObservable();
-    public paymentTypes$ = this.paymentTypesSubject.asObservable();
-    public priorityTypes$ = this.priorityTypesSubject.asObservable();
+    billCategories$ = this.billCategoriesSubject.asObservable();
+    billTypes$ = this.billTypesSubject.asObservable();
+    frequencyTypes$ = this.frequencyTypesSubject.asObservable();
+    paymentTypes$ = this.paymentTypesSubject.asObservable();
+    priorityTypes$ = this.priorityTypesSubject.asObservable();
     warrantyTypes$ = this.warrantyTypesSubject.asObservable();
     tags$ = this.tagsSubject.asObservable();
     loginTypes$ = this.loginTypesSubject.asObservable();
@@ -40,7 +40,7 @@ export class MasterDataService {
 
     // Loading states
     private isLoadingSubject = new BehaviorSubject<boolean>(false);
-    public isLoading$ = this.isLoadingSubject.asObservable();
+    isLoading$ = this.isLoadingSubject.asObservable();
 
     constructor(private supabaseService: SupabaseService) {}
 
