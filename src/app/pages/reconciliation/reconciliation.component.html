@@ -17,6 +17,27 @@
                         [style]="{'width': '200px'}"
                         appendTo="body">
                     </p-dropdown>
+                    <div class="flex items-center">
+                        <p-button 
+                            [label]="autoMatchingInProgress ? 'Processing...' : 'Auto Recon'" 
+                            [icon]="autoMatchingInProgress ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'"
+                            severity="secondary"
+                            [outlined]="true"
+                            [disabled]="!selectedMonth || autoMatchingInProgress"
+                            (onClick)="startAutoReconciliation()"
+                            styleClass="ml-3">
+                        </p-button>
+                        
+                        <p-button 
+                            *ngIf="autoMatchingInProgress"
+                            label="Cancel" 
+                            icon="pi pi-times"
+                            severity="danger"
+                            [outlined]="true"
+                            (onClick)="cancelAutoReconciliation()"
+                            styleClass="ml-2">
+                        </p-button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -265,3 +286,123 @@
         </p-tabpanels>
     </p-tabs>
 </div>
+
+<!-- Auto Reconciliation Confirmation Dialog -->
+<p-dialog 
+    header="Confirm Auto Reconciliation" 
+    [(visible)]="showConfirmDialog" 
+    [modal]="true" 
+    [style]="{ width: '500px' }"
+    [closable]="false"
+    appendTo="body">
+    
+    <div class="confirmation-content">
+        <div class="mb-4">
+            <i class="pi pi-question-circle text-blue-500 text-3xl mb-3"></i>
+            <p class="text-lg mb-2">Start Auto Reconciliation?</p>
+            <p class="text-sm text-gray-600">
+                This will automatically analyze and suggest matches for unreconciled transactions 
+                in <strong>{{ selectedMonth | date:'MMMM yyyy' }}</strong> using AI-powered pattern matching.
+            </p>
+        </div>
+        
+        <div class="confirmation-actions flex justify-end gap-3">
+            <p-button 
+                label="Cancel" 
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="showConfirmDialog = false">
+            </p-button>
+            <p-button 
+                label="Start Auto Recon" 
+                icon="pi pi-bolt"
+                (onClick)="confirmAutoReconciliation()">
+            </p-button>
+        </div>
+    </div>
+</p-dialog>
+
+<!-- Auto Reconciliation Approval Dialog -->
+<p-dialog 
+    header="Auto Reconciliation Matches" 
+    [(visible)]="showAutoMatchDialog" 
+    [modal]="true" 
+    [style]="{ width: '800px' }"
+    [closable]="false"
+    appendTo="body">
+    
+    <div class="auto-match-dialog">
+        <div class="match-summary mb-4">
+            <p>Found <strong>{{ suggestedMatches.length }}</strong> potential matches above {{ matchingConfig.confidenceThreshold }}% confidence threshold.</p>
+            <p class="text-sm text-gray-600">Review and approve the matches below:</p>
+        </div>
+        
+        <div class="match-list" style="max-height: 400px; overflow-y: auto;">
+            <div *ngFor="let match of suggestedMatches" class="match-item p-3 border border-gray-200 rounded-lg mb-3">
+                <div class="flex justify-between items-start">
+                    <div class="match-details flex-1">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium">{{ match.transactionDescription }}</h4>
+                            <p-tag 
+                                [value]="match.confidence + '%'" 
+                                [severity]="getConfidenceSeverity(match.confidence)">
+                            </p-tag>
+                        </div>
+                        <div class="text-sm text-gray-600 mb-2">
+                            <strong>Match with:</strong> {{ match.billName }}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <strong>Reason:</strong> {{ match.reason }}
+                            <span *ngIf="match.amountMatch" class="ml-2 text-green-600">• Amount matches</span>
+                        </div>
+                    </div>
+                    <div class="match-actions ml-4">
+                        <p-checkbox 
+                            [binary]="true" 
+                            [(ngModel)]="match.approved"
+                            [style]="{'width': '20px', 'height': '20px'}">
+                        </p-checkbox>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dialog-actions mt-4 flex justify-between items-center">
+            <div class="selection-info">
+                <span *ngIf="getApprovedMatches().length > 0" class="text-sm text-blue-600">
+                    {{ getApprovedMatches().length }} of {{ suggestedMatches.length }} matches selected
+                </span>
+            </div>
+            <div class="action-buttons">
+                <p-button 
+                    label="Select All" 
+                    size="small"
+                    severity="secondary"
+                    [outlined]="true"
+                    (onClick)="selectAllMatches(true)"
+                    class="mr-2">
+                </p-button>
+                <p-button 
+                    label="Select None" 
+                    size="small"
+                    severity="secondary"
+                    [outlined]="true"
+                    (onClick)="selectAllMatches(false)"
+                    class="mr-2">
+                </p-button>
+                <p-button 
+                    label="Cancel" 
+                    (onClick)="cancelAutoReconciliation()"
+                    [outlined]="true"
+                    class="mr-2">
+                </p-button>
+                <p-button 
+                    label="Apply Selected Matches" 
+                    [disabled]="getApprovedMatches().length === 0"
+                    [loading]="applyingMatches"
+                    (onClick)="applySelectedMatches()">
+                </p-button>
+            </div>
+        </div>
+    </div>
+</p-dialog>

@@ -48,8 +48,10 @@ import { InputGroupModule } from 'primeng/inputgroup';
 import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { TableModule } from 'primeng/table';
 import { PaginatorModule } from 'primeng/paginator';
+import { DialogModule } from 'primeng/dialog';
 import { ReconciliationService } from '../service/reconciliation.service';
 import { SupabaseService } from '../service/supabase.service';
+import { AiMatchingService, MatchResult, AutoMatchConfig } from '../service/ai-matching.service';
 import { Transaction as DbTransaction } from '../../interfaces/transaction.interface';
 
 @Component({
@@ -70,7 +72,8 @@ import { Transaction as DbTransaction } from '../../interfaces/transaction.inter
         InputGroupModule,
         InputGroupAddonModule,
         TableModule,
-        PaginatorModule
+        PaginatorModule,
+        DialogModule
     ],
     templateUrl: './reconciliation.component.html',
     styleUrls: ['./reconciliation.component.scss']
@@ -114,9 +117,21 @@ export class ReconciliationComponent {
     currentTransactionPage: number = 1;
     currentBillPage: number = 1;
 
+    // Auto-matching properties
+    autoMatchingInProgress: boolean = false;
+    showAutoMatchDialog: boolean = false;
+    suggestedMatches: (MatchResult & { approved: boolean })[] = [];
+    applyingMatches: boolean = false;
+    matchingConfig: AutoMatchConfig;
+    
+    // Confirmation dialog properties
+    showConfirmDialog: boolean = false;
+    autoMatchCancelled: boolean = false;
+
     constructor(
         private reconciliationService: ReconciliationService,
-        private supabaseService: SupabaseService
+        private supabaseService: SupabaseService,
+        private aiMatchingService: AiMatchingService
     ) {
         this.initializeMonthOptions();
         this.initializeAccountOptions();
@@ -125,6 +140,7 @@ export class ReconciliationComponent {
         this.initializeMatchedTransactionsData();
         this.loadData();
         this.calculateFinancialMetrics();
+        this.matchingConfig = this.aiMatchingService.getConfig();
     }
 
     private initializeMonthOptions() {
@@ -668,5 +684,146 @@ export class ReconciliationComponent {
         this.totalIncome = 0;
         this.netAmount = 0;
         this.totalTransactions = 0;
+    }
+
+    /**
+     * Show confirmation dialog for auto-reconciliation
+     */
+    startAutoReconciliation() {
+        if (!this.selectedMonth) {
+            console.warn('No month selected for auto-reconciliation');
+            return;
+        }
+        
+        this.showConfirmDialog = true;
+    }
+
+    /**
+     * Confirm and start auto-reconciliation process
+     */
+    async confirmAutoReconciliation() {
+        this.showConfirmDialog = false;
+        this.autoMatchingInProgress = true;
+        this.autoMatchCancelled = false;
+        
+        try {
+            // First, build patterns from existing manual matches
+            await this.aiMatchingService.buildMatchingPatterns();
+            
+            // Check if cancelled
+            if (this.autoMatchCancelled) {
+                console.log('Auto-reconciliation cancelled by user');
+                return;
+            }
+            
+            const [year, month] = this.selectedMonth.split('-').map(Number);
+            const [dbTransactions, dbBills] = await Promise.all([
+                this.reconciliationService.getUnreconciledTransactions(year, month),
+                this.reconciliationService.getUnmatchedBills(year, month)
+            ]);
+
+            // Check if cancelled
+            if (this.autoMatchCancelled) {
+                console.log('Auto-reconciliation cancelled by user');
+                return;
+            }
+
+            const suggestedMatches = await this.aiMatchingService.processTransactionsForMatching(
+                dbTransactions,
+                dbBills,
+                this.matchingConfig
+            );
+
+            // Check if cancelled
+            if (this.autoMatchCancelled) {
+                console.log('Auto-reconciliation cancelled by user');
+                return;
+            }
+
+            this.suggestedMatches = suggestedMatches.map(match => ({
+                ...match,
+                approved: false
+            }));
+
+            if (this.suggestedMatches.length === 0) {
+                console.log('No potential matches found above confidence threshold');
+            } else {
+                this.showAutoMatchDialog = true;
+            }
+
+        } catch (error) {
+            console.error('Error during auto-reconciliation:', error);
+        } finally {
+            this.autoMatchingInProgress = false;
+        }
+    }
+
+    /**
+     * Cancel auto-reconciliation process
+     */
+    cancelAutoReconciliation() {
+        this.autoMatchCancelled = true;
+        this.autoMatchingInProgress = false;
+        this.showAutoMatchDialog = false;
+        this.showConfirmDialog = false;
+        console.log('Auto-reconciliation cancelled');
+    }
+
+    /**
+     * Apply selected matches
+     */
+    async applySelectedMatches() {
+        const approvedMatches = this.getApprovedMatches();
+        if (approvedMatches.length === 0) return;
+
+        this.applyingMatches = true;
+
+        try {
+            await this.aiMatchingService.applyMatches(approvedMatches);
+            
+            // Close dialog and refresh data
+            this.showAutoMatchDialog = false;
+            this.suggestedMatches = [];
+            
+            // Reload data to reflect the changes
+            await this.loadData();
+            
+            console.log(`Successfully applied ${approvedMatches.length} matches`);
+            // You might want to show a success message to the user here
+
+        } catch (error) {
+            console.error('Error applying matches:', error);
+            // You might want to show an error message to the user here
+        } finally {
+            this.applyingMatches = false;
+        }
+    }
+
+    /**
+     * Get approved matches
+     */
+    getApprovedMatches(): MatchResult[] {
+        return this.suggestedMatches
+            .filter(match => match.approved)
+            .map(({ approved, ...match }) => match);
+    }
+
+    /**
+     * Select all or none of the matches
+     */
+    selectAllMatches(selectAll: boolean) {
+        this.suggestedMatches.forEach(match => {
+            match.approved = selectAll;
+        });
+    }
+
+    /**
+     * Get confidence severity for tag display
+     */
+    getConfidenceSeverity(confidence: number): string {
+        if (confidence >= 90) return 'success';
+        if (confidence >= 80) return 'info';
+        if (confidence >= 70) return 'warning';
+        return 'danger';
     }
 }
