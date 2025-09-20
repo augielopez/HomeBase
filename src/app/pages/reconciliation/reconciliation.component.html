@@ -41,19 +41,19 @@
                 <div class="financial-overview">
                     <div class="metric">
                         <div class="metric-label">Total Spent</div>
-                        <div class="metric-value">$17,980.06</div>
+                        <div class="metric-value">{{ totalSpent | currency:'USD':'symbol':'1.2-2' }}</div>
                     </div>
                     <div class="metric">
                         <div class="metric-label">Total Income</div>
-                        <div class="metric-value">$13,162.45</div>
+                        <div class="metric-value">{{ totalIncome | currency:'USD':'symbol':'1.2-2' }}</div>
                     </div>
                     <div class="metric">
                         <div class="metric-label">Net Amount</div>
-                        <div class="metric-value">-$4,817.61</div>
+                        <div class="metric-value" [class.text-red-600]="netAmount < 0" [class.text-green-600]="netAmount > 0">{{ netAmount | currency:'USD':'symbol':'1.2-2' }}</div>
                     </div>
                     <div class="metric">
                         <div class="metric-label">Transactions</div>
-                        <div class="metric-value">74</div>
+                        <div class="metric-value">{{ totalTransactions }}</div>
                     </div>
                 </div>
             </div>

@@ -49,6 +49,7 @@ import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { TableModule } from 'primeng/table';
 import { PaginatorModule } from 'primeng/paginator';
 import { ReconciliationService } from '../service/reconciliation.service';
+import { SupabaseService } from '../service/supabase.service';
 import { Transaction as DbTransaction } from '../../interfaces/transaction.interface';
 
 @Component({
@@ -84,6 +85,12 @@ export class ReconciliationComponent {
     billsCount: number = 3;
     matchedCount: number = 0;
     
+    // Financial metrics
+    totalSpent: number = 0;
+    totalIncome: number = 0;
+    netAmount: number = 0;
+    totalTransactions: number = 0;
+    
     // Data arrays
     transactions: Transaction[] = [];
     bills: Bill[] = [];
@@ -107,13 +114,17 @@ export class ReconciliationComponent {
     currentTransactionPage: number = 1;
     currentBillPage: number = 1;
 
-    constructor(private reconciliationService: ReconciliationService) {
+    constructor(
+        private reconciliationService: ReconciliationService,
+        private supabaseService: SupabaseService
+    ) {
         this.initializeMonthOptions();
         this.initializeAccountOptions();
         this.initializeTransactionData();
         this.initializeBillData();
         this.initializeMatchedTransactionsData();
         this.loadData();
+        this.calculateFinancialMetrics();
     }
 
     private initializeMonthOptions() {
@@ -553,8 +564,9 @@ export class ReconciliationComponent {
     }
 
     // Handle month selection change
-    onMonthChange() {
-        this.loadData();
+    async onMonthChange() {
+        await this.loadData();
+        await this.calculateFinancialMetrics();
     }
 
     // Handle account selection change
@@ -600,5 +612,61 @@ export class ReconciliationComponent {
             console.error('Error matching transaction to bill:', error);
             // You might want to show a user-friendly error message here
         }
+    }
+
+    /**
+     * Calculate financial metrics for the selected month
+     */
+    private async calculateFinancialMetrics() {
+        if (!this.selectedMonth) {
+            this.resetFinancialMetrics();
+            return;
+        }
+
+        try {
+            const [year, month] = this.selectedMonth.split('-').map(Number);
+            
+            // Get all transactions for the selected month (both matched and unmatched)
+            const { data: allTransactions, error } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .select('amount, account_id')
+                .in('account_id', ['CHECKING', 'Credit Card']) // Only checking and credit card accounts
+                .gte('date', new Date(year, month - 1, 1).toISOString().split('T')[0])
+                .lte('date', new Date(year, month, 0).toISOString().split('T')[0]);
+
+            if (error) {
+                console.error('Error calculating financial metrics:', error);
+                this.resetFinancialMetrics();
+                return;
+            }
+
+            // Calculate metrics
+            const transactions = allTransactions || [];
+            this.totalTransactions = transactions.length;
+            
+            this.totalSpent = transactions
+                .filter(t => t.amount < 0)
+                .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                
+            this.totalIncome = transactions
+                .filter(t => t.amount > 0)
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            this.netAmount = this.totalIncome - this.totalSpent;
+
+        } catch (error) {
+            console.error('Error calculating financial metrics:', error);
+            this.resetFinancialMetrics();
+        }
+    }
+
+    /**
+     * Reset financial metrics to zero
+     */
+    private resetFinancialMetrics() {
+        this.totalSpent = 0;
+        this.totalIncome = 0;
+        this.netAmount = 0;
+        this.totalTransactions = 0;
     }
 }

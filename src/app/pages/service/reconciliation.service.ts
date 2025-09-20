@@ -1,12 +1,16 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { Transaction as DbTransaction } from '../../interfaces/transaction.interface';
+import { TransactionMatchService } from './transaction-match.service';
 
 @Injectable({
     providedIn: 'root'
 })
 export class ReconciliationService {
-    constructor(private supabaseService: SupabaseService) {}
+    constructor(
+        private supabaseService: SupabaseService,
+        private transactionMatchService: TransactionMatchService
+    ) {}
 
     /**
      * Get unreconciled transactions for a specific month
@@ -146,15 +150,19 @@ export class ReconciliationService {
 
     /**
      * Match a transaction to a bill
+     * Delegates to TransactionMatchService with additional reconciliation logic
      */
     async matchTransactionToBill(transactionId: string, billId: string): Promise<void> {
         try {
             const userId = await this.supabaseService.getCurrentUserId();
 
+            // Use the transaction match service for the core matching logic
+            await this.transactionMatchService.matchTransactionToBill(transactionId, billId);
+
+            // Additional reconciliation-specific logic
             const { error } = await this.supabaseService.getClient()
                 .from('hb_transactions')
                 .update({ 
-                    bill_id: billId,
                     is_reconciled: true,
                     updated_at: new Date().toISOString()
                 })
@@ -162,7 +170,7 @@ export class ReconciliationService {
                 .eq('user_id', userId);
 
             if (error) {
-                console.error('Error matching transaction to bill:', error);
+                console.error('Error updating reconciliation status:', error);
                 throw error;
             }
         } catch (error) {
@@ -173,15 +181,19 @@ export class ReconciliationService {
 
     /**
      * Unmatch a transaction from its bill
+     * Delegates to TransactionMatchService with additional reconciliation logic
      */
     async unmatchTransaction(transactionId: string): Promise<void> {
         try {
             const userId = await this.supabaseService.getCurrentUserId();
 
+            // Use the transaction match service for the core unmatching logic
+            await this.transactionMatchService.unmatchTransaction(transactionId);
+
+            // Additional reconciliation-specific logic
             const { error } = await this.supabaseService.getClient()
                 .from('hb_transactions')
                 .update({ 
-                    bill_id: null,
                     is_reconciled: false,
                     updated_at: new Date().toISOString()
                 })
@@ -189,7 +201,7 @@ export class ReconciliationService {
                 .eq('user_id', userId);
 
             if (error) {
-                console.error('Error unmatching transaction:', error);
+                console.error('Error updating reconciliation status:', error);
                 throw error;
             }
         } catch (error) {

@@ -23,6 +23,7 @@ import { finalize, interval, take } from 'rxjs';
 import { CsvImportService } from '../service/csv-import.service';
 import { ReconciliationOldService } from '../service/reconciliation-old.service';
 import { AiCategorizationService } from '../service/ai-categorization.service';
+import { TransactionMatchService } from '../service/transaction-match.service';
 import { Bill } from '../../interfaces/bill.interface';
 import {MultiSelect} from "primeng/multiselect";
 
@@ -51,506 +52,8 @@ import {MultiSelect} from "primeng/multiselect";
         MultiSelect
     ],
     providers: [MessageService],
-    template: `
-        <div class="card">
-            <div class="flex justify-between items-center mb-4">
-                <h1>Transactions</h1>
-                <div class="flex gap-3">
-                    <p-button 
-                        icon="pi pi-chart-line" 
-                        label="Reconciliation"
-                        routerLink="/pages/reconciliation"
-                        severity="info"
-                        [outlined]="true">
-                    </p-button>
-                    <p-button 
-                        icon="pi pi-bars" 
-                        (onClick)="toggleMenu($event)"
-                        severity="secondary"
-                        [outlined]="true"
-                        aria-label="Menu">
-                    </p-button>
-                </div>
-            </div>
-            
-            <p-menu 
-                #menu 
-                [popup]="true" 
-                [model]="menuItems"
-                appendTo="body">
-            </p-menu>
-            <p-progressBar *ngIf="importing || uploading" mode="indeterminate" [style]="{ height: '6px' }"></p-progressBar>
-
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" *ngIf="transactionStats">
-            
-            <!-- Selection Info -->
-                <div class="p-4 rounded-lg border border-purple-200">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-purple-600">{{ transactionStats.unique_accounts }}</div>
-                        <div class="text-sm text-purple-500">Accounts</div>
-                    </div>
-                </div>
-                <div class="p-4 rounded-lg border border-blue-200">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-blue-600">{{ transactionStats.total_transactions }}</div>
-                        <div class="text-sm text-blue-500">Total Transactions</div>
-                    </div>
-                </div>
-                <div class="p-4 rounded-lg border border-green-200">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-green-600">{{ transactionStats.total_income | currency }}</div>
-                        <div class="text-sm text-green-500">Total Income</div>
-                    </div>
-                </div>
-                <div class="p-4 rounded-lg border border-red-200">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-red-600">{{ transactionStats.total_spent | currency }}</div>
-                        <div class="text-sm text-red-500">Total Spent</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Selection Info -->
-            <div class="mb-4 p-3 border border-blue-200 rounded-lg" *ngIf="hasSelectedTransactions()">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-check-circle text-blue-600"></i>
-                        <span class="text-blue-600 font-medium">
-                            {{ getSelectedTransactions().length }} transaction(s) selected
-                        </span>
-                    </div>
-                    <p-button 
-                        label="Recategorize Selected" 
-                        icon="pi pi-tags"
-                        size="small"
-                        severity="primary"
-                        (onClick)="recategorizeSelected()">
-                    </p-button>
-                </div>
-            </div>
-
-            <!-- Filters -->
-            <div class="card mb-4">
-                <div class="flex flex-wrap items-end gap-8">
-                    <div class="flex-1 min-w-[220px]">
-                        <label class="block text-sm font-medium mb-2">Date Range</label>
-                        <div class="flex gap-2">
-                            <p-calendar
-                                    [(ngModel)]="filters.dateRange"
-                                    selectionMode="range"
-                                    placeholder="Select date range"
-                                    (onSelect)="applyFilters()"
-                                    [showIcon]="true"
-                                    class="flex-1"
-                                    [style]="{'width':'100%'}" 
-                                    class="w-full"
-                                    appendTo="body">
-                            </p-calendar>
-                        </div>
-                    </div>
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="block text-sm font-medium mb-2">Search</label>
-                        <input 
-                            pInputText 
-                            [(ngModel)]="filters.search" 
-                            placeholder="Search transactions..."
-                            (input)="applyFilters()"
-                            class="w-full" />
-                    </div>
-                </div>
-            </div>
-
-            <!-- Transactions Table -->
-            <div class="card">
-                <p-table 
-                    [value]="filteredTransactions" 
-                    [paginator]="true" 
-                    [rows]="20"
-                    [globalFilterFields]="['name', 'category.name', 'bank_source', 'account_id', 'import_method']"
-                    [tableStyle]="{ 'min-width': '75rem' }"
-                    [rowHover]="true"
-                    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} transactions"
-                    [showCurrentPageReport]="true"
-                    [rowsPerPageOptions]="[10, 20, 50, 100]">
-                    
-                    <ng-template pTemplate="header">
-                        <tr>
-                            <th>
-                                <p-checkbox 
-                                    [binary]="true" 
-                                    [(ngModel)]="selectAll"
-                                    (onChange)="toggleSelectAll($event)"
-                                    [style]="{'width': '20px', 'height': '20px'}">
-                                </p-checkbox>
-                            </th>
-                            <th pSortableColumn="date">Date <p-sortIcon field="date"></p-sortIcon></th>
-                            <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
-                            <th pSortableColumn="amount">Amount <p-sortIcon field="amount"></p-sortIcon></th>
-                            <!-- Category filter -->
-                            <th>
-                                <div class="flex justify-between items-center">
-                                    Category
-                                    <p-columnFilter
-                                            field="category.name"
-                                            matchMode="in"
-                                            display="menu"
-                                            [showMatchModes]="false"
-                                            [showOperator]="false"
-                                            [showAddButton]="false"
-                                    >
-                                        <ng-template #header>
-                                            <div class="px-3 pt-3 pb-0"><span class="font-bold">Category</span></div>
-                                        </ng-template>
-                                        <ng-template #filter let-value let-filter="filterCallback">
-                                            <p-multiselect
-                                                    [ngModel]="value"
-                                                    [options]="categoryOptions"
-                                                    [optionLabel]="'label'"
-                                                    [optionValue]="'value'"
-                                                    placeholder="Any"
-                                                    display="chip"
-                                                    [showClear]="true"
-                                                    (onChange)="filter($event.value)"
-                                                    styleClass="w-64"
-                                            ></p-multiselect>
-                                        </ng-template>
-                                    </p-columnFilter>
-                                </div>
-                            </th>
-
-                            <!-- Financial Institution filter -->
-                            <th>
-                                <div class="flex justify-between items-center">
-                                    Financial Institution
-                                    <p-columnFilter
-                                            field="bank_source"
-                                            matchMode="in"
-                                            display="menu"
-                                            [showMatchModes]="false"
-                                            [showOperator]="false"
-                                            [showAddButton]="false"
-                                    >
-                                        <ng-template #header>
-                                            <div class="px-3 pt-3 pb-0"><span class="font-bold">Institution</span></div>
-                                        </ng-template>
-                                        <ng-template #filter let-value let-filter="filterCallback">
-                                            <p-multiselect
-                                                    [ngModel]="value"
-                                                    [options]="institutionOptions"
-                                                    [optionLabel]="'label'"
-                                                    [optionValue]="'value'"
-                                                    placeholder="Any"
-                                                    display="chip"
-                                                    [showClear]="true"
-                                                    (onChange)="filter($event.value)"
-                                                    styleClass="w-64"
-                                            ></p-multiselect>
-                                        </ng-template>
-                                    </p-columnFilter>
-                                </div>
-                            </th>
-
-                            <!-- Account Name filter -->
-                            <th>
-                                <div class="flex justify-between items-center">
-                                    Account Name
-                                    <p-columnFilter
-                                            field="account_id"
-                                            matchMode="in"
-                                            display="menu"
-                                            [showMatchModes]="false"
-                                            [showOperator]="false"
-                                            [showAddButton]="false"
-                                    >
-                                        <ng-template #header>
-                                            <div class="px-3 pt-3 pb-0"><span class="font-bold">Account</span></div>
-                                        </ng-template>
-                                        <ng-template #filter let-value let-filter="filterCallback">
-                                            <p-multiselect
-                                                    [ngModel]="value"
-                                                    [options]="accountNameOptions"
-                                                    [optionLabel]="'label'"
-                                                    [optionValue]="'value'"
-                                                    placeholder="Any"
-                                                    display="chip"
-                                                    [showClear]="true"
-                                                    (onChange)="filter($event.value)"
-                                                    styleClass="w-64"
-                                            ></p-multiselect>
-                                        </ng-template>
-                                    </p-columnFilter>
-                                </div>
-                            </th>
-
-                            <!-- Source filter -->
-                            <th>
-                                <div class="flex justify-between items-center">
-                                    Source
-                                    <p-columnFilter
-                                            field="import_method"
-                                            matchMode="in"
-                                            display="menu"
-                                            [showMatchModes]="false"
-                                            [showOperator]="false"
-                                            [showAddButton]="false"
-                                    >
-                                        <ng-template #header>
-                                            <div class="px-3 pt-3 pb-0"><span class="font-bold">Source</span></div>
-                                        </ng-template>
-                                        <ng-template #filter let-value let-filter="filterCallback">
-                                            <p-multiselect
-                                                    [ngModel]="value"
-                                                    [options]="sourceOptions"
-                                                    [optionLabel]="'label'"
-                                                    [optionValue]="'value'"
-                                                    placeholder="Any"
-                                                    display="chip"
-                                                    [showClear]="true"
-                                                    (onChange)="filter($event.value)"
-                                                    styleClass="w-64"
-                                            ></p-multiselect>
-                                        </ng-template>
-                                    </p-columnFilter>
-                                </div>
-                            </th>
-
-                            <th>Action</th>
-                        </tr>
-                    </ng-template>
-                    
-                    <ng-template pTemplate="body" let-transaction>
-                        <tr>
-                            <td>
-                                <p-checkbox 
-                                    [binary]="true" 
-                                    [(ngModel)]="transaction.selected"
-                                    (onChange)="toggleTransactionSelection(transaction)"
-                                    [style]="{'width': '20px', 'height': '20px'}">
-                                </p-checkbox>
-                            </td>
-                            <td>{{ transaction.date | date:'MMM dd, yyyy' }}</td>
-                            <td>{{ transaction.name }}</td>
-                            <td>
-                                <span class="font-bold" 
-                                      [class.text-red-600]="transaction.amount < 0" 
-                                      [class.text-green-600]="transaction.amount > 0">
-                                    {{ transaction.amount | currency:transaction.iso_currency_code }}
-                                </span>
-                            </td>
-                            <td>
-                                <span *ngIf="transaction.category?.name" class="text-sm">
-                                    {{ transaction.category.name }}
-                                </span>
-                                <span *ngIf="!transaction.category?.name" class="text-sm">-</span>
-                            </td>
-                            <td class="p-0">
-                                <ng-container *ngIf="getBankLogo(transaction.bank_source); else institutionNameText">
-                                    <div class="flex items-center justify-center w-full h-full">
-                                        <img
-                                                [src]="getBankLogo(transaction.bank_source)"
-                                                alt="Bank Logo"
-                                                class="w-6 h-6 object-cover rounded-full"
-                                                [title]="getInstitutionName(transaction.bank_source)"
-                                                [pTooltip]="getInstitutionName(transaction.bank_source)"
-                                                tooltipPosition="top"
-                                        />
-                                    </div>
-                                </ng-container>
-
-                                <ng-template #institutionNameText>
-                                    <div class="flex items-center justify-center w-full h-full">
-                                        <span class="text-sm text-gray-600">{{ getInstitutionName(transaction.bank_source) }}</span>
-                                    </div>
-                                </ng-template>
-                            </td>
-
-                            <td>
-                                <span class="text-sm">{{ getAccountSubName(transaction.account_id) || '-' }}</span>
-                            </td>
-                            <td class="p-0">
-                                <ng-container *ngIf="getImportMethodIcon(transaction.import_method); else importMethodText">
-                                    <div class="flex items-center justify-center w-full h-full">
-                                        <img
-                                                [src]="getImportMethodIcon(transaction.import_method)"
-                                                alt="Import Method"
-                                                class="w-6 h-6 object-cover rounded-full"
-                                                [title]="transaction.import_method + (transaction.bank_source ? ' - ' + transaction.bank_source : '')"
-                                                [pTooltip]="transaction.import_method + (transaction.bank_source ? ' - ' + transaction.bank_source : '')"
-                                                tooltipPosition="top"
-                                        />
-                                    </div>
-                                </ng-container>
-
-                                <ng-template #importMethodText>
-                                    <div class="flex items-center justify-center w-full h-full">
-                                        <div class="flex flex-col items-center text-center leading-tight">
-                                            <span class="text-xs font-medium">{{ transaction.import_method || 'unknown' }}</span>
-                                            <span class="text-xs text-gray-500">{{ transaction.bank_source || '-' }}</span>
-                                        </div>
-                                    </div>
-                                </ng-template>
-                            </td>
-                            <td>
-                                <p-button 
-                                    icon="pi pi-link" 
-                                    size="small"
-                                    severity="info"
-                                    [outlined]="true"
-                                    (onClick)="showManualMatchDialog(transaction); $event.stopPropagation()"
-                                    pTooltip="Match to bill"
-                                    type="button">
-                                </p-button>
-                            </td>
-                        </tr>
-                    </ng-template>
-                    
-                    <ng-template pTemplate="emptymessage">
-                        <tr>
-                            <td colspan="8" class="text-center py-8">
-                                <div *ngIf="loading" class="flex justify-center">
-                                    <p-progressSpinner></p-progressSpinner>
-                                </div>
-                                <div *ngIf="!loading" class="text-gray-500">
-                                    <i class="pi pi-inbox text-4xl mb-4"></i>
-                                    <p>No transactions found</p>
-                                    <p class="text-sm">Try linking a bank account in Settings to import transactions</p>
-                                </div>
-                            </td>
-                        </tr>
-                    </ng-template>
-                </p-table>
-            </div>
-        </div>
-        <!-- CSV Upload Dialog -->
-        <p-dialog 
-            header="Import CSV Transactions" 
-            [(visible)]="showCsvUpload" 
-            [modal]="true" 
-            [style]="{ width: '600px' }">
-            <div class="space-y-4">
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input 
-                        type="file" 
-                        #fileInput
-                        accept=".csv"
-                        (change)="onFileSelected($event)"
-                        class="hidden">
-                    <div class="space-y-2">
-                        <i class="pi pi-upload text-3xl text-gray-400"></i>
-                        <p class="text-gray-600">Drop your CSV file here or click to browse</p>
-                        <p-button 
-                            label="Choose File" 
-                            (onClick)="fileInput.click()"
-                            [outlined]="true">
-                        </p-button>
-                    </div>
-                </div>
-                
-                <div *ngIf="selectedFile" class="p-4 rounded-lg">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="font-medium">{{ selectedFile.name }}</div>
-                            <div class="text-sm text-gray-500">{{ (selectedFile.size / 1024).toFixed(1) }} KB</div>
-                        </div>
-                        <p-button 
-                            icon="pi pi-times" 
-                            size="small"
-                            severity="danger"
-                            [outlined]="true"
-                            (onClick)="selectedFile = null">
-                        </p-button>
-                    </div>
-                </div>
-
-                <div *ngIf="importing" class="text-center">
-                    <p-progressSpinner></p-progressSpinner>
-                    <p class="mt-2">Importing transactions...</p>
-                </div>
-            </div>
-            
-            <ng-template pTemplate="footer">
-                <p-button 
-                    label="Cancel" 
-                    (onClick)="showCsvUpload = false"
-                    [outlined]="true">
-                </p-button>
-                <p-button 
-                    label="Import" 
-                    (onClick)="importCsv()"
-                    [disabled]="!selectedFile || importing"
-                    [loading]="importing">
-                </p-button>
-            </ng-template>
-        </p-dialog>
-
-        <!-- Manual Match Dialog -->
-        <p-dialog 
-            header="Manual Match" 
-            [(visible)]="showManualMatch" 
-            [modal]="true" 
-            [style]="{ width: '500px' }"
-            appendTo="body">
-            <div class="space-y-4" *ngIf="selectedItem">
-                <div class="p-4 rounded-lg">
-                    <h4 class="font-medium mb-2">Selected Transaction:</h4>
-                    <div class="text-sm">
-                        <div><strong>Description:</strong> {{ selectedItem.name }}</div>
-                        <div><strong>Amount:</strong> {{ selectedItem.amount | currency:selectedItem.iso_currency_code }}</div>
-                        <div><strong>Date:</strong> {{ selectedItem.date | date }}</div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium mb-2">Select Bill to Match:</label>
-                    <p-dropdown 
-                        [options]="availableBills || []" 
-                        [(ngModel)]="selectedBillId"
-                        optionLabel="account.name"
-                        optionValue="id"
-                        placeholder="Choose a bill"
-                        [showClear]="true"
-                        appendTo="body">
-                    </p-dropdown>
-                </div>
-            </div>
-            
-            <ng-template pTemplate="footer">
-                <p-button 
-                    label="Cancel" 
-                    (onClick)="showManualMatch = false"
-                    [outlined]="true">
-                </p-button>
-                <p-button 
-                    label="Match" 
-                    (onClick)="applyManualMatch()"
-                    [disabled]="!selectedBillId">
-                </p-button>
-            </ng-template>
-        </p-dialog>
-        
-        <p-toast></p-toast>
-    `,
-    styles: [`
-        .card {
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        
-        .text-2xl {
-            font-size: 1.5rem;
-        }
-        
-        .text-sm {
-            font-size: 0.875rem;
-        }
-    `]
+    templateUrl: './transactions.component.html',
+    styleUrls: ['./transactions.component.scss']
 })
 export class TransactionsComponent implements OnInit {
     transactions: any[] = [];
@@ -609,6 +112,7 @@ export class TransactionsComponent implements OnInit {
         private csvImportService: CsvImportService,
         private reconciliationService: ReconciliationOldService,
         private aiCategorizationService: AiCategorizationService,
+        private transactionMatchService: TransactionMatchService,
     ) {}
 
     async ngOnInit() {
@@ -1100,36 +604,7 @@ export class TransactionsComponent implements OnInit {
      */
     private async loadAvailableBills() {
         try {
-            const { data: bills, error } = await this.supabaseService.getClient()
-                .from('hb_accounts')
-                .select(`
-                    id,
-                    name,
-                    hb_bills!bill_id(*)
-                `)
-                .eq('hb_bills.status', 'Active')
-                .order('name', { ascending: true });
-
-            if (error) {
-                console.error('Error loading bills:', error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load available bills'
-                });
-                return;
-            }
-
-            // Transform the data to match the expected structure
-            this.availableBills = (bills?.map(account => ({
-                ...account.hb_bills,
-                account: {
-                    id: account.id,
-                    name: account.name
-                }
-            })) as unknown as any[]) || [];
-            
-            console.log('Available bills for matching:', this.availableBills);
+            this.availableBills = await this.transactionMatchService.loadAvailableBills();
         } catch (error) {
             console.error('Error loading bills:', error);
             this.messageService.add({
@@ -1143,33 +618,30 @@ export class TransactionsComponent implements OnInit {
     /**
      * Apply manual match
      */
-    applyManualMatch() {
+    async applyManualMatch() {
         if (!this.selectedItem || !this.selectedBillId) return;
 
-        // Use the reconciliation service to create the match
-        this.reconciliationService.manualMatch(this.selectedItem.id, this.selectedBillId).subscribe({
-            next: (success) => {
-                if (success) {
-                    this.showManualMatch = false;
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Match Applied',
-                        detail: 'Transaction has been matched to bill'
-                    });
-                    
-                    // Reload transactions to reflect the change
-                    this.loadTransactions();
-                }
-            },
-            error: (error) => {
-                console.error('Error applying match:', error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Match Failed',
-                    detail: error.message || 'Failed to match transaction to bill'
-                });
-            }
-        });
+        try {
+            // Use the transaction match service to create the match
+            await this.transactionMatchService.matchTransactionToBill(this.selectedItem.id, this.selectedBillId);
+            
+            this.showManualMatch = false;
+            this.messageService.add({
+                severity: 'success',
+                summary: 'Match Applied',
+                detail: 'Transaction has been matched to bill'
+            });
+            
+            // Reload transactions to reflect the change
+            this.loadTransactions();
+        } catch (error) {
+            console.error('Error applying match:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Match Failed',
+                detail: error instanceof Error ? error.message : 'Failed to match transaction to bill'
+            });
+        }
     }
 
     /**
@@ -1334,4 +806,18 @@ export class TransactionsComponent implements OnInit {
             });
         }
     }
-} 
+
+    /**
+     * Get the reconciliation status text for a transaction
+     */
+    getReconStatus(transaction: any): string {
+        return transaction.bill_id ? 'Matched' : 'Unmatched';
+    }
+
+    /**
+     * Get the severity level for the reconciliation status tag
+     */
+    getReconStatusSeverity(transaction: any): string {
+        return transaction.bill_id ? 'success' : 'warning';
+    }
+}
