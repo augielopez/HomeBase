@@ -33,7 +33,8 @@
                         optionLabel="name"
                         optionValue="id"
                         [style]="{'width': '250px'}"
-                        appendTo="body">
+                        appendTo="body"
+                        (onChange)="onAccountChange()">
                     </p-dropdown>
                 </div>
                 
@@ -64,7 +65,13 @@
                 </div>
                 
                 <div class="mark-as-button">
-                        <p-button label="Match" icon="pi pi-arrows-h" [raised]="true" (click)="onMatchTransaction()"></p-button>
+                        <p-button 
+                            label="Match" 
+                            icon="pi pi-arrows-h" 
+                            [raised]="true" 
+                            [disabled]="!selectedTransaction || !selectedBill"
+                            (click)="onMatchTransaction()">
+                        </p-button>
                 </div>
                 
                 <div class="selection-box">

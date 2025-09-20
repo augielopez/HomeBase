@@ -11,6 +11,7 @@ interface Transaction {
     type: 'positive' | 'negative';
     isRefund?: boolean;
     subtext?: string;
+    account?: string; // Account name for filtering
 }
 
 interface Bill {
@@ -77,7 +78,7 @@ export class ReconciliationComponent {
     selectedMonth: string = '';
     monthOptions: any[] = [];
     activeTabValue: string = '0';
-    selectedAccount: string = '';
+    selectedAccount: string = ''; // No default selection
     accountOptions: any[] = [];
     unreconciledCount: number = 3;
     billsCount: number = 3;
@@ -133,17 +134,15 @@ export class ReconciliationComponent {
     }
 
     private initializeAccountOptions() {
-        // Sample account options - in a real app, this would come from a service
+        // Account options for filtering
         this.accountOptions = [
-            { id: '1', name: 'Bank Checking Account' },
-            { id: '2', name: 'US Bank Checking' },
-            { id: '3', name: 'Fidelity Checking' },
-            { id: '4', name: 'First Tech Checking' },
-            { id: '5', name: 'Marcus Savings' }
+            { id: '', name: 'All Accounts' },
+            { id: 'Fidelity', name: 'Fidelity' },
+            { id: 'US Bank', name: 'US Bank' }
         ];
-        
-        // Set default selection
-        this.selectedAccount = this.accountOptions[0]?.id || '';
+
+        // No default selection - starts with empty string
+        this.selectedAccount = '';
     }
 
     private initializeTransactionData() {
@@ -326,14 +325,58 @@ export class ReconciliationComponent {
         return this.selectedBill ? this.selectedBill.merchant : 'Selected Bill';
     }
 
+    // Helper method to map account_id to account name
+    private mapAccountIdToName(accountId: string): string {
+        // Map the account_id strings to readable account names
+        switch (accountId) {
+            case 'Fidelity':
+                return 'Fidelity';
+            case 'US Bank':
+                return 'US Bank';
+            case 'CHECKING':
+                return 'Fidelity'; // Default CHECKING to Fidelity
+            case 'Credit Card':
+                return 'US Bank'; // Default Credit Card to US Bank
+            default:
+                return 'Fidelity'; // Default fallback
+        }
+    }
+
+    // Helper method to determine transaction account
+    private getTransactionAccount(transaction: Transaction): string {
+        // Return the account property if it exists, otherwise use fallback logic
+        if (transaction.account) {
+            return transaction.account;
+        }
+        
+        // Fallback: check subtext for account indicators
+        if (transaction.subtext) {
+            const subtext = transaction.subtext.toLowerCase();
+            if (subtext.includes('fidelity')) return 'Fidelity';
+            if (subtext.includes('us bank')) return 'US Bank';
+        }
+        
+        // Default fallback
+        return 'Fidelity';
+    }
+
     // Filtered data for search functionality with pagination
     get filteredTransactions(): Transaction[] {
         let filtered = this.transactions;
         
+        // Apply account filter if account is selected
+        if (this.selectedAccount && this.selectedAccount !== '') {
+            filtered = filtered.filter(transaction => {
+                // Check if transaction account matches selected account
+                // This assumes transactions have an account property or we can determine it from the data
+                return this.getTransactionAccount(transaction) === this.selectedAccount;
+            });
+        }
+        
         // Apply search filter if search term exists
         if (this.transactionSearchTerm.trim()) {
             const searchTerm = this.transactionSearchTerm.toLowerCase();
-            filtered = this.transactions.filter(transaction => 
+            filtered = filtered.filter(transaction => 
                 transaction.description.toLowerCase().includes(searchTerm) ||
                 transaction.amount.toLowerCase().includes(searchTerm) ||
                 (transaction.subtext && transaction.subtext.toLowerCase().includes(searchTerm))
@@ -367,16 +410,26 @@ export class ReconciliationComponent {
 
     // Get total counts for display
     get totalFilteredTransactions(): number {
-        if (!this.transactionSearchTerm.trim()) {
-            return this.transactions.length;
+        let filtered = this.transactions;
+        
+        // Apply account filter if account is selected
+        if (this.selectedAccount && this.selectedAccount !== '') {
+            filtered = filtered.filter(transaction => {
+                return this.getTransactionAccount(transaction) === this.selectedAccount;
+            });
         }
         
-        const searchTerm = this.transactionSearchTerm.toLowerCase();
-        return this.transactions.filter(transaction => 
-            transaction.description.toLowerCase().includes(searchTerm) ||
-            transaction.amount.toLowerCase().includes(searchTerm) ||
-            (transaction.subtext && transaction.subtext.toLowerCase().includes(searchTerm))
-        ).length;
+        // Apply search filter if search term exists
+        if (this.transactionSearchTerm.trim()) {
+            const searchTerm = this.transactionSearchTerm.toLowerCase();
+            filtered = filtered.filter(transaction => 
+                transaction.description.toLowerCase().includes(searchTerm) ||
+                transaction.amount.toLowerCase().includes(searchTerm) ||
+                (transaction.subtext && transaction.subtext.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        return filtered.length;
     }
 
     get totalFilteredBills(): number {
@@ -421,7 +474,8 @@ export class ReconciliationComponent {
                 amount: `$${t.amount.toFixed(2)} USD`,
                 type: t.amount >= 0 ? 'positive' : 'negative',
                 isRefund: false, // You can add logic to detect refunds
-                subtext: t.bank_source || undefined
+                subtext: t.bank_source || undefined,
+                account: this.mapAccountIdToName(t.account_id) // Map account_id to account name
             }));
             
             this.unreconciledCount = this.transactions.length;
@@ -501,6 +555,13 @@ export class ReconciliationComponent {
     // Handle month selection change
     onMonthChange() {
         this.loadData();
+    }
+
+    // Handle account selection change
+    onAccountChange() {
+        // Reset to first page when account filter changes
+        this.currentTransactionPage = 1;
+        // Transactions will automatically update due to reactive filtering
     }
 
     // Handle pagination changes
