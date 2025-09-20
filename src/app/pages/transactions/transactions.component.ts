@@ -143,7 +143,9 @@ import {MultiSelect} from "primeng/multiselect";
                                     (onSelect)="applyFilters()"
                                     [showIcon]="true"
                                     class="flex-1"
-                                    [style]="{'width':'100%'}" class="w-full">
+                                    [style]="{'width':'100%'}" 
+                                    class="w-full"
+                                    appendTo="body">
                             </p-calendar>
                         </div>
                     </div>
@@ -504,7 +506,7 @@ import {MultiSelect} from "primeng/multiselect";
                     <p-dropdown 
                         [options]="availableBills || []" 
                         [(ngModel)]="selectedBillId"
-                        optionLabel="description"
+                        optionLabel="account.name"
                         optionValue="id"
                         placeholder="Choose a bill"
                         [showClear]="true"
@@ -573,7 +575,7 @@ export class TransactionsComponent implements OnInit {
     showManualMatch = false;
     selectedItem: any = null;
     selectedBillId: string | null = null;
-    availableBills: Bill[] = [];
+    availableBills: any[] = [];
 
     // Selection properties
     selectAll = false;
@@ -1098,12 +1100,16 @@ export class TransactionsComponent implements OnInit {
      */
     private async loadAvailableBills() {
         try {
-            // Get bills from the reconciliation service or directly from supabase
             const { data: bills, error } = await this.supabaseService.getClient()
-                .from('bills')
-                .select('*')
-                .eq('user_id', await this.supabaseService.getCurrentUserId());
-            
+                .from('hb_accounts')
+                .select(`
+                    id,
+                    name,
+                    hb_bills!bill_id(*)
+                `)
+                .eq('hb_bills.status', 'Active')
+                .order('name', { ascending: true });
+
             if (error) {
                 console.error('Error loading bills:', error);
                 this.messageService.add({
@@ -1113,8 +1119,16 @@ export class TransactionsComponent implements OnInit {
                 });
                 return;
             }
+
+            // Transform the data to match the expected structure
+            this.availableBills = (bills?.map(account => ({
+                ...account.hb_bills,
+                account: {
+                    id: account.id,
+                    name: account.name
+                }
+            })) as unknown as any[]) || [];
             
-            this.availableBills = bills || [];
             console.log('Available bills for matching:', this.availableBills);
         } catch (error) {
             console.error('Error loading bills:', error);
