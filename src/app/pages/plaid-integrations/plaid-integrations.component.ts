@@ -25,6 +25,7 @@ import { TagModule } from 'primeng/tag';
         TagModule
     ],
     providers: [MessageService],
+    styleUrls: ['./plaid-integrations.component.scss'],
     template: `
         <div class="card">
             <h1>Plaid Integrations</h1>
@@ -121,12 +122,6 @@ import { TagModule } from 'primeng/tag';
                 </div>
             </div>
 
-            <!-- Account Settings Section -->
-            <div class="card">
-                <h2>Account Settings</h2>
-                <p class="text-600">Manage your account preferences and settings.</p>                                                                           
-                <!-- Add more settings here -->
-            </div>
         </div>
     `
 })
@@ -235,6 +230,11 @@ export class PlaidIntegrationsComponent implements OnInit {
             this.transactionStats = data.transactionStats;
         } catch (error) {
             console.error('Error loading Plaid data:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to load Plaid data: ' + (error as any).message
+            });
         }
     }
 }

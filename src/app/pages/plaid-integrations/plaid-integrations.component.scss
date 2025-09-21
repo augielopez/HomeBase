@@ -1,0 +1,89 @@
+// Default styles for LIGHT theme (when .app-dark class is NOT present)
+:host ::ng-deep {
+  // Blue card - light theme
+  .bg-blue-50 {
+    background: #dbeafe !important; // Light blue like the checking tag
+    border-color: #93c5fd !important; // Light blue border
+  }
+  
+  .text-blue-600 {
+    color: #1e40af !important; // Dark blue text for contrast
+  }
+  
+  .text-blue-500 {
+    color: #1d4ed8 !important; // Darker blue for labels
+  }
+  
+  // Green card - light theme
+  .bg-green-50 {
+    background: #dcfce7 !important; // Light green like a savings tag would be
+    border-color: #86efac !important; // Light green border
+  }
+  
+  .text-green-600 {
+    color: #166534 !important; // Dark green text for contrast
+  }
+  
+  .text-green-500 {
+    color: #15803d !important; // Darker green for labels
+  }
+  
+  // Purple card - light theme
+  .bg-purple-50 {
+    background: #f3e8ff !important; // Light purple background
+    border-color: #d8b4fe !important; // Light purple border
+  }
+  
+  .text-purple-600 {
+    color: #581c87 !important; // Dark purple text for contrast
+  }
+  
+  .text-purple-500 {
+    color: #7c3aed !important; // Darker purple for labels
+  }
+}
+
+// Dark theme specific overrides (when .app-dark class IS present)
+:host-context(.app-dark) ::ng-deep {
+  // Blue card - dark theme (message button style)
+  .bg-blue-50 {
+    background: #1e3a8a !important; // Dark blue background
+    border-color: #3b82f6 !important; // Blue border
+  }
+  
+  .text-blue-600 {
+    color: #60a5fa !important; // Light blue text
+  }
+  
+  .text-blue-500 {
+    color: #93c5fd !important; // Lighter blue for labels
+  }
+  
+  // Green card - dark theme (message button style)
+  .bg-green-50 {
+    background: #14532d !important; // Dark green background
+    border-color: #22c55e !important; // Green border
+  }
+  
+  .text-green-600 {
+    color: #4ade80 !important; // Light green text
+  }
+  
+  .text-green-500 {
+    color: #86efac !important; // Lighter green for labels
+  }
+  
+  // Purple card - dark theme (message button style)
+  .bg-purple-50 {
+    background: #581c87 !important; // Dark purple background
+    border-color: #a855f7 !important; // Purple border
+  }
+  
+  .text-purple-600 {
+    color: #c084fc !important; // Light purple text
+  }
+  
+  .text-purple-500 {
+    color: #d8b4fe !important; // Lighter purple for labels
+  }
+}

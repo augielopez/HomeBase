@@ -28,31 +28,29 @@
     <p-progressBar *ngIf="importing || uploading" mode="indeterminate" [style]="{ height: '6px' }"></p-progressBar>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" *ngIf="transactionStats">
-    
-    <!-- Selection Info -->
-        <div class="p-4 rounded-lg border border-purple-200">
+    <div class="stats-grid" *ngIf="transactionStats">
+        <div class="stat-card stat-card-purple">
             <div class="text-center">
-                <div class="text-2xl font-bold text-purple-600">{{ transactionStats.unique_accounts }}</div>
-                <div class="text-sm text-purple-500">Accounts</div>
+                <div class="stat-value stat-value-purple">{{ transactionStats.unique_accounts }}</div>
+                <div class="stat-label stat-label-purple">Accounts</div>
             </div>
         </div>
-        <div class="p-4 rounded-lg border border-blue-200">
+        <div class="stat-card stat-card-blue">
             <div class="text-center">
-                <div class="text-2xl font-bold text-blue-600">{{ transactionStats.total_transactions }}</div>
-                <div class="text-sm text-blue-500">Total Transactions</div>
+                <div class="stat-value stat-value-blue">{{ transactionStats.total_transactions }}</div>
+                <div class="stat-label stat-label-blue">Total Transactions</div>
             </div>
         </div>
-        <div class="p-4 rounded-lg border border-green-200">
+        <div class="stat-card stat-card-green">
             <div class="text-center">
-                <div class="text-2xl font-bold text-green-600">{{ transactionStats.total_income | currency }}</div>
-                <div class="text-sm text-green-500">Total Income</div>
+                <div class="stat-value stat-value-green">{{ transactionStats.total_income | currency }}</div>
+                <div class="stat-label stat-label-green">Total Income</div>
             </div>
         </div>
-        <div class="p-4 rounded-lg border border-red-200">
+        <div class="stat-card stat-card-red">
             <div class="text-center">
-                <div class="text-2xl font-bold text-red-600">{{ transactionStats.total_spent | currency }}</div>
-                <div class="text-sm text-red-500">Total Spent</div>
+                <div class="stat-value stat-value-red">{{ transactionStats.total_spent | currency }}</div>
+                <div class="stat-label stat-label-red">Total Spent</div>
             </div>
         </div>
     </div>

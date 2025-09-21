@@ -76,6 +76,7 @@ export class SettingsComponent implements OnInit {
   }
 
   onTypeSelect(type: SettingsType) {
+    console.log('Type selected:', type);
     this.selectedType = type;
     
     // Close sidebar on mobile after selection

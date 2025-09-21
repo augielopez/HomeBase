@@ -16,3 +16,144 @@ h1 {
 .text-sm {
     font-size: 0.875rem;
 }
+
+// Stats grid layout
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// Base stat card styles
+.stat-card {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  
+  .text-center {
+    text-align: center;
+  }
+}
+
+// Default styles for LIGHT theme (when .app-dark class is NOT present)
+:host ::ng-deep {
+  // Purple card - light theme
+  .stat-card-purple {
+    background: #f3e8ff !important; // Light purple background
+    border-color: #d8b4fe !important; // Light purple border
+  }
+  
+  .stat-value-purple {
+    color: #581c87 !important; // Dark purple text for contrast
+  }
+  
+  .stat-label-purple {
+    color: #7c3aed !important; // Darker purple for labels
+  }
+  
+  // Blue card - light theme
+  .stat-card-blue {
+    background: #dbeafe !important; // Light blue like the checking tag
+    border-color: #93c5fd !important; // Light blue border
+  }
+  
+  .stat-value-blue {
+    color: #1e40af !important; // Dark blue text for contrast
+  }
+  
+  .stat-label-blue {
+    color: #1d4ed8 !important; // Darker blue for labels
+  }
+  
+  // Green card - light theme
+  .stat-card-green {
+    background: #dcfce7 !important; // Light green like a savings tag would be
+    border-color: #86efac !important; // Light green border
+  }
+  
+  .stat-value-green {
+    color: #166534 !important; // Dark green text for contrast
+  }
+  
+  .stat-label-green {
+    color: #15803d !important; // Darker green for labels
+  }
+  
+  // Red card - light theme
+  .stat-card-red {
+    background: #fef2f2 !important; // Light red background
+    border-color: #fca5a5 !important; // Light red border
+  }
+  
+  .stat-value-red {
+    color: #dc2626 !important; // Dark red text for contrast
+  }
+  
+  .stat-label-red {
+    color: #ef4444 !important; // Darker red for labels
+  }
+}
+
+// Dark theme specific overrides (when .app-dark class IS present)
+:host-context(.app-dark) ::ng-deep {
+  // Purple card - dark theme (message button style)
+  .stat-card-purple {
+    background: #581c87 !important; // Dark purple background
+    border-color: #a855f7 !important; // Purple border
+  }
+  
+  .stat-value-purple {
+    color: #c084fc !important; // Light purple text
+  }
+  
+  .stat-label-purple {
+    color: #d8b4fe !important; // Lighter purple for labels
+  }
+  
+  // Blue card - dark theme (message button style)
+  .stat-card-blue {
+    background: #1e3a8a !important; // Dark blue background
+    border-color: #3b82f6 !important; // Blue border
+  }
+  
+  .stat-value-blue {
+    color: #60a5fa !important; // Light blue text
+  }
+  
+  .stat-label-blue {
+    color: #93c5fd !important; // Lighter blue for labels
+  }
+  
+  // Green card - dark theme (message button style)
+  .stat-card-green {
+    background: #14532d !important; // Dark green background
+    border-color: #22c55e !important; // Green border
+  }
+  
+  .stat-value-green {
+    color: #4ade80 !important; // Light green text
+  }
+  
+  .stat-label-green {
+    color: #86efac !important; // Lighter green for labels
+  }
+  
+  // Red card - dark theme (message button style)
+  .stat-card-red {
+    background: #7f1d1d !important; // Dark red background
+    border-color: #ef4444 !important; // Red border
+  }
+  
+  .stat-value-red {
+    color: #fca5a5 !important; // Light red text
+  }
+  
+  .stat-label-red {
+    color: #fecaca !important; // Lighter red for labels
+  }
+}

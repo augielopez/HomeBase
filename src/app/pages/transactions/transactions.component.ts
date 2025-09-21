@@ -235,7 +235,7 @@ export class TransactionsComponent implements OnInit {
             this.messageService.add({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'Failed to load transaction data'
+                detail: 'Failed to load transaction data: ' + (error as any).message
             });
         }
     }

@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SupabaseService } from '../service/supabase.service';
@@ -41,7 +41,7 @@ export interface TypeRecord {
   templateUrl: './type-crud-table.component.html',
   styleUrls: ['./type-crud-table.component.scss']
 })
-export class TypeCrudTableComponent implements OnInit, OnDestroy {
+export class TypeCrudTableComponent implements OnInit, OnDestroy, OnChanges {
   @Input() typeConfig!: any; // SettingsType from parent
   @Input() isLoading = false;
 
@@ -66,6 +66,14 @@ export class TypeCrudTableComponent implements OnInit, OnDestroy {
     this.loadData();
   }
 
+  ngOnChanges(changes: SimpleChanges) {
+    // Check if typeConfig has changed
+    if (changes['typeConfig'] && changes['typeConfig'].currentValue) {
+      console.log('TypeConfig changed, loading new data for:', changes['typeConfig'].currentValue.tableName);
+      this.loadData();
+    }
+  }
+
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
@@ -79,6 +87,12 @@ export class TypeCrudTableComponent implements OnInit, OnDestroy {
   }
 
   async loadData() {
+    if (!this.typeConfig?.tableName) {
+      console.log('No typeConfig or tableName available');
+      return;
+    }
+
+    console.log('Loading data for table:', this.typeConfig.tableName);
     this.loading = true;
     try {
       const { data, error } = await this.supabaseService.getClient()
@@ -87,22 +101,23 @@ export class TypeCrudTableComponent implements OnInit, OnDestroy {
         .order('name');
 
       if (error) {
-        console.error('Error loading data:', error);
+        console.error('Error loading data for table', this.typeConfig.tableName, ':', error);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load data'
+          detail: `Failed to load data from ${this.typeConfig.tableName}`
         });
         return;
       }
 
+      console.log(`Loaded ${data?.length || 0} records from ${this.typeConfig.tableName}`);
       this.data = data || [];
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading data for table', this.typeConfig.tableName, ':', error);
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Failed to load data'
+        detail: `Failed to load data from ${this.typeConfig.tableName}`
       });
     } finally {
       this.loading = false;
