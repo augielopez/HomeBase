@@ -1,0 +1,170 @@
+.crud-table-container {
+  background: var(--surface-card);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-50);
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h3 {
+      margin: 0;
+      color: var(--text-color);
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+  }
+}
+
+.table-container {
+  padding: 0;
+}
+
+.record-name {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.record-description {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-date {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+
+  h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+}
+
+.crud-form {
+  .field {
+    .font-medium {
+      color: var(--text-color);
+    }
+    
+    .text-red-500 {
+      color: var(--red-500);
+    }
+    
+    input, textarea {
+      &.p-invalid {
+        border-color: var(--red-500);
+      }
+    }
+    
+    small {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+  }
+  
+  .flex {
+    display: flex;
+    
+    &.justify-end {
+      justify-content: flex-end;
+    }
+    
+    &.gap-3 {
+      gap: 0.75rem;
+    }
+  }
+}
+
+// PrimeNG Table customizations
+:host ::ng-deep {
+  .p-datatable {
+    .p-datatable-header {
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+
+    .p-datatable-thead > tr > th {
+      background: var(--surface-100);
+      border-color: var(--surface-border);
+      color: var(--text-color);
+      font-weight: 600;
+      padding: 1rem 0.75rem;
+    }
+
+    .p-datatable-tbody > tr > td {
+      border-color: var(--surface-border);
+      padding: 1rem 0.75rem;
+    }
+
+    .p-datatable-tbody > tr:hover {
+      background: var(--surface-hover);
+    }
+
+    .p-paginator {
+      background: var(--surface-50);
+      border-color: var(--surface-border);
+      padding: 1rem;
+    }
+  }
+
+  .p-dialog-content {
+    padding: 1.5rem;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .table-header {
+    padding: 1rem;
+    
+    .header-content {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      
+      h3 {
+        text-align: center;
+      }
+    }
+  }
+
+  .record-description {
+    max-width: 200px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

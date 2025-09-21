@@ -1,240 +1,126 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
-import { PlaidLinkService } from '../service/plaid-link.service';
+import { MasterDataService } from '../service/master-data.service';
 import { SupabaseService } from '../service/supabase.service';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
-import { DividerModule } from 'primeng/divider';
-import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
+import { SidebarModule } from 'primeng/sidebar';
+import { DropdownModule } from 'primeng/dropdown';
+import { TypeCrudTableComponent } from './type-crud-table.component';
+
+export interface SettingsType {
+  id: string;
+  name: string;
+  displayName: string;
+  tableName: string;
+  description?: string;
+}
 
 @Component({
     selector: 'app-settings',
     standalone: true,
-    imports: [
-        CommonModule,
-        RouterModule,
-        ButtonModule,
-        CardModule,
-        DividerModule,
-        ProgressSpinnerModule,
-        TableModule,
-        TagModule
-    ],
-    providers: [MessageService],
-    template: `
-        <div class="card">
-            <h1>Settings</h1>
-            
-            <!-- Plaid Integration Section -->
-            <div class="card mb-4">
-                <h2>Bank Account Integration</h2>
-                <p class="text-600 mb-4">Connect your bank accounts to automatically import transactions and account balances.</p>
-                
-                <div class="flex gap-3 mb-4">
-                    <p-button 
-                        label="Link Bank Account" 
-                        icon="pi pi-link" 
-                        (onClick)="linkBankAccount()"
-                        [loading]="linking"
-                        [disabled]="linking">
-                    </p-button>
-                    
-                    <p-button 
-                        label="Sync Transactions" 
-                        icon="pi pi-refresh" 
-                        severity="secondary"
-                        (onClick)="syncTransactions()"
-                        [loading]="syncing"
-                        [disabled]="syncing || linkedAccounts.length === 0">
-                    </p-button>
-                </div>
-
-                <!-- Linked Accounts Table -->
-                <div *ngIf="linkedAccounts.length > 0" class="mb-4">
-                    <h3>Linked Accounts</h3>
-                    <p-table [value]="linkedAccounts" [tableStyle]="{ 'min-width': '50rem' }">
-                        <ng-template pTemplate="header">
-                            <tr>
-                                <th>Institution</th>
-                                <th>Account Name</th>
-                                <th>Type</th>
-                                <th>Balance</th>
-                                <th>Status</th>
-                            </tr>
-                        </ng-template>
-                        <ng-template pTemplate="body" let-account>
-                            <tr>
-                                <td>{{ account.institution_name }}</td>
-                                <td>{{ account.name }} (****{{ account.mask }})</td>
-                                <td>
-                                    <p-tag [value]="account.subtype" severity="info"></p-tag>
-                                </td>
-                                <td>
-                                    <span class="font-bold" [class.text-green-600]="account.current_balance > 0" [class.text-red-600]="account.current_balance < 0">
-                                        {{ account.current_balance | currency:account.iso_currency_code }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <p-tag value="Connected" severity="success"></p-tag>
-                                </td>
-                            </tr>
-                        </ng-template>
-                    </p-table>
-                </div>
-            </div>
-
-            <!-- Transaction Stats Section -->
-            <div *ngIf="transactionStats" class="card mb-4">
-                <div class="flex justify-between items-center mb-3">
-                    <h3>Transaction Statistics</h3>
-                    <p-button 
-                        label="View All Transactions" 
-                        icon="pi pi-external-link" 
-                        severity="secondary"
-                        [outlined]="true"
-                        routerLink="/pages/transactions">
-                    </p-button>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-blue-600">{{ transactionStats.total_transactions }}</div>
-                            <div class="text-sm text-blue-500">Total Transactions</div>
-                        </div>
-                    </div>
-                    <div class="p-4 rounded-lg bg-green-50 border border-green-200">
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-green-600">{{ transactionStats.total_accounts }}</div>
-                            <div class="text-sm text-green-500">Linked Accounts</div>
-                        </div>
-                    </div>
-                    <div class="p-4 rounded-lg bg-purple-50 border border-purple-200">
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-purple-600">{{ transactionStats.last_sync | date:'short' }}</div>
-                            <div class="text-sm text-purple-500">Last Sync</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Account Settings Section -->
-            <div class="card">
-                <h2>Account Settings</h2>
-                <p class="text-600">Manage your account preferences and settings.</p>
-                <!-- Add more settings here -->
-            </div>
-        </div>
-    `
+  imports: [
+    CommonModule,
+    ButtonModule,
+    CardModule,
+    SidebarModule,
+    DropdownModule,
+    TypeCrudTableComponent
+  ],
+  templateUrl: './settings.component.html',
+  styleUrls: ['./settings.component.scss']
 })
 export class SettingsComponent implements OnInit {
-    linkedAccounts: any[] = [];
-    transactionStats: any = null;
-    linking = false;
-    syncing = false;
+  // Settings type categories
+  settingsTypes: SettingsType[] = [
+    { id: 'bill-categories', name: 'Bill Categories', displayName: 'Bill Categories', tableName: 'hb_bill_categories' },
+    { id: 'bill-types', name: 'Bill Types', displayName: 'Bill Types', tableName: 'hb_bill_types' },
+    { id: 'frequency-types', name: 'Frequency Types', displayName: 'Frequency Types', tableName: 'hb_frequency_types' },
+    { id: 'payment-types', name: 'Payment Types', displayName: 'Payment Types', tableName: 'hb_payment_types' },
+    { id: 'priority-types', name: 'Priority Types', displayName: 'Priority Types', tableName: 'hb_priority_types' },
+    { id: 'warranty-types', name: 'Warranty Types', displayName: 'Warranty Types', tableName: 'hb_warranty_types' },
+    { id: 'tags', name: 'Tags', displayName: 'Tags', tableName: 'hb_tags' },
+    { id: 'login-types', name: 'Login Types', displayName: 'Login Types', tableName: 'hb_login_types' },
+    { id: 'credit-card-types', name: 'Credit Card Types', displayName: 'Credit Card Types', tableName: 'hb_credit_card_types' },
+    { id: 'bill-status-types', name: 'Bill Status Types', displayName: 'Bill Status Types', tableName: 'hb_bill_status_types' },
+    { id: 'card-types', name: 'Card Types', displayName: 'Card Types', tableName: 'hb_card_types' },
+    { id: 'owner-types', name: 'Owner Types', displayName: 'Owner Types', tableName: 'hb_owner_types' }
+  ];
+
+  selectedType: SettingsType | null = null;
+  isMobile = false;
+  sidebarVisible = false;
 
     constructor(
-        private plaidService: PlaidLinkService,
+    private masterDataService: MasterDataService,
         private supabaseService: SupabaseService,
         private messageService: MessageService
     ) {}
 
-    async ngOnInit() {
-        await this.loadPlaidData();
-    }
+  ngOnInit() {
+    this.checkScreenSize();
+    this.selectedType = this.settingsTypes[0]; // Default to first item
+    
+    // Load all master data
+    this.masterDataService.loadAllMasterData().subscribe();
+    
+    // Listen for window resize
+    window.addEventListener('resize', () => {
+      this.checkScreenSize();
+    });
+  }
 
-    async linkBankAccount() {
-        this.linking = true;
-        
-        try {
-            console.log('Starting Plaid link process...');
-            
-            this.plaidService.openPlaid(
-                async (public_token: string, metadata: any) => {
-                    console.log('Plaid success callback:', { public_token, metadata });
-                    try {
-                        const result = await this.plaidService.exchangePublicToken(public_token, metadata);
-                        
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Success',
-                            detail: result.message
-                        });
-                        
-                        await this.loadPlaidData();
-                    } catch (error) {
-                        console.error('Error exchanging token:', error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: 'Failed to link bank account: ' + (error as any).message
-                        });
-                    } finally {
-                        this.linking = false;
-                    }
-                },
-                (err: any, metadata: any) => {
-                    console.error('Plaid exited:', err, metadata);
-                    this.linking = false;
-                    
-                    if (err) {
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: 'Failed to connect bank account: ' + err.error_message
-                        });
-                    }
-                }
-            );
-        } catch (error) {
-            console.error('Error opening Plaid:', error);
-            this.messageService.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: 'Failed to open bank connection: ' + (error as any).message
-            });
-            this.linking = false;
-        }
-    }
+  private checkScreenSize() {
+    this.isMobile = window.innerWidth < 768;
+  }
 
-    async syncTransactions() {
-        this.syncing = true;
-        
-        try {
-            const result = await this.plaidService.syncTransactions();
-            
-            this.messageService.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: result.message
-            });
-            
-            await this.loadPlaidData();
-        } catch (error) {
-            console.error('Error syncing transactions:', error);
-            this.messageService.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: 'Failed to sync transactions'
-            });
-        } finally {
-            this.syncing = false;
-        }
+  onTypeSelect(type: SettingsType) {
+    this.selectedType = type;
+    
+    // Close sidebar on mobile after selection
+    if (this.isMobile) {
+      this.sidebarVisible = false;
     }
+  }
 
-    private async loadPlaidData() {
-        try {
-            const { data, error } = await this.supabaseService.getClient().functions.invoke('get-plaid-data');
-            
-            if (error) throw error;
-            
-            this.linkedAccounts = data.accounts || [];
-            this.transactionStats = data.transactionStats;
-        } catch (error) {
-            console.error('Error loading Plaid data:', error);
-        }
+  toggleSidebar() {
+    this.sidebarVisible = !this.sidebarVisible;
+  }
+
+  getTypeIcon(typeId: string): string {
+    const iconMap: { [key: string]: string } = {
+      'bill-categories': 'pi pi-folder',
+      'bill-types': 'pi pi-file',
+      'frequency-types': 'pi pi-clock',
+      'payment-types': 'pi pi-credit-card',
+      'priority-types': 'pi pi-flag',
+      'warranty-types': 'pi pi-shield',
+      'tags': 'pi pi-tag',
+      'login-types': 'pi pi-key',
+      'credit-card-types': 'pi pi-id-card',
+      'bill-status-types': 'pi pi-check-circle',
+      'card-types': 'pi pi-credit-card',
+      'owner-types': 'pi pi-user'
+    };
+    return iconMap[typeId] || 'pi pi-cog';
+  }
+
+  getTypeDescription(typeId: string): string {
+    const descriptionMap: { [key: string]: string } = {
+      'bill-categories': 'Manage bill categories for organizing bills',
+      'bill-types': 'Manage different types of bills',
+      'frequency-types': 'Manage billing frequencies (monthly, yearly, etc.)',
+      'payment-types': 'Manage payment methods',
+      'priority-types': 'Manage bill priority levels',
+      'warranty-types': 'Manage warranty types for products',
+      'tags': 'Manage tags for categorization',
+      'login-types': 'Manage login method types',
+      'credit-card-types': 'Manage credit card types',
+      'bill-status-types': 'Manage bill status types (Active, Paid, etc.)',
+      'card-types': 'Manage card types for credit cards',
+      'owner-types': 'Manage owner types (Personal, Business, etc.)'
+    };
+    return descriptionMap[typeId] || 'Manage settings for this category';
     }
 } 

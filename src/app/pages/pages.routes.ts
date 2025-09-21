@@ -4,6 +4,7 @@ import { Crud } from './crud/crud';
 import { Empty } from './empty/empty';
 import { AccountsComponent } from './accounts/accounts';
 import { SettingsComponent } from './settings/settings.component';
+import { PlaidIntegrationsComponent } from './plaid-integrations/plaid-integrations.component';
 import { TransactionsComponent } from './transactions/transactions.component';
 import { ReconciliationComponent } from './reconciliation/reconciliation.component';
 import { FinancialInsightsComponent } from './financial-insights/financial-insights.component';
@@ -16,6 +17,7 @@ export default [
     { path: 'empty', component: Empty },
     { path: 'accounts', component: AccountsComponent },
     { path: 'settings', component: SettingsComponent },
+    { path: 'plaid-integrations', component: PlaidIntegrationsComponent },
     { path: 'transactions', component: TransactionsComponent },
     { path: 'reconciliation', component: ReconciliationComponent },
     { path: 'financial-insights', component: FinancialInsightsComponent },

@@ -56,6 +56,11 @@ export class AppMenu {
                         label: 'Categorization Rules',
                         icon: 'pi pi-fw pi-tags',
                         routerLink: ['/dashboard/pages/categorization-rules']
+                    },
+                    {
+                        label: 'Plaid Integrations',
+                        icon: 'pi pi-fw pi-link',
+                        routerLink: ['/dashboard/pages/plaid-integrations']
                     }
                 ]
             },

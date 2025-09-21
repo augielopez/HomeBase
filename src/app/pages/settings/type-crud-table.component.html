@@ -1,0 +1,156 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="crud-table-container">
+  <!-- Header with Add Button -->
+  <div class="table-header">
+    <div class="header-content">
+      <h3>{{ typeConfig?.displayName }}</h3>
+      <p-button 
+        label="Add New" 
+        icon="pi pi-plus" 
+        (onClick)="openAddDialog()"
+        [loading]="loading">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="table-container">
+    <p-table 
+      [value]="data" 
+      [loading]="loading"
+      [paginator]="true" 
+      [rows]="10"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} records"
+      [rowsPerPageOptions]="[5, 10, 20]"
+      styleClass="p-datatable-sm">
+      
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 30%">Name</th>
+          <th style="width: 40%">Description</th>
+          <th style="width: 15%">Created</th>
+          <th style="width: 15%">Actions</th>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="body" let-record>
+        <tr>
+          <td>
+            <div class="record-name">
+              {{ record.name }}
+            </div>
+          </td>
+          <td>
+            <div class="record-description">
+              {{ record.description || '—' }}
+            </div>
+          </td>
+          <td>
+            <div class="record-date">
+              {{ formatDate(record.created_at || '') }}
+            </div>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <p-button 
+                icon="pi pi-pencil" 
+                size="small"
+                severity="secondary"
+                [text]="true"
+                (onClick)="openEditDialog(record)"
+                pTooltip="Edit"
+                styleClass="mr-2">
+              </p-button>
+              <p-button 
+                icon="pi pi-trash" 
+                size="small"
+                severity="danger"
+                [text]="true"
+                (onClick)="confirmDelete(record)"
+                pTooltip="Delete">
+              </p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="4" class="text-center py-8">
+            <div class="empty-state">
+              <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+              <h4>No Records Found</h4>
+              <p>No {{ typeConfig?.displayName.toLowerCase() }} found. Click "Add New" to create your first record.</p>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- Add/Edit Dialog -->
+<p-dialog 
+  [header]="isEditing ? 'Edit ' + typeConfig?.displayName.slice(0, -1) : 'Add New ' + typeConfig?.displayName.slice(0, -1)" 
+  [(visible)]="showDialog" 
+  [modal]="true" 
+  [style]="{ width: '500px' }"
+  [closable]="!loading"
+  (onHide)="closeDialog()">
+  
+  <form [formGroup]="form" (ngSubmit)="saveRecord()" class="crud-form">
+    
+    <!-- Name Field -->
+    <div class="field mb-4">
+      <label class="block mb-2 font-medium">
+        Name <span class="text-red-500">*</span>
+      </label>
+      <input 
+        type="text" 
+        pInputText 
+        formControlName="name"
+        placeholder="Enter name"
+        class="w-full"
+        [class.p-invalid]="hasFieldError('name')" />
+      <small 
+        class="text-red-500 mt-1 block" 
+        *ngIf="hasFieldError('name')">
+        {{ getFieldError('name') }}
+      </small>
+    </div>
+
+    <!-- Description Field -->
+    <div class="field mb-6">
+      <label class="block mb-2 font-medium">
+        Description
+      </label>
+      <textarea 
+        pInputTextarea 
+        formControlName="description"
+        placeholder="Enter description (optional)"
+        rows="3"
+        class="w-full">
+      </textarea>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-3">
+      <p-button 
+        label="Cancel" 
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="closeDialog()"
+        [disabled]="loading">
+      </p-button>
+      <p-button 
+        [label]="isEditing ? 'Update' : 'Create'" 
+        [icon]="isEditing ? 'pi pi-check' : 'pi pi-plus'"
+        type="submit"
+        [loading]="loading">
+      </p-button>
+    </div>
+  </form>
+</p-dialog>

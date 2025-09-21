@@ -24,6 +24,9 @@ export class MasterDataService {
     private tagsSubject = new BehaviorSubject<any[]>([]);
     private loginTypesSubject = new BehaviorSubject<any[]>([]);
     private creditCardTypesSubject = new BehaviorSubject<any[]>([]);
+    private billStatusTypesSubject = new BehaviorSubject<any[]>([]);
+    private cardTypesSubject = new BehaviorSubject<any[]>([]);
+    private ownerTypesSubject = new BehaviorSubject<any[]>([]);
 
 
     // Observables for components to subscribe to
@@ -36,6 +39,9 @@ export class MasterDataService {
     tags$ = this.tagsSubject.asObservable();
     loginTypes$ = this.loginTypesSubject.asObservable();
     creditCardTypes$ = this.creditCardTypesSubject.asObservable();
+    billStatusTypes$ = this.billStatusTypesSubject.asObservable();
+    cardTypes$ = this.cardTypesSubject.asObservable();
+    ownerTypes$ = this.ownerTypesSubject.asObservable();
 
 
     // Loading states
@@ -60,6 +66,9 @@ export class MasterDataService {
             tags: this.loadTags(),
             loginTypes: this.loadLoginTypes(),
             creditCardTypes: this.loadCreditCardTypes(),
+            billStatusTypes: this.loadBillStatusTypes(),
+            cardTypes: this.loadCardTypes(),
+            ownerTypes: this.loadOwnerTypes(),
         }).pipe(
             tap(() => {
                 this.isLoadingSubject.next(false);
@@ -318,5 +327,107 @@ export class MasterDataService {
 
     refreshPriorityTypes(): Observable<PriorityType[]> {
         return this.loadPriorityTypes();
+    }
+
+    /**
+     * Load bill status types
+     */
+    loadBillStatusTypes(): Observable<any[]> {
+        return new Observable(observer => {
+            this.supabaseService.getClient()
+                .from('hb_bill_status_types')
+                .select('*')
+                .order('name')
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.error('Error loading bill status types:', error);
+                        this.billStatusTypesSubject.next([]);
+                        observer.next([]);
+                        observer.complete();
+                        return;
+                    }
+                    this.billStatusTypesSubject.next(data || []);
+                    observer.next(data || []);
+                    observer.complete();
+                });
+        });
+    }
+
+    /**
+     * Load card types
+     */
+    loadCardTypes(): Observable<any[]> {
+        return new Observable(observer => {
+            this.supabaseService.getClient()
+                .from('hb_card_types')
+                .select('*')
+                .order('name')
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.error('Error loading card types:', error);
+                        this.cardTypesSubject.next([]);
+                        observer.next([]);
+                        observer.complete();
+                        return;
+                    }
+                    this.cardTypesSubject.next(data || []);
+                    observer.next(data || []);
+                    observer.complete();
+                });
+        });
+    }
+
+    /**
+     * Load owner types
+     */
+    loadOwnerTypes(): Observable<any[]> {
+        return new Observable(observer => {
+            this.supabaseService.getClient()
+                .from('hb_owner_types')
+                .select('*')
+                .order('name')
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.error('Error loading owner types:', error);
+                        this.ownerTypesSubject.next([]);
+                        observer.next([]);
+                        observer.complete();
+                        return;
+                    }
+                    this.ownerTypesSubject.next(data || []);
+                    observer.next(data || []);
+                    observer.complete();
+                });
+        });
+    }
+
+    /**
+     * Get current values
+     */
+    getBillStatusTypes(): any[] {
+        return this.billStatusTypesSubject.value;
+    }
+
+    getCardTypes(): any[] {
+        return this.cardTypesSubject.value;
+    }
+
+    getOwnerTypes(): any[] {
+        return this.ownerTypesSubject.value;
+    }
+
+    /**
+     * Refresh methods
+     */
+    refreshBillStatusTypes(): Observable<any[]> {
+        return this.loadBillStatusTypes();
+    }
+
+    refreshCardTypes(): Observable<any[]> {
+        return this.loadCardTypes();
+    }
+
+    refreshOwnerTypes(): Observable<any[]> {
+        return this.loadOwnerTypes();
     }
 }

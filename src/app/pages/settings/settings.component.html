@@ -1,0 +1,121 @@
+<div class="settings-container">
+  <!-- Mobile Sidebar Toggle Button -->
+  <div class="mobile-toggle" *ngIf="isMobile">
+    <p-button 
+      icon="pi pi-bars" 
+      (onClick)="toggleSidebar()" 
+      [outlined]="true"
+      severity="secondary">
+    </p-button>
+  </div>
+
+  <!-- Mobile Sidebar -->
+  <p-sidebar 
+    [(visible)]="sidebarVisible" 
+    position="left" 
+    [modal]="true"
+    [blockScroll]="true"
+    styleClass="settings-sidebar">
+    
+    <div class="sidebar-header">
+      <h3>Settings</h3>
+      <p>Manage application types</p>
+    </div>
+    
+    <div class="settings-types-list">
+      <div 
+        *ngFor="let type of settingsTypes" 
+        class="settings-type-item"
+        [class.active]="selectedType?.id === type.id"
+        (click)="onTypeSelect(type)">
+        
+        <div class="type-icon">
+          <i [class]="getTypeIcon(type.id)"></i>
+        </div>
+        
+        <div class="type-content">
+          <div class="type-name">{{ type.displayName }}</div>
+          <div class="type-description">{{ getTypeDescription(type.id) }}</div>
+        </div>
+      </div>
+    </div>
+  </p-sidebar>
+
+  <!-- Desktop Layout -->
+  <div class="desktop-layout" *ngIf="!isMobile">
+    <div class="settings-sidebar">
+      <div class="sidebar-header">
+        <h3>Settings</h3>
+        <p>Manage application types</p>
+      </div>
+      
+      <div class="settings-types-list">
+        <div 
+          *ngFor="let type of settingsTypes" 
+          class="settings-type-item"
+          [class.active]="selectedType?.id === type.id"
+          (click)="onTypeSelect(type)">
+          
+          <div class="type-icon">
+            <i [class]="getTypeIcon(type.id)"></i>
+          </div>
+          
+          <div class="type-content">
+            <div class="type-name">{{ type.displayName }}</div>
+            <div class="type-description">{{ getTypeDescription(type.id) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="settings-content">
+      <div class="content-header">
+        <h2>{{ selectedType?.displayName }}</h2>
+        <p>{{ selectedType ? getTypeDescription(selectedType.id) : 'Select a type to manage' }}</p>
+      </div>
+      
+      <!-- CRUD Table Component will go here -->
+      <div class="crud-container" *ngIf="selectedType">
+        <app-type-crud-table 
+          [typeConfig]="selectedType"
+          [isLoading]="false">
+        </app-type-crud-table>
+      </div>
+      
+      <!-- Placeholder when no type is selected -->
+      <div class="no-selection" *ngIf="!selectedType">
+        <div class="no-selection-content">
+          <i class="pi pi-cog text-6xl text-gray-400"></i>
+          <h3>Select a Type</h3>
+          <p>Choose a type from the sidebar to start managing settings.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Content -->
+  <div class="mobile-layout" *ngIf="isMobile">
+    <div class="content-header">
+      <h2>{{ selectedType?.displayName || 'Settings' }}</h2>
+      <p>{{ selectedType ? getTypeDescription(selectedType.id) : 'Select a type to manage' }}</p>
+    </div>
+    
+    <!-- CRUD Table Component will go here -->
+    <div class="crud-container" *ngIf="selectedType">
+      <app-type-crud-table 
+        [typeConfig]="selectedType"
+        [isLoading]="false">
+      </app-type-crud-table>
+    </div>
+    
+    <!-- Placeholder when no type is selected -->
+    <div class="no-selection" *ngIf="!selectedType">
+      <div class="no-selection-content">
+        <i class="pi pi-cog text-6xl text-gray-400"></i>
+        <h3>Select a Type</h3>
+        <p>Choose a type from the menu to start managing settings.</p>
+      </div>
+    </div>
+  </div>
+</div>

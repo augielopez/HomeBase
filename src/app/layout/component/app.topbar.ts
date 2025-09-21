@@ -116,7 +116,7 @@ export class AppTopbar {
                         icon: 'pi pi-cog',
                         command: () => {
                             // Navigate to settings page
-                            this.router.navigate(['/settings']);
+                            this.router.navigate(['/dashboard/pages/settings']);
                         }
                     },
                     {
