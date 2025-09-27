@@ -1,0 +1,135 @@
+<div class="alerts-insights-section">
+  <!-- Section Header -->
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Alerts & Insights</h2>
+      <p class="text-gray-600 dark:text-gray-400">Financial alerts and personalized insights</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="alerts-loading mb-6">
+      <div class="grid grid-cols-1 gap-4">
+        <div *ngFor="let i of [1,2,3]" class="alert-item">
+          <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
+        </div>
+      </div>
+    </div>
+    <div class="insights-loading">
+      <div class="grid grid-cols-1 gap-4">
+        <div *ngFor="let i of [1,2]" class="insight-item">
+          <p-skeleton width="100%" height="100px" borderRadius="8px"></p-skeleton>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Alerts/Insights State -->
+  <div *ngIf="!loading && alerts.length === 0 && insights.length === 0" class="no-content-state">
+    <div class="text-center py-12">
+      <i class="pi pi-lightbulb text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">All Good!</h3>
+      <p class="text-gray-500 dark:text-gray-400">No alerts or insights at this time. Your finances look healthy!</p>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!loading && (alerts.length > 0 || insights.length > 0)">
+    
+    <!-- Financial Alerts -->
+    <div *ngIf="alerts.length > 0" class="alerts-section mb-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <i class="pi pi-exclamation-triangle mr-2"></i>
+        Financial Alerts
+      </h3>
+      
+      <div class="alerts-list">
+        <div 
+          *ngFor="let alert of alerts" 
+          class="alert-item"
+          [class]="'alert-' + alert.severity">
+          
+          <div class="alert-content">
+            <div class="alert-header">
+              <div class="alert-icon">
+                <i [class]="getAlertIcon(alert.type)"></i>
+              </div>
+              <div class="alert-info">
+                <div class="alert-title">{{ alert.title }}</div>
+                <div class="alert-message">{{ alert.message }}</div>
+                <div class="alert-meta" *ngIf="alert.amount || alert.date || alert.account">
+                  <span *ngIf="alert.amount" class="alert-amount">{{ alert.amount | currency }}</span>
+                  <span *ngIf="alert.date" class="alert-date">{{ alert.date | date:'short' }}</span>
+                  <span *ngIf="alert.account" class="alert-account">{{ alert.account }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-actions">
+            <div class="action-buttons">
+              <p-button 
+                *ngIf="alert.actionable"
+                icon="pi pi-check" 
+                label="Action" 
+                severity="success"
+                [outlined]="true"
+                size="small"
+                (onClick)="handleAlertAction(alert)">
+              </p-button>
+              
+              <p-button 
+                icon="pi pi-times" 
+                label="Dismiss" 
+                severity="secondary"
+                [outlined]="true"
+                size="small"
+                (onClick)="dismissAlert(alert)">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Financial Insights -->
+    <div *ngIf="insights.length > 0" class="insights-section">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <i class="pi pi-lightbulb mr-2"></i>
+        Financial Insights
+      </h3>
+      
+      <div class="insights-list">
+        <div 
+          *ngFor="let insight of insights" 
+          class="insight-item">
+          
+          <div class="insight-content">
+            <div class="insight-header">
+              <div class="insight-icon">
+                <i [class]="getInsightIcon(insight.type)"></i>
+              </div>
+              <div class="insight-info">
+                <div class="insight-title">{{ insight.title }}</div>
+                <div class="insight-message">{{ insight.message }}</div>
+                <div class="insight-meta" *ngIf="insight.value || insight.change">
+                  <span *ngIf="insight.value" class="insight-value">{{ insight.value | currency }}</span>
+                  <span *ngIf="insight.change" class="insight-change" [class]="getChangeColor(insight.changeType)">
+                    <i [class]="getChangeIcon(insight.changeType)"></i>
+                    {{ insight.change | number:'1.1-1' }}%
+                  </span>
+                  <span *ngIf="insight.period" class="insight-period">{{ insight.period }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+</div>
+

@@ -1,0 +1,161 @@
+<div class="account-summary-section">
+  <!-- Section Header -->
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Account Balances</h2>
+      <p class="text-gray-600 dark:text-gray-400">Your account overview</p>
+    </div>
+    <p-button 
+      icon="pi pi-plus" 
+      label="Add Account" 
+      severity="secondary" 
+      [outlined]="true"
+      (onClick)="addNewAccount()">
+    </p-button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="summary-cards mb-6">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="summary-card">
+          <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
+        </div>
+        <div class="summary-card">
+          <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
+        </div>
+      </div>
+    </div>
+    <div class="accounts-list">
+      <div *ngFor="let i of [1,2,3]" class="account-item">
+        <p-skeleton width="100%" height="60px" borderRadius="8px"></p-skeleton>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Accounts State -->
+  <div *ngIf="!loading && accounts.length === 0" class="no-accounts-state">
+    <div class="text-center py-12">
+      <i class="pi pi-building text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Accounts</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">Add your first account to get started</p>
+      <p-button 
+        icon="pi pi-plus" 
+        label="Add Account" 
+        (onClick)="addNewAccount()">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Accounts Content -->
+  <div *ngIf="!loading && accounts.length > 0">
+    
+    <!-- Summary Cards -->
+    <div class="summary-cards mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Total Balance -->
+        <p-card class="summary-card">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2" [class]="getTotalBalanceColor()">
+              {{ totalBalance | currency }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Balance</div>
+          </div>
+        </p-card>
+
+        <!-- Checking -->
+        <p-card class="summary-card" *ngIf="checkingBalance !== 0">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2" [class]="getBalanceColor(checkingBalance)">
+              {{ checkingBalance | currency }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Checking</div>
+          </div>
+        </p-card>
+
+        <!-- Savings -->
+        <p-card class="summary-card" *ngIf="savingsBalance !== 0">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2" [class]="getBalanceColor(savingsBalance)">
+              {{ savingsBalance | currency }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Savings</div>
+          </div>
+        </p-card>
+
+        <!-- Investment -->
+        <p-card class="summary-card" *ngIf="investmentBalance !== 0">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2" [class]="getBalanceColor(investmentBalance)">
+              {{ investmentBalance | currency }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Investment</div>
+          </div>
+        </p-card>
+      </div>
+    </div>
+
+    <!-- Accounts List -->
+    <div class="accounts-list">
+      <div 
+        *ngFor="let account of accounts" 
+        class="account-item"
+        (click)="viewAccountDetails(account)">
+        
+        <div class="account-info">
+          <div class="account-icon">
+            <i [class]="getAccountTypeIcon(account.account_type)"></i>
+          </div>
+          
+          <div class="account-details">
+            <div class="account-name">{{ account.name }}</div>
+            <div class="account-meta">
+              <p-tag 
+                [value]="account.account_type" 
+                [severity]="getAccountTypeSeverity(account.account_type)"
+                [rounded]="true">
+              </p-tag>
+              <span class="last-updated">
+                Updated {{ formatLastUpdated(account.last_updated || '') }}
+              </span>
+            </div>
+            <div class="institution" *ngIf="account.institution">
+              {{ account.institution }}
+            </div>
+          </div>
+        </div>
+
+        <div class="account-balance">
+          <div class="balance-amount" [class]="getBalanceColor(account.balance)">
+            {{ account.balance | currency }}
+          </div>
+          <div class="balance-indicator">
+            <i class="pi pi-chevron-right"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats mt-6">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value">{{ accounts.length }}</div>
+          <div class="stat-label">Total Accounts</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ positiveBalanceCount }}</div>
+          <div class="stat-label">Positive Balance</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ negativeBalanceCount }}</div>
+          <div class="stat-label">Negative Balance</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+</div>

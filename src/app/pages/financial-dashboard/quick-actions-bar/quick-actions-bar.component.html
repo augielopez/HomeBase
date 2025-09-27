@@ -1,0 +1,45 @@
+<div class="quick-actions-bar">
+  <div class="actions-container">
+    <h3 class="section-title">Quick Actions</h3>
+    
+    <div class="actions-grid">
+      <div 
+        *ngFor="let action of quickActions" 
+        class="action-item">
+        
+        <!-- Action with Router Link -->
+        <a 
+          *ngIf="action.routerLink"
+          [routerLink]="action.routerLink"
+          class="action-button-link">
+          <p-button 
+            [label]="action.label"
+            [icon]="action.icon"
+            [severity]="action.severity"
+            [outlined]="action.outlined"
+            [text]="false"
+            [raised]="false"
+            styleClass="action-button">
+          </p-button>
+        </a>
+        
+        <!-- Action without Router Link -->
+        <p-button 
+          *ngIf="!action.routerLink"
+          [label]="action.label"
+          [icon]="action.icon"
+          [severity]="action.severity"
+          [outlined]="action.outlined"
+          [text]="false"
+          [raised]="false"
+          (onClick)="executeAction(action)"
+          styleClass="action-button">
+        </p-button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+</div>
+

@@ -1,0 +1,214 @@
+.recent-transactions-section {
+  .loading-state {
+    .filters-loading,
+    .table-row {
+      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+  }
+
+  .no-transactions-state {
+    background: var(--surface-50);
+    border: 2px dashed var(--surface-300);
+    border-radius: 12px;
+  }
+
+  .filters-section {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      align-items: end;
+
+      .filter-item {
+        .filter-label {
+          display: block;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--text-color);
+          margin-bottom: 0.5rem;
+        }
+
+        .p-inputtext,
+        .p-dropdown,
+        .p-calendar {
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .transactions-table {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    overflow: hidden;
+
+    .transaction-date {
+      font-size: 0.875rem;
+      color: var(--text-color);
+    }
+
+    .transaction-description {
+      .transaction-name {
+        font-weight: 500;
+        color: var(--text-color);
+        margin-bottom: 0.25rem;
+      }
+
+      .transaction-subtitle {
+        font-size: 0.875rem;
+        color: var(--text-color-secondary);
+      }
+    }
+
+    .account-info {
+      .account-name {
+        font-size: 0.875rem;
+        color: var(--text-color);
+      }
+    }
+
+    .transaction-amount {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .import-method {
+      display: flex;
+      align-items: center;
+      font-size: 0.875rem;
+      color: var(--text-color-secondary);
+
+      i {
+        font-size: 1rem;
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.25rem;
+
+      p-button {
+        min-width: auto;
+      }
+    }
+  }
+
+  .pagination-section {
+    display: flex;
+    justify-content: center;
+  }
+
+  .summary-stats {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+
+      .stat-item {
+        background: var(--surface-50);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: var(--primary-color);
+          margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+          font-size: 0.875rem;
+          color: var(--text-color-secondary);
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .recent-transactions-section {
+    .filters-section {
+      padding: 1rem;
+
+      .filters-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+    }
+
+    .transactions-table {
+      overflow-x: auto;
+
+      .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+
+        p-button {
+          width: 100%;
+        }
+      }
+    }
+
+    .summary-stats {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+
+        .stat-item {
+          padding: 0.75rem;
+
+          .stat-value {
+            font-size: 1.25rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .recent-transactions-section {
+    .filters-section {
+      .filters-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  }
+}
+
+@media (min-width: 1025px) {
+  .recent-transactions-section {
+    .filters-section {
+      .filters-grid {
+        grid-template-columns: repeat(6, 1fr);
+      }
+    }
+  }
+}
+
+// Dark theme support
+:host-context(.app-dark) {
+  .recent-transactions-section {
+    .no-transactions-state {
+      background: var(--surface-700);
+      border-color: var(--surface-600);
+    }
+
+    .summary-stats {
+      .stat-item {
+        background: var(--surface-700);
+      }
+    }
+  }
+}
+

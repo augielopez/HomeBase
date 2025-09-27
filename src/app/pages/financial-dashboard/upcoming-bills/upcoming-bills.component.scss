@@ -1,0 +1,233 @@
+.upcoming-bills-section {
+  .loading-state {
+    .summary-card {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .bill-item {
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+  }
+
+  .no-bills-state {
+    background: var(--surface-50);
+    border: 2px dashed var(--surface-300);
+    border-radius: 12px;
+  }
+
+  .summary-cards {
+    .summary-card {
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+
+  .bills-list {
+    .bill-item {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.3s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-color);
+      }
+
+      .bill-info {
+        flex: 1;
+
+        .bill-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+
+          .bill-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-color);
+          }
+
+          .bill-amount {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--red-500);
+          }
+        }
+
+        .bill-details {
+          .bill-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+
+            .due-date {
+              font-size: 0.875rem;
+              color: var(--text-color-secondary);
+            }
+          }
+
+          .bill-category {
+            display: inline-block;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+          }
+
+          .bill-account {
+            font-size: 0.875rem;
+          }
+        }
+      }
+
+      .bill-actions {
+        .action-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          min-width: 120px;
+
+          p-button {
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+
+  .quick-stats {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 1rem;
+
+      .stat-item {
+        background: var(--surface-50);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: var(--primary-color);
+          margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+          font-size: 0.875rem;
+          color: var(--text-color-secondary);
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .upcoming-bills-section {
+    .summary-cards {
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+    }
+
+    .bills-list {
+      .bill-item {
+        padding: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+
+        .bill-info {
+          .bill-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+
+            .bill-amount {
+              font-size: 1.125rem;
+            }
+          }
+
+          .bill-details {
+            .bill-meta {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 0.5rem;
+            }
+          }
+        }
+
+        .bill-actions {
+          .action-buttons {
+            flex-direction: row;
+            min-width: auto;
+
+            p-button {
+              flex: 1;
+            }
+          }
+        }
+      }
+    }
+
+    .quick-stats {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+
+        .stat-item {
+          padding: 0.75rem;
+
+          .stat-value {
+            font-size: 1.25rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .upcoming-bills-section {
+    .summary-cards {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  }
+}
+
+// Dark theme support
+:host-context(.app-dark) {
+  .upcoming-bills-section {
+    .no-bills-state {
+      background: var(--surface-700);
+      border-color: var(--surface-600);
+    }
+
+    .quick-stats {
+      .stat-item {
+        background: var(--surface-700);
+      }
+    }
+  }
+}
+

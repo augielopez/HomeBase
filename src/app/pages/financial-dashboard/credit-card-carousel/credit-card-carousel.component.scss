@@ -1,0 +1,367 @@
+.credit-card-carousel-section {
+  .carousel-loading {
+    .credit-card-skeleton {
+      border-radius: 12px;
+      overflow: hidden;
+    }
+  }
+
+  .no-cards-state {
+    background: var(--surface-50);
+    border: 2px dashed var(--surface-300);
+    border-radius: 12px;
+  }
+
+  .carousel-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+
+    .carousel-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 1rem;
+      z-index: 10;
+      pointer-events: none;
+
+      p-button {
+        pointer-events: all;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        
+        &:hover {
+          background: rgba(255, 255, 255, 1);
+        }
+      }
+    }
+
+    .cards-wrapper {
+      overflow: hidden;
+      border-radius: 12px;
+      
+      .cards-track {
+        display: flex;
+        transition: transform 0.5s ease-in-out;
+        width: 100%;
+      }
+
+      .credit-card-container {
+        min-width: 100%;
+        padding: 0 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+
+        &.active {
+          transform: scale(1.02);
+        }
+
+        .credit-card {
+          height: 240px;
+          border-radius: 16px;
+          padding: 1.5rem;
+          color: white;
+          position: relative;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+          transition: all 0.3s ease;
+          overflow: hidden;
+
+          &:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+          }
+
+          // Card background pattern
+          &::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.3;
+            pointer-events: none;
+          }
+
+          .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+
+            .chip-icon {
+              font-size: 1.5rem;
+              opacity: 0.8;
+            }
+
+            .brand-logo {
+              font-size: 2rem;
+              opacity: 0.9;
+            }
+          }
+
+          .card-number {
+            font-size: 1.25rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            font-family: 'Courier New', monospace;
+          }
+
+          .card-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+
+            .cardholder-name {
+              font-size: 0.875rem;
+              font-weight: 500;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+
+            .expiration {
+              font-size: 0.875rem;
+              font-weight: 500;
+              letter-spacing: 0.05em;
+            }
+          }
+
+          .card-balance {
+            margin-bottom: 1rem;
+
+            .balance-label {
+              font-size: 0.75rem;
+              opacity: 0.8;
+              margin-bottom: 0.25rem;
+            }
+
+            .balance-amount {
+              font-size: 1.5rem;
+              font-weight: bold;
+            }
+          }
+
+          .credit-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            opacity: 0.9;
+
+            .label {
+              opacity: 0.8;
+            }
+
+            .value {
+              font-weight: 500;
+            }
+
+            .available-credit {
+              grid-column: span 2;
+              text-align: center;
+              padding-top: 0.25rem;
+              border-top: 1px solid rgba(255, 255, 255, 0.2);
+            }
+          }
+
+          .click-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            opacity: 0.6;
+            font-size: 0.875rem;
+          }
+        }
+      }
+    }
+
+    .card-indicators {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--surface-300);
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &.active {
+          background: var(--primary-color);
+          transform: scale(1.2);
+        }
+
+        &:hover {
+          background: var(--primary-color);
+          opacity: 0.7;
+        }
+      }
+    }
+  }
+
+  // Card Details Dialog Styles
+  .card-details-content {
+    .card-summary {
+      .card-icon-large {
+        width: 60px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+      }
+
+      .stat-box {
+        text-align: center;
+        padding: 1rem;
+        background: var(--surface-50);
+        border-radius: 8px;
+
+        .stat-label {
+          font-size: 0.875rem;
+          color: var(--text-color-secondary);
+          margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+          font-size: 1.25rem;
+          font-weight: bold;
+        }
+      }
+    }
+
+    .recent-transactions {
+      .transactions-loading {
+        .transaction-skeleton {
+          margin-bottom: 1rem;
+        }
+      }
+
+      .transaction-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: var(--surface-50);
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+
+        .transaction-info {
+          flex: 1;
+
+          .transaction-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+          }
+
+          .transaction-description {
+            font-size: 0.875rem;
+            color: var(--text-color-secondary);
+            margin-bottom: 0.5rem;
+          }
+
+          .transaction-category {
+            display: inline-block;
+          }
+        }
+
+        .transaction-amount {
+          text-align: right;
+
+          .transaction-date {
+            font-size: 0.875rem;
+            color: var(--text-color-secondary);
+            margin-top: 0.25rem;
+          }
+        }
+      }
+    }
+
+    .quick-actions {
+      border-top: 1px solid var(--surface-border);
+      padding-top: 1rem;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .credit-card-carousel-section {
+    .carousel-container {
+      .carousel-nav {
+        display: none; // Hide navigation arrows on mobile
+      }
+
+      .cards-wrapper {
+        .credit-card-container {
+          padding: 0 0.5rem;
+
+          .credit-card {
+            height: 200px;
+            padding: 1rem;
+
+            .card-number {
+              font-size: 1rem;
+            }
+
+            .card-balance {
+              .balance-amount {
+                font-size: 1.25rem;
+              }
+            }
+
+            .credit-info {
+              font-size: 0.7rem;
+            }
+          }
+        }
+      }
+    }
+
+    .card-details-content {
+      .card-summary {
+        .stat-box {
+          padding: 0.75rem;
+
+          .stat-value {
+            font-size: 1rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Dark theme support
+:host-context(.app-dark) {
+  .credit-card-carousel-section {
+    .no-cards-state {
+      background: var(--surface-700);
+      border-color: var(--surface-600);
+    }
+
+    .card-details-content {
+      .stat-box {
+        background: var(--surface-700);
+      }
+
+      .transaction-item {
+        background: var(--surface-700);
+      }
+    }
+  }
+}
+

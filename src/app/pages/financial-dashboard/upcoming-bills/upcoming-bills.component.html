@@ -1,0 +1,186 @@
+<div class="upcoming-bills-section">
+  <!-- Section Header -->
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Upcoming Bills</h2>
+      <p class="text-gray-600 dark:text-gray-400">Bills due in the next 30 days</p>
+    </div>
+    <p-button 
+      icon="pi pi-plus" 
+      label="Add Bill" 
+      severity="secondary" 
+      [outlined]="true"
+      (onClick)="addNewBill()">
+    </p-button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="summary-cards mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div *ngFor="let i of [1,2,3]" class="summary-card">
+          <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
+        </div>
+      </div>
+    </div>
+    <div class="bills-list">
+      <div *ngFor="let i of [1,2,3]" class="bill-item">
+        <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Bills State -->
+  <div *ngIf="!loading && upcomingBills.length === 0" class="no-bills-state">
+    <div class="text-center py-12">
+      <i class="pi pi-file text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Upcoming Bills</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">You're all caught up! No bills due in the next 30 days.</p>
+      <p-button 
+        icon="pi pi-plus" 
+        label="Add Bill" 
+        (onClick)="addNewBill()">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Bills Content -->
+  <div *ngIf="!loading && upcomingBills.length > 0">
+    
+    <!-- Summary Cards -->
+    <div class="summary-cards mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Total Amount -->
+        <p-card class="summary-card">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2 text-red-600">
+              {{ totalAmount | currency }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Due</div>
+          </div>
+        </p-card>
+
+        <!-- Due Today -->
+        <p-card class="summary-card" *ngIf="billsDueToday > 0">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2 text-orange-600">
+              {{ billsDueToday }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Due Today</div>
+          </div>
+        </p-card>
+
+        <!-- Overdue -->
+        <p-card class="summary-card" *ngIf="billsOverdue > 0">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2 text-red-600">
+              {{ billsOverdue }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Overdue</div>
+          </div>
+        </p-card>
+      </div>
+    </div>
+
+    <!-- Bills List -->
+    <div class="bills-list">
+      <div 
+        *ngFor="let bill of upcomingBills" 
+        class="bill-item">
+        
+        <div class="bill-info">
+          <div class="bill-header">
+            <div class="bill-name">{{ bill.name }}</div>
+            <div class="bill-amount">{{ bill.amount | currency }}</div>
+          </div>
+          
+          <div class="bill-details">
+            <div class="bill-meta">
+              <span class="due-date">
+                <i class="pi pi-calendar mr-1"></i>
+                {{ formatDueDate(bill.due_date) }}
+              </span>
+              <p-tag 
+                [value]="getDueStatusText(getDueStatus(bill.due_date), bill.due_date)"
+                [severity]="getDueStatusSeverity(getDueStatus(bill.due_date))"
+                [rounded]="true">
+              </p-tag>
+            </div>
+            
+            <div class="bill-category" *ngIf="bill.category">
+              <p-tag 
+                [value]="bill.category.name" 
+                severity="info" 
+                [rounded]="true">
+              </p-tag>
+            </div>
+            
+            <div class="bill-account" *ngIf="bill.account">
+              <span class="text-sm text-gray-600 dark:text-gray-400">
+                <i class="pi pi-building mr-1"></i>
+                {{ bill.account.name }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bill-actions">
+          <div class="action-buttons">
+            <p-button 
+              icon="pi pi-check" 
+              label="Mark Paid" 
+              severity="success"
+              [outlined]="true"
+              size="small"
+              (onClick)="markAsPaid(bill)">
+            </p-button>
+            
+            <p-button 
+              icon="pi pi-clock" 
+              label="Schedule" 
+              severity="info"
+              [outlined]="true"
+              size="small"
+              (onClick)="schedulePayment(bill)">
+            </p-button>
+            
+            <p-button 
+              icon="pi pi-eye" 
+              label="View" 
+              severity="secondary"
+              [outlined]="true"
+              size="small"
+              (onClick)="viewBillDetails(bill)">
+            </p-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats mt-6">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value">{{ upcomingBills.length }}</div>
+          <div class="stat-label">Total Bills</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ overdueCount }}</div>
+          <div class="stat-label">Overdue</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ dueTodayCount }}</div>
+          <div class="stat-label">Due Today</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ dueSoonCount }}</div>
+          <div class="stat-label">Due Soon</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+</div>

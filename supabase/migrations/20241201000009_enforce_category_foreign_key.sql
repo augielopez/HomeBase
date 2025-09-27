@@ -31,3 +31,4 @@ AND NOT EXISTS (
 -- Add comment explaining the constraint
 COMMENT ON CONSTRAINT fk_transaction_category ON hb_transactions IS 
 'Ensures every transaction category_id references a valid category. If a category is deleted, related transactions will fall back to NULL. Prevents accidental creation of orphan categories.';
+

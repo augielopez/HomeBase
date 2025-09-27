@@ -112,10 +112,16 @@ export class AppTopbar {
                 label: 'Profile',
                 items: [
                     {
+                        label: 'Financial Dashboard',
+                        icon: 'pi pi-chart-bar',
+                        command: () => {
+                            this.router.navigate(['/dashboard/pages/financial-dashboard']);
+                        }
+                    },
+                    {
                         label: 'Settings',
                         icon: 'pi pi-cog',
                         command: () => {
-                            // Navigate to settings page
                             this.router.navigate(['/dashboard/pages/settings']);
                         }
                     },

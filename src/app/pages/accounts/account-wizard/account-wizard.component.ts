@@ -460,7 +460,7 @@ export class AccountWizardComponent implements OnInit {
         this.masterDataService.warrantyTypes$.subscribe((data) => (this.warrantyTypes = data || []));
         this.masterDataService.tags$.subscribe((data) => (this.tags = data || []));
         this.masterDataService.loginTypes$.subscribe((data) => (this.loginTypes = data || []));
-        this.masterDataService.creditCardTypes$.subscribe((data) => (this.creditCardTypes = data || []));
+        this.masterDataService.cardTypes$.subscribe((data: any[]) => (this.creditCardTypes = data || []));
     }
 
     /**

@@ -1,0 +1,274 @@
+<div class="recent-transactions-section">
+  <!-- Section Header -->
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Recent Transactions</h2>
+      <p class="text-gray-600 dark:text-gray-400">Your latest financial activity</p>
+    </div>
+    <p-button 
+      icon="pi pi-external-link" 
+      label="View All" 
+      severity="secondary" 
+      [outlined]="true"
+      routerLink="/pages/transactions">
+    </p-button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="filters-loading mb-4">
+      <p-skeleton width="100%" height="60px" borderRadius="8px"></p-skeleton>
+    </div>
+    <div class="table-loading">
+      <div *ngFor="let i of [1,2,3,4,5]" class="table-row">
+        <p-skeleton width="100%" height="60px" borderRadius="8px"></p-skeleton>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Transactions State -->
+  <div *ngIf="!loading && transactions.length === 0" class="no-transactions-state">
+    <div class="text-center py-12">
+      <i class="pi pi-inbox text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Transactions</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">No transactions found. Add some transactions to get started.</p>
+      <p-button 
+        icon="pi pi-plus" 
+        label="Add Transaction" 
+        severity="primary">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Transactions Content -->
+  <div *ngIf="!loading && transactions.length > 0">
+    
+    <!-- Filters -->
+    <div class="filters-section mb-6">
+      <div class="filters-grid">
+        
+        <!-- Search -->
+        <div class="filter-item">
+          <label class="filter-label">Search</label>
+          <input 
+            type="text" 
+            pInputText 
+            [(ngModel)]="filters.search"
+            (ngModelChange)="applyFilters()"
+            placeholder="Search transactions..."
+            class="w-full">
+        </div>
+
+        <!-- Account Filter -->
+        <div class="filter-item">
+          <label class="filter-label">Account</label>
+          <p-dropdown 
+            [(ngModel)]="filters.account"
+            [options]="accountOptions"
+            (onChange)="applyFilters()"
+            placeholder="All Accounts"
+            [showClear]="true"
+            class="w-full">
+          </p-dropdown>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="filter-item">
+          <label class="filter-label">Category</label>
+          <p-dropdown 
+            [(ngModel)]="filters.category"
+            [options]="categoryOptions"
+            (onChange)="applyFilters()"
+            placeholder="All Categories"
+            [showClear]="true"
+            class="w-full">
+          </p-dropdown>
+        </div>
+
+        <!-- Date Range Filter -->
+        <div class="filter-item">
+          <label class="filter-label">Date Range</label>
+          <p-calendar 
+            [(ngModel)]="filters.dateRange"
+            (onSelect)="applyFilters()"
+            selectionMode="range"
+            [readonlyInput]="true"
+            placeholder="Select date range"
+            class="w-full">
+          </p-calendar>
+        </div>
+
+        <!-- Import Method Filter -->
+        <div class="filter-item">
+          <label class="filter-label">Source</label>
+          <p-dropdown 
+            [(ngModel)]="filters.importMethod"
+            [options]="importMethodOptions"
+            (onChange)="applyFilters()"
+            placeholder="All Sources"
+            [showClear]="true"
+            class="w-full">
+          </p-dropdown>
+        </div>
+
+        <!-- Clear Filters -->
+        <div class="filter-item">
+          <label class="filter-label">&nbsp;</label>
+          <p-button 
+            icon="pi pi-filter-slash" 
+            label="Clear" 
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="clearFilters()"
+            class="w-full">
+          </p-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="transactions-table">
+      <p-table 
+        [value]="getPaginatedTransactions()" 
+        [paginator]="false"
+        [responsive]="true"
+        styleClass="p-datatable-sm">
+        
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Account</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Source</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-transaction>
+          <tr>
+            <td>
+              <div class="transaction-date">{{ formatDate(transaction.date) }}</div>
+            </td>
+            
+            <td>
+              <div class="transaction-description">
+                <div class="transaction-name">{{ transaction.name }}</div>
+                <div class="transaction-subtitle" *ngIf="transaction.description">
+                  {{ transaction.description }}
+                </div>
+              </div>
+            </td>
+            
+            <td>
+              <p-tag 
+                *ngIf="transaction.category"
+                [value]="transaction.category.name" 
+                severity="info" 
+                [rounded]="true">
+              </p-tag>
+              <span *ngIf="!transaction.category" class="text-gray-400">Uncategorized</span>
+            </td>
+            
+            <td>
+              <div class="account-info">
+                <span class="account-name">{{ transaction.account_name || 'Unknown' }}</span>
+              </div>
+            </td>
+            
+            <td>
+              <div class="transaction-amount" [class]="getAmountColor(transaction.amount)">
+                {{ transaction.amount | currency }}
+              </div>
+            </td>
+            
+            <td>
+              <p-tag 
+                [value]="getReconStatus(transaction).status" 
+                [severity]="getReconStatus(transaction).severity"
+                [rounded]="true">
+              </p-tag>
+            </td>
+            
+            <td>
+              <div class="import-method">
+                <i [class]="getImportMethodIcon(transaction.import_method)"></i>
+                <span class="ml-2">{{ transaction.import_method || 'Unknown' }}</span>
+              </div>
+            </td>
+            
+            <td>
+              <div class="action-buttons">
+                <p-button 
+                  icon="pi pi-pencil" 
+                  [text]="true"
+                  severity="secondary"
+                  size="small"
+                  (onClick)="editTransaction(transaction)"
+                  pTooltip="Edit Transaction">
+                </p-button>
+                
+                <p-button 
+                  icon="pi pi-check-circle" 
+                  [text]="true"
+                  severity="success"
+                  size="small"
+                  (onClick)="reconcileTransaction(transaction)"
+                  pTooltip="Reconcile">
+                </p-button>
+                
+                <p-button 
+                  icon="pi pi-eye" 
+                  [text]="true"
+                  severity="info"
+                  size="small"
+                  (onClick)="viewTransactionDetails(transaction)"
+                  pTooltip="View Details">
+                </p-button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <!-- Pagination -->
+      <div class="pagination-section mt-4" *ngIf="totalRecords > rows">
+        <p-paginator 
+          [rows]="rows"
+          [totalRecords]="totalRecords"
+          [first]="first"
+          (onPageChange)="onPageChange($event)"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
+        </p-paginator>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="summary-stats mt-6">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value">{{ totalRecords }}</div>
+          <div class="stat-label">Total Transactions</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ expenseCount }}</div>
+          <div class="stat-label">Expenses</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ incomeCount }}</div>
+          <div class="stat-label">Income</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ reconciledCount }}</div>
+          <div class="stat-label">Reconciled</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+</div>

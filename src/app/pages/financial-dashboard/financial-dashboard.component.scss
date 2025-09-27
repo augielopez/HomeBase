@@ -1,0 +1,66 @@
+.financial-dashboard {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  .dashboard-header {
+    margin-bottom: 2rem;
+  }
+
+  .summary-section {
+    .summary-card {
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+
+  .main-content {
+    .charts-section,
+    .transactions-section,
+    .accounts-section,
+    .bills-section,
+    .alerts-section {
+      min-height: 400px;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .financial-dashboard {
+    padding: 1rem;
+    
+    .dashboard-header {
+      .flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+    }
+    
+    .summary-section {
+      .grid {
+        gap: 1rem;
+      }
+    }
+    
+    .main-content {
+      gap: 1.5rem;
+    }
+  }
+}
+
+// Dark theme support
+:host-context(.app-dark) {
+  .financial-dashboard {
+    .summary-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+    }
+  }
+}
+

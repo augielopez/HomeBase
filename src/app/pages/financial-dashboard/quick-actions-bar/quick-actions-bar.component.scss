@@ -1,0 +1,104 @@
+.quick-actions-bar {
+  .actions-container {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+
+    .section-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 1rem;
+      margin-top: 0;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+
+      .action-item {
+        .action-button-link {
+          text-decoration: none;
+          display: block;
+          width: 100%;
+        }
+
+        .action-button {
+          width: 100%;
+          justify-content: flex-start;
+          padding: 0.75rem 1rem;
+          border-radius: 8px;
+          transition: all 0.3s ease;
+          font-weight: 500;
+
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          }
+
+          .p-button-label {
+            margin-left: 0.5rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .quick-actions-bar {
+    .actions-container {
+      padding: 1rem;
+
+      .actions-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+
+        .action-item {
+          .action-button {
+            padding: 1rem;
+            font-size: 0.875rem;
+
+            .p-button-label {
+              font-size: 0.875rem;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .quick-actions-bar {
+    .actions-container {
+      .actions-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  }
+}
+
+@media (min-width: 1025px) {
+  .quick-actions-bar {
+    .actions-container {
+      .actions-grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+  }
+}
+
+// Dark theme support
+:host-context(.app-dark) {
+  .quick-actions-bar {
+    .actions-container {
+      background: var(--surface-card);
+      border-color: var(--surface-border);
+    }
+  }
+}
+

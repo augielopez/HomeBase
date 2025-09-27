@@ -1,0 +1,249 @@
+<div class="credit-card-carousel-section">
+  <!-- Section Header -->
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Credit Cards</h2>
+      <p class="text-gray-600 dark:text-gray-400">Manage your credit card accounts</p>
+    </div>
+    <p-button 
+      icon="pi pi-plus" 
+      label="Add Card" 
+      severity="secondary" 
+      [outlined]="true"
+      (onClick)="addNewCard()">
+    </p-button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="carousel-loading">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div *ngFor="let i of [1,2,3]" class="credit-card-skeleton">
+        <p-skeleton width="100%" height="200px" borderRadius="12px"></p-skeleton>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Cards State -->
+  <div *ngIf="!loading && creditCards.length === 0" class="no-cards-state">
+    <div class="text-center py-12">
+      <i class="pi pi-credit-card text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Credit Cards</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">Add your first credit card to get started</p>
+      <p-button 
+        icon="pi pi-plus" 
+        label="Add Credit Card" 
+        (onClick)="addNewCard()">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Carousel Container -->
+  <div *ngIf="!loading && creditCards.length > 0" class="carousel-container">
+    
+    <!-- Navigation Buttons -->
+    <div class="carousel-nav">
+      <p-button 
+        *ngIf="creditCards.length > 1"
+        icon="pi pi-chevron-left" 
+        [text]="true"
+        [rounded]="true"
+        (onClick)="previousCard()"
+        [disabled]="creditCards.length <= 1">
+      </p-button>
+      
+      <p-button 
+        *ngIf="creditCards.length > 1"
+        icon="pi pi-chevron-right" 
+        [text]="true"
+        [rounded]="true"
+        (onClick)="nextCard()"
+        [disabled]="creditCards.length <= 1">
+      </p-button>
+    </div>
+
+    <!-- Cards Display -->
+    <div class="cards-wrapper">
+      <div class="cards-track" [style.transform]="'translateX(-' + (currentIndex * 100) + '%)'">
+        
+        <!-- Individual Credit Card -->
+        <div 
+          *ngFor="let card of creditCards; let i = index" 
+          class="credit-card-container"
+          [class.active]="i === currentIndex"
+          (click)="openCardDetails(card)">
+          
+          <div class="credit-card" [class]="getCardGradient(card.brand)">
+            
+            <!-- Card Header -->
+            <div class="card-header">
+              <div class="chip-icon">
+                <i class="pi pi-circle-fill"></i>
+              </div>
+              <div class="brand-logo">
+                <i [class]="getCardBrandLogo(card.brand)"></i>
+              </div>
+            </div>
+
+            <!-- Card Number -->
+            <div class="card-number">
+              {{ formatCardNumber(card) }}
+            </div>
+
+            <!-- Card Details -->
+            <div class="card-details">
+              <div class="cardholder-name">
+                {{ card.cardholder_name || 'CARDHOLDER NAME' }}
+              </div>
+              <div class="expiration" *ngIf="formatExpiration(card)">
+                {{ formatExpiration(card) }}
+              </div>
+            </div>
+
+            <!-- Card Balance -->
+            <div class="card-balance">
+              <div class="balance-label">Current Balance</div>
+              <div class="balance-amount">{{ card.balance | currency }}</div>
+            </div>
+
+            <!-- Credit Limit & Utilization -->
+            <div class="credit-info">
+              <div class="credit-limit">
+                <span class="label">Credit Limit:</span>
+                <span class="value">{{ card.credit_limit | currency }}</span>
+              </div>
+              <div class="utilization">
+                <span class="label">Utilization:</span>
+                <span class="value" [class]="getUtilizationColor(getUtilizationPercentage(card))">
+                  {{ getUtilizationPercentage(card) }}%
+                </span>
+              </div>
+              <div class="available-credit">
+                <span class="label">Available:</span>
+                <span class="value">{{ getAvailableCredit(card) | currency }}</span>
+              </div>
+            </div>
+
+            <!-- Click Indicator -->
+            <div class="click-indicator">
+              <i class="pi pi-chevron-right"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Indicators -->
+    <div *ngIf="creditCards.length > 1" class="card-indicators">
+      <div 
+        *ngFor="let card of creditCards; let i = index"
+        class="indicator"
+        [class.active]="i === currentIndex"
+        (click)="selectCard(i)">
+      </div>
+    </div>
+  </div>
+
+  <!-- Card Details Dialog -->
+  <p-dialog 
+    header="Card Details" 
+    [(visible)]="showCardDetails" 
+    [modal]="true" 
+    [style]="{width: '800px'}"
+    [closable]="true"
+    (onHide)="closeCardDetails()">
+    
+    <div *ngIf="selectedCard" class="card-details-content">
+      
+      <!-- Card Summary -->
+      <div class="card-summary mb-6">
+        <div class="flex items-center gap-4">
+          <div class="card-icon-large" [class]="getCardGradient(selectedCard.brand)">
+            <i [class]="getCardBrandLogo(selectedCard.brand)"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold">{{ selectedCard.brand }} ****{{ selectedCard.last_four }}</h3>
+            <p class="text-gray-600">{{ selectedCard.cardholder_name || 'Cardholder Name' }}</p>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-4 mt-4">
+          <div class="stat-box">
+            <div class="stat-label">Current Balance</div>
+            <div class="stat-value text-red-600">{{ selectedCard.balance | currency }}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Credit Limit</div>
+            <div class="stat-value">{{ selectedCard.credit_limit | currency }}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Available Credit</div>
+            <div class="stat-value text-green-600">{{ getAvailableCredit(selectedCard) | currency }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="recent-transactions">
+        <h4 class="text-lg font-semibold mb-4">Recent Transactions</h4>
+        
+        <div *ngIf="transactionsLoading" class="transactions-loading">
+          <div *ngFor="let i of [1,2,3]" class="transaction-skeleton">
+            <p-skeleton width="100%" height="60px" borderRadius="8px"></p-skeleton>
+          </div>
+        </div>
+
+        <div *ngIf="!transactionsLoading && cardTransactions.length === 0" class="no-transactions">
+          <div class="text-center py-8">
+            <i class="pi pi-inbox text-4xl text-gray-400 mb-2"></i>
+            <p class="text-gray-500">No recent transactions</p>
+          </div>
+        </div>
+
+        <div *ngIf="!transactionsLoading && cardTransactions.length > 0" class="transactions-list">
+          <div *ngFor="let transaction of cardTransactions" class="transaction-item">
+            <div class="transaction-info">
+              <div class="transaction-name">{{ transaction.name }}</div>
+              <div class="transaction-description" *ngIf="transaction.description">
+                {{ transaction.description }}
+              </div>
+              <div class="transaction-category" *ngIf="transaction.category">
+                <p-tag [value]="transaction.category.name" severity="info" [rounded]="true"></p-tag>
+              </div>
+            </div>
+            <div class="transaction-amount">
+              <span [class]="transaction.amount < 0 ? 'text-red-600' : 'text-green-600'">
+                {{ transaction.amount | currency }}
+              </span>
+              <div class="transaction-date">{{ transaction.date | date:'MMM d' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions mt-6">
+        <div class="flex gap-3">
+          <p-button 
+            icon="pi pi-credit-card" 
+            label="Make Payment" 
+            severity="success"
+            [outlined]="true">
+          </p-button>
+          <p-button 
+            icon="pi pi-cog" 
+            label="Set Autopay" 
+            severity="info"
+            [outlined]="true">
+          </p-button>
+          <p-button 
+            icon="pi pi-file-pdf" 
+            label="View Statement" 
+            severity="secondary"
+            [outlined]="true">
+          </p-button>
+        </div>
+      </div>
+    </div>
+  </p-dialog>
+</div>
+
