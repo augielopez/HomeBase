@@ -268,7 +268,14 @@ export class AccountsComponent implements OnInit {
     }
 
     openNew() {
+        this.selectedExtended = null; // Clear any selected account
         this.dialogVisible = true;
+        
+        // Reset the wizard component to create mode
+        const wizardComponent = this.accountWizard;
+        if (wizardComponent) {
+            wizardComponent.resetToCreateMode();
+        }
     }
 
     deleteSelectedAccounts() {
@@ -397,6 +404,13 @@ export class AccountsComponent implements OnInit {
 
     closeDialog() {
         this.dialogVisible = false;
+        this.selectedExtended = null; // Clear selected account
+        
+        // Reset the wizard component
+        const wizardComponent = this.accountWizard;
+        if (wizardComponent) {
+            wizardComponent.resetToCreateMode();
+        }
     }
 
     /**

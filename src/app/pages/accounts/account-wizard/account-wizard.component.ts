@@ -3,9 +3,11 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { SupabaseService } from '../../service/supabase.service';
 import { MasterDataService } from '../../service/master-data.service';
 import { AccountService, AccountFormData } from '../../service/account.service';
+import { BillsService } from '../../service/bills.service';
 import { MessageService } from 'primeng/api';
 import { MenuItem } from 'primeng/api';
 import { BillType, FrequencyType, PaymentType, PriorityType, BillCategory } from '../../../interfaces';
+import { Bill } from '../../../interfaces/bill.interface';
 import { Steps } from 'primeng/steps';
 import { DropdownModule } from 'primeng/dropdown';
 import { Checkbox } from 'primeng/checkbox';
@@ -75,6 +77,7 @@ export class AccountWizardComponent implements OnInit {
     tagOptions: any[] = [];
     tags: any[] = [];
     warrantyTypes: any[] = [];
+    existingBills: Bill[] = [];
 
     // Steps configuration
     steps: MenuItem[] = [
@@ -89,6 +92,7 @@ export class AccountWizardComponent implements OnInit {
         private supabaseService: SupabaseService,
         private masterDataService: MasterDataService,
         private accountService: AccountService,
+        private billsService: BillsService,
         private messageService: MessageService,
         private cdr: ChangeDetectorRef
     ) {}
@@ -206,6 +210,20 @@ export class AccountWizardComponent implements OnInit {
         this.populateFormWithAccountData(extended);
     }
 
+    /**
+     * Reset wizard to create mode and clear form data
+     */
+    resetToCreateMode(): void {
+        this.isEditMode = false;
+        this.accountToEdit = null;
+        this.activeStep = 0;
+
+        if (this.accountForm) {
+            this.accountForm.reset();
+            this.initForm(); // Reinitialize the form with default values
+        }
+    }
+
     // PRIVATE METHODS (alphabetically ordered)
 
     /**
@@ -252,15 +270,17 @@ export class AccountWizardComponent implements OnInit {
             }),
             bill: this.fb.group({
                 hasBill: [false],
-                billTypeId: ['', Validators.required],
-                billAmount: [null, [Validators.required, Validators.min(0.01)]],
-                dueDate: ['', Validators.required],
+                linkExistingBill: [false],
+                existingBillId: [''],
+                billTypeId: [''],
+                billAmount: [null],
+                dueDate: [''],
                 isActive: [false],
-                priorityId: ['', Validators.required],
-                frequencyId: ['', Validators.required],
-                lastPaid: ['', Validators.required],
+                priorityId: [''],
+                frequencyId: [''],
+                lastPaid: [''],
                 isFixedBill: [false],
-                paymentTypeId: ['', Validators.required],
+                paymentTypeId: [''],
                 tagId: [''],
                 isIncludedInMonthlyPayment: [false]
             }),
@@ -477,7 +497,135 @@ export class AccountWizardComponent implements OnInit {
     ngOnInit(): void {
         this.initForm();
         this.loadDropdownData().then(() => console.log('Dropdown data loaded successfully'));
+        this.loadExistingBills();
         this.subscribeToMasterData();
+    }
+
+    // BILL MANAGEMENT METHODS
+
+    /**
+     * Load existing bills for the dropdown
+     */
+    loadExistingBills(): void {
+        this.billsService.getBills().subscribe({
+            next: (bills) => {
+                this.existingBills = bills;
+            },
+            error: (error) => {
+                console.error('Error loading existing bills:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to load existing bills'
+                });
+            }
+        });
+    }
+
+    /**
+     * Handle existing bill selection
+     */
+    onExistingBillSelected(billId: string): void {
+        if (!billId) {
+            this.clearBillForm();
+            this.updateBillFormValidation();
+            return;
+        }
+
+        const selectedBill = this.existingBills.find(bill => bill.id === billId);
+        if (selectedBill) {
+            this.populateBillFormWithExistingBill(selectedBill);
+        }
+        this.updateBillFormValidation();
+    }
+
+    /**
+     * Handle link existing bill checkbox change
+     */
+    onLinkExistingBillChange(): void {
+        const billForm = this.billFormGroup;
+        const linkExistingBill = billForm.get('linkExistingBill')?.value;
+        
+        if (!linkExistingBill) {
+            // Clear existing bill selection and reset form
+            billForm.patchValue({ existingBillId: '' });
+            this.clearBillForm();
+        }
+        
+        this.updateBillFormValidation();
+    }
+
+    /**
+     * Update bill form validation based on linking mode
+     */
+    updateBillFormValidation(): void {
+        const billForm = this.billFormGroup;
+        const linkExistingBill = billForm.get('linkExistingBill')?.value;
+        
+        // Clear all validators first
+        Object.keys(billForm.controls).forEach(key => {
+            billForm.get(key)?.clearValidators();
+        });
+
+        if (linkExistingBill) {
+            // When linking existing bill, only existingBillId is required
+            billForm.get('existingBillId')?.setValidators([Validators.required]);
+        } else {
+            // When creating new bill, all fields are required
+            billForm.get('billTypeId')?.setValidators([Validators.required]);
+            billForm.get('billAmount')?.setValidators([Validators.required, Validators.min(0.01)]);
+            billForm.get('dueDate')?.setValidators([Validators.required]);
+            billForm.get('priorityId')?.setValidators([Validators.required]);
+            billForm.get('frequencyId')?.setValidators([Validators.required]);
+            billForm.get('lastPaid')?.setValidators([Validators.required]);
+            billForm.get('paymentTypeId')?.setValidators([Validators.required]);
+        }
+
+        // Update validation
+        Object.keys(billForm.controls).forEach(key => {
+            billForm.get(key)?.updateValueAndValidity();
+        });
+    }
+
+    /**
+     * Populate bill form with existing bill data
+     */
+    private populateBillFormWithExistingBill(bill: Bill): void {
+        const billForm = this.billFormGroup;
+        
+        billForm.patchValue({
+            billTypeId: bill.bill_type_id || '',
+            billAmount: bill.amount_due || null,
+            dueDate: bill.due_date || '',
+            isActive: bill.status === 'Active',
+            priorityId: bill.priority_id || '',
+            frequencyId: bill.frequency_id || '',
+            lastPaid: bill.last_paid ? new Date(bill.last_paid) : null,
+            isFixedBill: bill.is_fixed_bill || false,
+            paymentTypeId: bill.payment_type_id || '',
+            tagId: bill.tag_id || '',
+            isIncludedInMonthlyPayment: bill.is_included_in_monthly_payment || false
+        });
+    }
+
+    /**
+     * Clear bill form
+     */
+    private clearBillForm(): void {
+        const billForm = this.billFormGroup;
+        billForm.patchValue({
+            billTypeId: '',
+            billAmount: null,
+            dueDate: '',
+            isActive: false,
+            priorityId: '',
+            frequencyId: '',
+            lastPaid: null,
+            isFixedBill: false,
+            paymentTypeId: '',
+            tagId: '',
+            isIncludedInMonthlyPayment: false
+        });
     }
 
     // GETTERS (alphabetically ordered)

@@ -60,8 +60,33 @@
                     <label for="hasBill" class="ml-2 cursor-pointer">This account has associated bills</label>
                 </div>
 
-
                 <ng-container *ngIf="accountForm.get('bill.hasBill')?.value">
+                    <!-- Bill Linking Options -->
+                    <div class="mb-4 p-4 border border-gray-200 rounded-lg">
+                        <div class="flex items-center mb-3">
+                            <p-checkbox binary formControlName="linkExistingBill" inputId="linkExistingBill" (onChange)="onLinkExistingBillChange()"></p-checkbox>
+                            <label for="linkExistingBill" class="ml-2 cursor-pointer font-medium">Link to existing bill</label>
+                        </div>
+
+                        <div *ngIf="accountForm.get('bill.linkExistingBill')?.value" class="mt-3">
+                            <label class="block mb-2 font-medium">Select Existing Bill <span class="text-red-500">*</span></label>
+                            <p-dropdown 
+                                [options]="existingBills" 
+                                optionLabel="bill_name" 
+                                optionValue="id" 
+                                formControlName="existingBillId"
+                                placeholder="Choose a bill to link..."
+                                class="w-full"
+                                (onChange)="onExistingBillSelected($event.value)">
+                            </p-dropdown>
+                            <div class="text-red-500 text-sm mt-1" *ngIf="accountForm.get('bill.existingBillId')?.errors?.['required'] && accountForm.get('bill.existingBillId')?.touched">
+                                Please select a bill to link
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bill Form (only show if not linking existing bill) -->
+                    <ng-container *ngIf="!accountForm.get('bill.linkExistingBill')?.value">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="field">
                             <label class="block mb-2 font-medium">Bill Type <span class="text-red-500">*</span></label>
@@ -142,6 +167,7 @@
                             </div>
                         </div>
                     </div>
+                    </ng-container>
                 </ng-container>
             </div>
 
