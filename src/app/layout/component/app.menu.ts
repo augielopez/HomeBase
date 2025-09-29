@@ -292,6 +292,55 @@ export class AppMenu {
                         ]
                     }
                 ]
+            },
+            {
+                label: 'Career & Resume',
+                icon: 'pi pi-fw pi-file',
+                items: [
+                    {
+                        label: 'Contact Information',
+                        icon: 'pi pi-fw pi-user',
+                        routerLink: ['/dashboard/pages/resume/contact']
+                    },
+                    {
+                        label: 'Skills',
+                        icon: 'pi pi-fw pi-star',
+                        routerLink: ['/dashboard/pages/resume/skills']
+                    },
+                    {
+                        label: 'Work Experience',
+                        icon: 'pi pi-fw pi-briefcase',
+                        routerLink: ['/dashboard/pages/resume/experience']
+                    },
+                    {
+                        label: 'Education',
+                        icon: 'pi pi-fw pi-graduation-cap',
+                        routerLink: ['/dashboard/pages/resume/education']
+                    },
+                    {
+                        label: 'Certifications',
+                        icon: 'pi pi-fw pi-certificate',
+                        routerLink: ['/dashboard/pages/resume/certifications']
+                    },
+                    {
+                        label: 'Projects',
+                        icon: 'pi pi-fw pi-folder',
+                        routerLink: ['/dashboard/pages/resume/projects']
+                    },
+                    {
+                        label: 'Volunteer Work',
+                        icon: 'pi pi-fw pi-heart',
+                        routerLink: ['/dashboard/pages/resume/volunteer']
+                    },
+                    {
+                        separator: true
+                    },
+                    {
+                        label: 'Job Tailoring Assistant',
+                        icon: 'pi pi-fw pi-magic-wand',
+                        routerLink: ['/dashboard/pages/resume/tailoring']
+                    }
+                ]
             }
         ];
     }

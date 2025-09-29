@@ -1,0 +1,126 @@
+<div class="grid">
+  <div class="col-12">
+    <p-card header="Contact Information" subheader="Manage your contact details">
+      <ng-template pTemplate="content">
+        <div *ngIf="loading" class="flex justify-content-center p-4">
+          <p-progressSpinner></p-progressSpinner>
+        </div>
+
+        <form *ngIf="!loading" (ngSubmit)="saveContact()" #contactForm="ngForm">
+          <div class="grid">
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label for="name" class="font-medium">Full Name *</label>
+                <input 
+                  pInputText 
+                  id="name" 
+                  name="name"
+                  [(ngModel)]="contact.name"
+                  #nameField="ngModel"
+                  required
+                  class="w-full"
+                  placeholder="Enter your full name"
+                />
+                <small *ngIf="nameField.invalid && nameField.touched" class="p-error">
+                  Name is required
+                </small>
+              </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label for="email" class="font-medium">Email Address *</label>
+                <input 
+                  pInputText 
+                  type="email"
+                  id="email" 
+                  name="email"
+                  [(ngModel)]="contact.email"
+                  #emailField="ngModel"
+                  required
+                  email
+                  class="w-full"
+                  placeholder="Enter your email address"
+                />
+                <small *ngIf="emailField.invalid && emailField.touched" class="p-error">
+                  Valid email is required
+                </small>
+              </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label for="phone" class="font-medium">Phone Number</label>
+                <input 
+                  pInputText 
+                  id="phone" 
+                  name="phone"
+                  [(ngModel)]="contact.phone"
+                  class="w-full"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label for="location" class="font-medium">Location</label>
+                <input 
+                  pInputText 
+                  id="location" 
+                  name="location"
+                  [(ngModel)]="contact.location"
+                  class="w-full"
+                  placeholder="Enter your location (e.g., City, State)"
+                />
+              </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label for="linkedin" class="font-medium">LinkedIn URL</label>
+                <input 
+                  pInputText 
+                  id="linkedin" 
+                  name="linkedin"
+                  [(ngModel)]="contact.linkedin"
+                  class="w-full"
+                  placeholder="Enter your LinkedIn profile URL"
+                />
+              </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label for="github" class="font-medium">GitHub URL</label>
+                <input 
+                  pInputText 
+                  id="github" 
+                  name="github"
+                  [(ngModel)]="contact.github"
+                  class="w-full"
+                  placeholder="Enter your GitHub profile URL"
+                />
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="flex justify-content-end gap-2">
+                <p-button 
+                  label="Save Contact Information"
+                  icon="pi pi-save"
+                  type="submit"
+                  [disabled]="!isFormValid() || saving"
+                  [loading]="saving"
+                  severity="primary"
+                ></p-button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </ng-template>
+    </p-card>
+  </div>
+</div>
+
+<p-toast></p-toast>

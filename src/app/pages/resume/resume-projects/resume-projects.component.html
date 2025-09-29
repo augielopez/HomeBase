@@ -1,0 +1,149 @@
+<div class="grid">
+  <div class="col-12">
+    <p-card header="Projects" subheader="Manage your personal and professional projects">
+      <ng-template pTemplate="content">
+        <div *ngIf="loading" class="flex justify-content-center p-4">
+          <p-progressSpinner></p-progressSpinner>
+        </div>
+
+        <div *ngIf="!loading">
+          <div class="flex justify-content-between align-items-center mb-4">
+            <h3 class="m-0">Projects ({{ projects.length }})</h3>
+            <p-button 
+              label="Add New Project"
+              icon="pi pi-plus"
+              (click)="openNewProjectDialog()"
+              severity="primary"
+            ></p-button>
+          </div>
+
+          <div *ngIf="projects.length === 0" class="text-center p-4">
+            <i class="pi pi-folder text-4xl text-blue-500 mb-3"></i>
+            <p class="text-lg text-600">No projects added yet</p>
+            <p class="text-600">Click "Add New Project" to get started</p>
+          </div>
+
+          <div *ngIf="projects.length > 0" class="grid">
+            <div *ngFor="let project of projects" class="col-12 md:col-6">
+              <p-card class="project-card">
+                <ng-template pTemplate="header">
+                  <div class="flex justify-content-between align-items-center p-3">
+                    <h4 class="m-0">{{ project.title }}</h4>
+                    <div class="flex gap-2">
+                      <p-button 
+                        icon="pi pi-pencil"
+                        size="small"
+                        severity="secondary"
+                        (click)="openEditProjectDialog(project)"
+                        [text]="true"
+                      ></p-button>
+                      <p-button 
+                        icon="pi pi-trash"
+                        size="small"
+                        severity="danger"
+                        (click)="confirmDelete(project)"
+                        [text]="true"
+                      ></p-button>
+                    </div>
+                  </div>
+                </ng-template>
+                <ng-template pTemplate="content">
+                  <p *ngIf="project.description" class="mb-3">{{ project.description }}</p>
+                  <div *ngIf="project.tags && project.tags.length > 0">
+                    <p-chips 
+                      [ngModel]="project.tags" 
+                      [disabled]="true"
+                      class="w-full"
+                    ></p-chips>
+                  </div>
+                  <div *ngIf="!project.tags || project.tags.length === 0" class="text-600">
+                    No tags added
+                  </div>
+                </ng-template>
+              </p-card>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </p-card>
+  </div>
+</div>
+
+<!-- Project Dialog -->
+<p-dialog 
+  header="{{ editingProject ? 'Edit Project' : 'Add New Project' }}"
+  [(visible)]="showDialog"
+  [modal]="true"
+  [style]="{ width: '600px' }"
+  [closable]="!saving"
+>
+  <form (ngSubmit)="saveProject()" #projForm="ngForm">
+    <div class="field">
+      <label for="title" class="font-medium">Project Title *</label>
+      <input 
+        pInputText 
+        id="title"
+        name="title"
+        [(ngModel)]="projectForm.title"
+        #titleField="ngModel"
+        required
+        class="w-full"
+        placeholder="Enter project title"
+        [disabled]="saving"
+      />
+      <small *ngIf="titleField.invalid && titleField.touched" class="p-error">
+        Project title is required
+      </small>
+    </div>
+
+    <div class="field">
+      <label for="description" class="font-medium">Description</label>
+      <textarea 
+        pInputTextarea 
+        id="description"
+        name="description"
+        [(ngModel)]="projectForm.description"
+        rows="4"
+        class="w-full"
+        placeholder="Describe the project, your role, and key achievements"
+        [disabled]="saving"
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label for="tags" class="font-medium">Tags</label>
+      <p-chips 
+        id="tags"
+        [(ngModel)]="projectForm.tags"
+        placeholder="Add tags (press Enter)"
+        class="w-full"
+        [disabled]="saving"
+      ></p-chips>
+      <small class="text-600">Add relevant tags (e.g., React, Node.js, Machine Learning)</small>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-end gap-2">
+      <p-button 
+        label="Cancel"
+        icon="pi pi-times"
+        (click)="cancelEdit()"
+        [disabled]="saving"
+        severity="secondary"
+        [text]="true"
+      ></p-button>
+      <p-button 
+        label="{{ editingProject ? 'Update' : 'Add' }}"
+        icon="pi pi-check"
+        (click)="saveProject()"
+        [disabled]="!projectForm.title?.trim() || saving"
+        [loading]="saving"
+        severity="primary"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>

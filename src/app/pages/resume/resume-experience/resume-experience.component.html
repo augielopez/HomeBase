@@ -1,0 +1,251 @@
+<div class="grid">
+  <div class="col-12">
+    <p-card header="Work Experience" subheader="Manage your professional work history">
+      <ng-template pTemplate="content">
+        <div *ngIf="loading" class="flex justify-content-center p-4">
+          <p-progressSpinner></p-progressSpinner>
+        </div>
+
+        <div *ngIf="!loading">
+          <div class="flex justify-content-between align-items-center mb-4">
+            <h3 class="m-0">Work Experience ({{ experiences.length }})</h3>
+            <p-button 
+              label="Add New Experience"
+              icon="pi pi-plus"
+              (click)="openNewExperienceDialog()"
+              severity="primary"
+            ></p-button>
+          </div>
+
+          <div *ngIf="experiences.length === 0" class="text-center p-4">
+            <i class="pi pi-briefcase text-4xl text-blue-500 mb-3"></i>
+            <p class="text-lg text-600">No work experience added yet</p>
+            <p class="text-600">Click "Add New Experience" to get started</p>
+          </div>
+
+          <div *ngIf="experiences.length > 0">
+            <p-accordion>
+              <p-accordionTab *ngFor="let experience of experiences" [header]="experience.role + ' at ' + experience.company">
+                <ng-template pTemplate="header">
+                  <div class="flex justify-content-between align-items-center w-full">
+                    <div>
+                      <h4 class="m-0">{{ experience.role }}</h4>
+                      <p class="m-0 text-600">{{ experience.company }}</p>
+                      <small class="text-500">{{ formatDateRange(experience.start_date || '', experience.end_date || '') }}</small>
+                    </div>
+                    <div class="flex gap-2">
+                      <p-button 
+                        icon="pi pi-pencil"
+                        size="small"
+                        severity="secondary"
+                        (click)="openEditExperienceDialog(experience)"
+                        [text]="true"
+                      ></p-button>
+                      <p-button 
+                        icon="pi pi-trash"
+                        size="small"
+                        severity="danger"
+                        (click)="confirmDelete(experience)"
+                        [text]="true"
+                      ></p-button>
+                    </div>
+                  </div>
+                </ng-template>
+
+                <div *ngIf="experience.responsibilities && experience.responsibilities.length > 0">
+                  <h5>Responsibilities & Achievements</h5>
+                  <ul class="list-none p-0">
+                    <li *ngFor="let resp of experience.responsibilities" class="mb-3">
+                      <div class="flex flex-column gap-2">
+                        <p class="m-0">{{ resp.description }}</p>
+                        <div *ngIf="resp.tags && resp.tags.length > 0">
+                          <p-chips 
+                            [ngModel]="resp.tags" 
+                            [disabled]="true"
+                            class="w-full"
+                          ></p-chips>
+                        </div>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+                <div *ngIf="!experience.responsibilities || experience.responsibilities.length === 0" class="text-600">
+                  No responsibilities added
+                </div>
+              </p-accordionTab>
+            </p-accordion>
+          </div>
+        </div>
+      </ng-template>
+    </p-card>
+  </div>
+</div>
+
+<!-- Experience Dialog -->
+<p-dialog 
+  header="{{ editingExperience ? 'Edit Work Experience' : 'Add New Work Experience' }}"
+  [(visible)]="showDialog"
+  [modal]="true"
+  [style]="{ width: '800px', height: '600px' }"
+  [closable]="!saving"
+>
+  <form (ngSubmit)="saveExperience()" #expForm="ngForm">
+    <div class="grid">
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="role" class="font-medium">Job Title *</label>
+          <input 
+            pInputText 
+            id="role"
+            name="role"
+            [(ngModel)]="experienceForm.role"
+            #roleField="ngModel"
+            required
+            class="w-full"
+            placeholder="Enter job title"
+            [disabled]="saving"
+          />
+          <small *ngIf="roleField.invalid && roleField.touched" class="p-error">
+            Job title is required
+          </small>
+        </div>
+      </div>
+
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="company" class="font-medium">Company *</label>
+          <input 
+            pInputText 
+            id="company"
+            name="company"
+            [(ngModel)]="experienceForm.company"
+            #companyField="ngModel"
+            required
+            class="w-full"
+            placeholder="Enter company name"
+            [disabled]="saving"
+          />
+          <small *ngIf="companyField.invalid && companyField.touched" class="p-error">
+            Company name is required
+          </small>
+        </div>
+      </div>
+
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="startDate" class="font-medium">Start Date</label>
+          <input 
+            pInputText 
+            type="date"
+            id="startDate"
+            name="startDate"
+            [(ngModel)]="experienceForm.start_date"
+            class="w-full"
+            [disabled]="saving"
+          />
+        </div>
+      </div>
+
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="endDate" class="font-medium">End Date</label>
+          <input 
+            pInputText 
+            type="date"
+            id="endDate"
+            name="endDate"
+            [(ngModel)]="experienceForm.end_date"
+            class="w-full"
+            [disabled]="saving"
+          />
+          <small class="text-600">Leave empty if currently employed</small>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="field">
+          <div class="flex justify-content-between align-items-center mb-2">
+            <label class="font-medium">Responsibilities & Achievements</label>
+            <p-button 
+              label="Add Responsibility"
+              icon="pi pi-plus"
+              size="small"
+              (click)="addResponsibility()"
+              [disabled]="saving"
+              severity="secondary"
+              [text]="true"
+            ></p-button>
+          </div>
+          
+          <div *ngIf="experienceForm.responsibilities.length === 0" class="text-center p-4 border-1 border-dashed border-300 border-round">
+            <i class="pi pi-info-circle text-2xl text-500 mb-2"></i>
+            <p class="text-600 m-0">No responsibilities added yet</p>
+            <p class="text-500 text-sm">Click "Add Responsibility" to get started</p>
+          </div>
+
+          <div *ngFor="let resp of experienceForm.responsibilities; let i = index" class="mb-3 p-3 border-1 border-200 border-round">
+            <div class="flex justify-content-between align-items-start mb-2">
+              <h6 class="m-0">Responsibility {{ i + 1 }}</h6>
+              <p-button 
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                (click)="removeResponsibility(i)"
+                [disabled]="saving"
+                [text]="true"
+              ></p-button>
+            </div>
+            
+            <div class="field">
+              <label class="font-medium">Description *</label>
+              <textarea 
+                pInputTextarea 
+                [(ngModel)]="resp.description"
+                name="resp{{ i }}"
+                rows="3"
+                class="w-full"
+                placeholder="Describe your responsibility or achievement"
+                [disabled]="saving"
+              ></textarea>
+            </div>
+            
+            <div class="field">
+              <label class="font-medium">Tags</label>
+              <p-chips 
+                [(ngModel)]="resp.tags"
+                placeholder="Add tags (press Enter)"
+                class="w-full"
+                [disabled]="saving"
+              ></p-chips>
+              <small class="text-600">Add relevant tags (e.g., JavaScript, Leadership, Problem Solving)</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-end gap-2">
+      <p-button 
+        label="Cancel"
+        icon="pi pi-times"
+        (click)="cancelEdit()"
+        [disabled]="saving"
+        severity="secondary"
+        [text]="true"
+      ></p-button>
+      <p-button 
+        label="{{ editingExperience ? 'Update' : 'Add' }}"
+        icon="pi pi-check"
+        (click)="saveExperience()"
+        [disabled]="!experienceForm.role?.trim() || !experienceForm.company?.trim() || saving"
+        [loading]="saving"
+        severity="primary"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>

@@ -1,0 +1,201 @@
+<div class="grid">
+  <div class="col-12">
+    <p-card header="Job Tailoring Assistant" subheader="AI-powered resume customization for specific job applications">
+      <ng-template pTemplate="content">
+        <div *ngIf="loading" class="flex justify-content-center p-4">
+          <p-progressSpinner></p-progressSpinner>
+          <p class="ml-3">Loading master resume data...</p>
+        </div>
+
+        <div *ngIf="!loading">
+          <p-splitter [style]="{ height: '600px' }">
+            <!-- Input Panel -->
+            <ng-template pTemplate>
+              <div class="p-4">
+                <h3 class="mb-4">Job Description Input</h3>
+                
+                <div class="field">
+                  <label for="jobDescription" class="font-medium">Paste Job Description *</label>
+                  <textarea 
+                    pInputTextarea 
+                    id="jobDescription"
+                    [(ngModel)]="jobDescription"
+                    rows="12"
+                    class="w-full"
+                    placeholder="Paste the complete job description here. The AI will analyze requirements and tailor your resume accordingly..."
+                  ></textarea>
+                  <small class="text-600">The AI will extract key requirements and match them with your experience and skills.</small>
+                </div>
+
+                <div class="flex gap-2 mt-4">
+                  <p-button 
+                    label="Tailor Resume"
+                    icon="pi pi-magic-wand"
+                    (click)="tailorResume()"
+                    [disabled]="!jobDescription.trim() || tailoring"
+                    [loading]="tailoring"
+                    severity="primary"
+                  ></p-button>
+                  <p-button 
+                    label="Clear Results"
+                    icon="pi pi-trash"
+                    (click)="clearResults()"
+                    [disabled]="!tailoredResume"
+                    severity="secondary"
+                    [text]="true"
+                  ></p-button>
+                </div>
+
+                <div *ngIf="tailoring" class="mt-4">
+                  <div class="flex align-items-center">
+                    <p-progressSpinner size="20px"></p-progressSpinner>
+                    <span class="ml-2">AI is analyzing the job description and tailoring your resume...</span>
+                  </div>
+                </div>
+              </div>
+            </ng-template>
+
+            <!-- Results Panel -->
+            <ng-template pTemplate>
+              <div class="p-4">
+                <div *ngIf="!tailoredResume" class="text-center p-4">
+                  <i class="pi pi-file-edit text-4xl text-blue-500 mb-3"></i>
+                  <h4 class="text-600">No Tailored Resume Yet</h4>
+                  <p class="text-600">Enter a job description and click "Tailor Resume" to generate a customized version.</p>
+                </div>
+
+                <div *ngIf="tailoredResume">
+                  <div class="flex justify-content-between align-items-center mb-4">
+                    <h3 class="m-0">Tailored Resume</h3>
+                    <p-button 
+                      label="Export Markdown"
+                      icon="pi pi-download"
+                      (click)="exportToMarkdown()"
+                      severity="secondary"
+                      size="small"
+                    ></p-button>
+                  </div>
+
+                  <!-- Analysis -->
+                  <div *ngIf="tailoringAnalysis" class="mb-4">
+                    <p-card header="Analysis" class="mb-3">
+                      <ng-template pTemplate="content">
+                        <p class="m-0">{{ tailoringAnalysis }}</p>
+                      </ng-template>
+                    </p-card>
+                  </div>
+
+                  <!-- Recommendations -->
+                  <div *ngIf="recommendations.length > 0" class="mb-4">
+                    <p-card header="Recommendations" class="mb-3">
+                      <ng-template pTemplate="content">
+                        <ul class="list-none p-0">
+                          <li *ngFor="let rec of recommendations" class="mb-2">
+                            <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                            {{ rec }}
+                          </li>
+                        </ul>
+                      </ng-template>
+                    </p-card>
+                  </div>
+
+                  <!-- Tailored Resume Preview -->
+                  <p-card header="Resume Preview">
+                    <ng-template pTemplate="content">
+                      <div class="resume-preview">
+                        <!-- Contact -->
+                        <div class="mb-4">
+                          <h2 class="text-2xl font-bold mb-2">{{ tailoredResume.contact.name }}</h2>
+                          <div class="text-sm text-600">
+                            <span>{{ tailoredResume.contact.email }}</span>
+                            <span *ngIf="tailoredResume.contact.phone" class="ml-3">{{ tailoredResume.contact.phone }}</span>
+                            <span *ngIf="tailoredResume.contact.location" class="ml-3">{{ tailoredResume.contact.location }}</span>
+                          </div>
+                          <div class="text-sm text-600 mt-1">
+                            <span *ngIf="tailoredResume.contact.linkedin" class="mr-3">LinkedIn: {{ tailoredResume.contact.linkedin }}</span>
+                            <span *ngIf="tailoredResume.contact.github">GitHub: {{ tailoredResume.contact.github }}</span>
+                          </div>
+                        </div>
+
+                        <!-- Summary -->
+                        <div *ngIf="tailoredResume.summary" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Summary</h3>
+                          <p class="text-sm">{{ tailoredResume.summary }}</p>
+                        </div>
+
+                        <!-- Skills -->
+                        <div *ngIf="tailoredResume.skills.length > 0" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Skills</h3>
+                          <div class="flex flex-wrap gap-1">
+                            <span *ngFor="let skill of tailoredResume.skills" class="skill-tag">
+                              {{ skill.name }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- Experience -->
+                        <div *ngIf="tailoredResume.experience.length > 0" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Experience</h3>
+                          <div *ngFor="let exp of tailoredResume.experience" class="mb-3">
+                            <div class="font-semibold">{{ exp.role }} at {{ exp.company }}</div>
+                            <div class="text-sm text-600">
+                              {{ exp.start_date ? (exp.start_date | date:'MMM yyyy') : 'Present' }} - 
+                              {{ exp.end_date ? (exp.end_date | date:'MMM yyyy') : 'Present' }}
+                            </div>
+                            <ul class="text-sm mt-1 list-none p-0">
+                              <li *ngFor="let resp of exp.responsibilities" class="mb-1">
+                                • {{ resp.description }}
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <!-- Education -->
+                        <div *ngIf="tailoredResume.education.length > 0" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Education</h3>
+                          <div *ngFor="let edu of tailoredResume.education" class="mb-2">
+                            <div class="font-semibold">{{ edu.degree }}</div>
+                            <div class="text-sm text-600">{{ edu.school }}</div>
+                          </div>
+                        </div>
+
+                        <!-- Certifications -->
+                        <div *ngIf="tailoredResume.certifications.length > 0" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Certifications</h3>
+                          <div *ngFor="let cert of tailoredResume.certifications" class="mb-1 text-sm">
+                            • {{ cert.title }}
+                            <span *ngIf="cert.issued_date" class="text-600">({{ cert.issued_date | date:'MMM yyyy' }})</span>
+                          </div>
+                        </div>
+
+                        <!-- Projects -->
+                        <div *ngIf="tailoredResume.projects.length > 0" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Projects</h3>
+                          <div *ngFor="let project of tailoredResume.projects" class="mb-2">
+                            <div class="font-semibold">{{ project.title }}</div>
+                            <div *ngIf="project.description" class="text-sm">{{ project.description }}</div>
+                          </div>
+                        </div>
+
+                        <!-- Volunteer Work -->
+                        <div *ngIf="tailoredResume.volunteer.length > 0" class="mb-4">
+                          <h3 class="text-lg font-semibold mb-2">Volunteer Work</h3>
+                          <div *ngFor="let vol of tailoredResume.volunteer" class="mb-2">
+                            <div class="font-semibold">{{ vol.role }}</div>
+                            <div *ngIf="vol.description" class="text-sm">{{ vol.description }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </ng-template>
+                  </p-card>
+                </div>
+              </div>
+            </ng-template>
+          </p-splitter>
+        </div>
+      </ng-template>
+    </p-card>
+  </div>
+</div>
+
+<p-toast></p-toast>

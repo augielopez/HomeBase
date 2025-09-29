@@ -1,0 +1,134 @@
+<div class="grid">
+  <div class="col-12">
+    <p-card header="Skills Management" subheader="Manage your technical and professional skills">
+      <ng-template pTemplate="content">
+        <div *ngIf="loading" class="flex justify-content-center p-4">
+          <p-progressSpinner></p-progressSpinner>
+        </div>
+
+        <div *ngIf="!loading">
+          <div class="flex justify-content-between align-items-center mb-4">
+            <h3 class="m-0">Skills ({{ skills.length }})</h3>
+            <p-button 
+              label="Add New Skill"
+              icon="pi pi-plus"
+              (click)="openNewSkillDialog()"
+              severity="primary"
+            ></p-button>
+          </div>
+
+          <div *ngIf="skills.length === 0" class="text-center p-4">
+            <i class="pi pi-info-circle text-4xl text-blue-500 mb-3"></i>
+            <p class="text-lg text-600">No skills added yet</p>
+            <p class="text-600">Click "Add New Skill" to get started</p>
+          </div>
+
+          <div *ngIf="skills.length > 0" class="grid">
+            <div *ngFor="let skill of skills" class="col-12 md:col-6 lg:col-4">
+              <p-card class="skill-card">
+                <ng-template pTemplate="header">
+                  <div class="flex justify-content-between align-items-center p-3">
+                    <h4 class="m-0">{{ skill.name }}</h4>
+                    <div class="flex gap-2">
+                      <p-button 
+                        icon="pi pi-pencil"
+                        size="small"
+                        severity="secondary"
+                        (click)="openEditSkillDialog(skill)"
+                        [text]="true"
+                      ></p-button>
+                      <p-button 
+                        icon="pi pi-trash"
+                        size="small"
+                        severity="danger"
+                        (click)="confirmDelete(skill)"
+                        [text]="true"
+                      ></p-button>
+                    </div>
+                  </div>
+                </ng-template>
+                <ng-template pTemplate="content">
+                  <div *ngIf="skill.tags && skill.tags.length > 0">
+                    <p-chips 
+                      [ngModel]="skill.tags" 
+                      [disabled]="true"
+                      class="w-full"
+                    ></p-chips>
+                  </div>
+                  <div *ngIf="!skill.tags || skill.tags.length === 0" class="text-600">
+                    No tags added
+                  </div>
+                </ng-template>
+              </p-card>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </p-card>
+  </div>
+</div>
+
+<!-- Skill Dialog -->
+<p-dialog 
+  header="{{ editingSkill ? 'Edit Skill' : 'Add New Skill' }}"
+  [(visible)]="showDialog"
+  [modal]="true"
+  [style]="{ width: '500px' }"
+  [closable]="!saving"
+>
+  <form (ngSubmit)="saveSkill()" #skForm="ngForm">
+    <div class="field">
+      <label for="skillName" class="font-medium">Skill Name *</label>
+      <input 
+        pInputText 
+        id="skillName"
+        name="skillName"
+        [(ngModel)]="skillForm.name"
+        #nameField="ngModel"
+        required
+        class="w-full"
+        placeholder="Enter skill name (e.g., JavaScript, Project Management)"
+        [disabled]="saving"
+      />
+      <small *ngIf="nameField.invalid && nameField.touched" class="p-error">
+        Skill name is required
+      </small>
+    </div>
+
+    <div class="field">
+      <label for="skillTags" class="font-medium">Tags</label>
+      <p-chips 
+        id="skillTags"
+        [(ngModel)]="skillForm.tags"
+        placeholder="Add tags (press Enter)"
+        class="w-full"
+        [disabled]="saving"
+      ></p-chips>
+      <small class="text-600">Add relevant tags to categorize this skill (e.g., Frontend, Backend, Database)</small>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-end gap-2">
+      <p-button 
+        label="Cancel"
+        icon="pi pi-times"
+        (click)="cancelEdit()"
+        [disabled]="saving"
+        severity="secondary"
+        [text]="true"
+      ></p-button>
+      <p-button 
+        label="{{ editingSkill ? 'Update' : 'Add' }}"
+        icon="pi pi-check"
+        (click)="saveSkill()"
+        [disabled]="!skillForm.name?.trim() || saving"
+        [loading]="saving"
+        severity="primary"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>

@@ -12,6 +12,14 @@ import { CategorizationRulesComponent } from './categorization-rules/categorizat
 import { MoneyFlowComponent } from './money-flow/money-flow.component';
 import { FinancialDashboardComponent } from './financial-dashboard/financial-dashboard.component';
 import { BillsComponent } from './bills/bills.component';
+import { ResumeContactComponent } from './resume/resume-contact/resume-contact.component';
+import { ResumeSkillsComponent } from './resume/resume-skills/resume-skills.component';
+import { ResumeExperienceComponent } from './resume/resume-experience/resume-experience.component';
+import { ResumeEducationComponent } from './resume/resume-education/resume-education.component';
+import { ResumeCertificationsComponent } from './resume/resume-certifications/resume-certifications.component';
+import { ResumeProjectsComponent } from './resume/resume-projects/resume-projects.component';
+import { ResumeVolunteerComponent } from './resume/resume-volunteer/resume-volunteer.component';
+import { ResumeTailoringComponent } from './resume/resume-tailoring/resume-tailoring.component';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -27,6 +35,14 @@ export default [
     { path: 'money-flow', component: MoneyFlowComponent },
     { path: 'financial-dashboard', component: FinancialDashboardComponent },
     { path: 'bills', component: BillsComponent },
+    { path: 'resume/contact', component: ResumeContactComponent },
+    { path: 'resume/skills', component: ResumeSkillsComponent },
+    { path: 'resume/experience', component: ResumeExperienceComponent },
+    { path: 'resume/education', component: ResumeEducationComponent },
+    { path: 'resume/certifications', component: ResumeCertificationsComponent },
+    { path: 'resume/projects', component: ResumeProjectsComponent },
+    { path: 'resume/volunteer', component: ResumeVolunteerComponent },
+    { path: 'resume/tailoring', component: ResumeTailoringComponent },
     { path: '**', redirectTo: '/notfound' }
 ] as Routes;
 

@@ -1,0 +1,31 @@
+.field {
+  margin-bottom: 1.5rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.p-card {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.education-card {
+  height: 100%;
+  transition: transform 0.2s ease-in-out;
+}
+
+.education-card:hover {
+  transform: translateY(-2px);
+}
+
+.p-error {
+  color: #e24c4c;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.font-medium {
+  font-weight: 500;
+}
