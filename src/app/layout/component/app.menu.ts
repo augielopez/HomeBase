@@ -41,6 +41,11 @@ export class AppMenu {
                         routerLink: ['/dashboard/pages/transactions']
                     },
                     {
+                        label: 'Bills',
+                        icon: 'pi pi-fw pi-receipt',
+                        routerLink: ['/dashboard/pages/bills']
+                    },
+                    {
                         label: 'Money Flow',
                         icon: 'pi pi-fw pi-sitemap',
                         routerLink: ['/dashboard/pages/money-flow']

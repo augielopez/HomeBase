@@ -11,6 +11,7 @@ import { FinancialInsightsComponent } from './financial-insights/financial-insig
 import { CategorizationRulesComponent } from './categorization-rules/categorization-rules.component';
 import { MoneyFlowComponent } from './money-flow/money-flow.component';
 import { FinancialDashboardComponent } from './financial-dashboard/financial-dashboard.component';
+import { BillsComponent } from './bills/bills.component';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -25,6 +26,7 @@ export default [
     { path: 'categorization-rules', component: CategorizationRulesComponent },
     { path: 'money-flow', component: MoneyFlowComponent },
     { path: 'financial-dashboard', component: FinancialDashboardComponent },
+    { path: 'bills', component: BillsComponent },
     { path: '**', redirectTo: '/notfound' }
 ] as Routes;
 

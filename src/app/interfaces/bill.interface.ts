@@ -1,5 +1,6 @@
 export interface Bill {
     id: string;  // UUID
+    bill_name: string | null;
     amount_due: number | null;
     due_date: string | null;
     status: string | null;
