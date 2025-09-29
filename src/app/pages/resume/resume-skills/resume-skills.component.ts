@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -52,7 +52,8 @@ export class ResumeSkillsComponent implements OnInit {
   constructor(
     private resumeService: ResumeService,
     private messageService: MessageService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ngOnInit() {
@@ -82,6 +83,7 @@ export class ResumeSkillsComponent implements OnInit {
       tags: []
     };
     this.showDialog = true;
+    this.cdr.detectChanges();
   }
 
   openEditSkillDialog(skill: ResumeSkill) {
@@ -91,6 +93,7 @@ export class ResumeSkillsComponent implements OnInit {
       tags: [...(skill.tags || [])]
     };
     this.showDialog = true;
+    this.cdr.detectChanges();
   }
 
   async saveSkill() {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -53,7 +53,8 @@ export class ResumeVolunteerComponent implements OnInit {
   constructor(
     private resumeService: ResumeService,
     private messageService: MessageService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ngOnInit() {
@@ -84,6 +85,7 @@ export class ResumeVolunteerComponent implements OnInit {
       tags: []
     };
     this.showDialog = true;
+    this.cdr.detectChanges();
   }
 
   openEditVolunteerDialog(volunteer: ResumeVolunteer) {
@@ -94,6 +96,7 @@ export class ResumeVolunteerComponent implements OnInit {
       tags: [...(volunteer.tags || [])]
     };
     this.showDialog = true;
+    this.cdr.detectChanges();
   }
 
   async saveVolunteer() {

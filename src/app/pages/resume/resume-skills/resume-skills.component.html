@@ -7,7 +7,7 @@
         </div>
 
         <div *ngIf="!loading">
-          <div class="flex justify-content-between align-items-center mb-4">
+          <div class="flex justify-content-between align-items-center mb-4 gap-3">
             <h3 class="m-0">Skills ({{ skills.length }})</h3>
             <p-button 
               label="Add New Skill"
@@ -104,7 +104,7 @@
         class="w-full"
         [disabled]="saving"
       ></p-chips>
-      <small class="text-600">Add relevant tags to categorize this skill (e.g., Frontend, Backend, Database)</small>
+      <small class="text-600 block mt-2">Add relevant tags to categorize this skill (e.g., Frontend, Backend, Database)</small>
     </div>
   </form>
 
