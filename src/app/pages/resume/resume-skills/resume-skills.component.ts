@@ -11,6 +11,7 @@ import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
+import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { ResumeService } from '../../service/resume.service';
@@ -31,7 +32,8 @@ import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interfa
     MessageModule,
     ProgressSpinnerModule,
     TableModule,
-    ToastModule
+    ToastModule,
+    TooltipModule
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './resume-skills.component.html',
