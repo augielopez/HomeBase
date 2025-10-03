@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChipsModule } from 'primeng/chips';
@@ -14,7 +15,8 @@ import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
+import { ResumeTagAutocompleteService } from '../../resume-services/resume-tag-autocomplete.service';
 import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interface';
 
 @Component({
@@ -23,6 +25,7 @@ import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interfa
   imports: [
     CommonModule,
     FormsModule,
+    AutoCompleteModule,
     ButtonModule,
     CardModule,
     ChipsModule,
@@ -50,9 +53,15 @@ export class ResumeSkillsComponent implements OnInit {
   saving = false;
   showDialog = false;
   editingSkill: ResumeSkill | null = null;
+  
+  // Tag autocomplete properties
+  tagSuggestions: string[] = [];
+  filteredTagSuggestions: string[] = [];
+  currentTag: string = '';
 
   constructor(
     private resumeService: ResumeService,
+    private tagAutocompleteService: ResumeTagAutocompleteService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private cdr: ChangeDetectorRef
@@ -60,6 +69,63 @@ export class ResumeSkillsComponent implements OnInit {
 
   async ngOnInit() {
     await this.loadSkills();
+    await this.loadTagSuggestions();
+  }
+
+  async loadTagSuggestions() {
+    try {
+      this.tagSuggestions = await this.tagAutocompleteService.getPopularTags();
+    } catch (error) {
+      console.error('Error loading tag suggestions:', error);
+    }
+  }
+
+  async searchTags(event: any) {
+    const query = event.query;
+    try {
+      this.tagAutocompleteService.getSuggestions(query, 'skill').subscribe({
+        next: (suggestions) => {
+          this.filteredTagSuggestions = suggestions;
+        },
+        error: (error) => {
+          console.error('Error searching tags:', error);
+          this.filteredTagSuggestions = [];
+        }
+      });
+    } catch (error) {
+      console.error('Error searching tags:', error);
+      this.filteredTagSuggestions = [];
+    }
+  }
+
+  addTag(event: any) {
+    if (event.value && event.value.trim()) {
+      const tag = event.value.trim();
+      if (!this.skillForm.tags.includes(tag)) {
+        this.skillForm.tags.push(tag);
+        this.tagAutocompleteService.addTagToCache(tag);
+      }
+      this.currentTag = '';
+    }
+  }
+
+  onTagKeyDown(event: any) {
+    if (event.key === 'Enter' && this.currentTag.trim()) {
+      event.preventDefault();
+      const tag = this.currentTag.trim();
+      if (!this.skillForm.tags.includes(tag)) {
+        this.skillForm.tags.push(tag);
+        this.tagAutocompleteService.addTagToCache(tag);
+      }
+      this.currentTag = '';
+    }
+  }
+
+  /**
+   * Helper method to extract tag names from ResumeTag objects or strings
+   */
+  getTagNames(tags: any[]): string[] {
+    return tags.map(tag => typeof tag === 'string' ? tag : tag.name);
   }
 
   async loadSkills() {
@@ -84,6 +150,7 @@ export class ResumeSkillsComponent implements OnInit {
       name: '',
       tags: []
     };
+    this.currentTag = '';
     this.showDialog = true;
     this.cdr.detectChanges();
   }
@@ -92,8 +159,9 @@ export class ResumeSkillsComponent implements OnInit {
     this.editingSkill = skill;
     this.skillForm = {
       name: skill.name,
-      tags: [...(skill.tags || [])]
+      tags: (skill.tags || []).map(tag => typeof tag === 'string' ? tag : tag.name)
     };
+    this.currentTag = '';
     this.showDialog = true;
     this.cdr.detectChanges();
   }
@@ -113,15 +181,22 @@ export class ResumeSkillsComponent implements OnInit {
       if (this.editingSkill) {
         const updatedSkill = await this.resumeService.updateSkill(
           this.editingSkill.id!, 
-          this.skillForm as ResumeSkill
+          this.skillForm
         );
         const index = this.skills.findIndex(s => s.id === this.editingSkill!.id);
         if (index !== -1) {
           this.skills[index] = updatedSkill;
         }
       } else {
-        const newSkill = await this.resumeService.createSkill(this.skillForm as ResumeSkill);
+        const newSkill = await this.resumeService.createSkill(this.skillForm);
         this.skills.unshift(newSkill);
+        
+        // Add new tags to autocomplete cache
+        if (this.skillForm.tags) {
+          this.skillForm.tags.forEach(tag => {
+            this.tagAutocompleteService.addTagToCache(tag);
+          });
+        }
       }
       
       this.messageService.add({

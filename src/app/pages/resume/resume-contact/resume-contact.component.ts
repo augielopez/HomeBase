@@ -9,7 +9,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeContact, ResumeContactForm } from '../../../interfaces/resume.interface';
 
 @Component({

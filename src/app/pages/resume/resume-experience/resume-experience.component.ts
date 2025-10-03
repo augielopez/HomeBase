@@ -14,7 +14,7 @@ import { ToastModule } from 'primeng/toast';
 import { AccordionModule } from 'primeng/accordion';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeExperience, ResumeExperienceForm, ResumeResponsibilityForm } from '../../../interfaces/resume.interface';
 
 @Component({
@@ -101,7 +101,7 @@ export class ResumeExperienceComponent implements OnInit {
       end_date: experience.end_date || '',
       responsibilities: experience.responsibilities?.map(resp => ({
         description: resp.description,
-        tags: [...(resp.tags || [])]
+        tags: (resp.tags || []).map(tag => typeof tag === 'string' ? tag : tag.name)
       })) || []
     };
     this.showDialog = true;
@@ -132,15 +132,15 @@ export class ResumeExperienceComponent implements OnInit {
     try {
       if (this.editingExperience) {
         const updatedExperience = await this.resumeService.updateExperience(
-          this.editingExperience.id!, 
-          this.experienceForm as ResumeExperience
+          this.editingExperience.id!,
+          this.experienceForm
         );
         const index = this.experiences.findIndex(e => e.id === this.editingExperience!.id);
         if (index !== -1) {
           this.experiences[index] = updatedExperience;
         }
       } else {
-        const newExperience = await this.resumeService.createExperience(this.experienceForm as ResumeExperience);
+        const newExperience = await this.resumeService.createExperience(this.experienceForm);
         this.experiences.unshift(newExperience);
       }
       

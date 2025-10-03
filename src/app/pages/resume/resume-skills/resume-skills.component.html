@@ -46,7 +46,7 @@
                   <td>
                     <div *ngIf="skill.tags && skill.tags.length > 0; else noTags">
                       <p-chips 
-                        [ngModel]="skill.tags" 
+                        [ngModel]="getTagNames(skill.tags)" 
                         [disabled]="true"
                         styleClass="p-chips-sm"
                       ></p-chips>
@@ -116,18 +116,29 @@
 
     <div class="field">
       <label for="skillTags" class="font-medium">Tags</label>
-      <p-chips 
-        id="skillTags"
-        name="skillTags"
-        [(ngModel)]="skillForm.tags"
-        placeholder="Add tags (press Enter)"
-        class="w-full"
-        [disabled]="saving"
-        [allowDuplicate]="false"
-        [separator]="','"
-        [addOnBlur]="true"
-        [max]="10"
-      ></p-chips>
+      <div class="tag-input-container">
+        <p-autocomplete 
+          #tagInput
+          [(ngModel)]="currentTag"
+          [suggestions]="filteredTagSuggestions"
+          (completeMethod)="searchTags($event)"
+          (onSelect)="addTag($event)"
+          (onKeyDown)="onTagKeyDown($event)"
+          placeholder="Type to search existing tags or press Enter to add new"
+          class="w-full"
+          [disabled]="saving"
+          [minLength]="1"
+          [dropdown]="true"
+          [forceSelection]="false"
+        ></p-autocomplete>
+        <div *ngIf="skillForm.tags && skillForm.tags.length > 0" class="mt-2">
+          <p-chips 
+            [(ngModel)]="skillForm.tags"
+            [disabled]="true"
+            styleClass="p-chips-sm"
+          ></p-chips>
+        </div>
+      </div>
       <small class="text-600 block mt-2">Add relevant tags to categorize this skill (e.g., Frontend, Backend, Database)</small>
     </div>
   </form>

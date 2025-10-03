@@ -1,5 +1,14 @@
 // Resume Management System Interfaces
 
+// Master tags table
+export interface ResumeTag {
+  id?: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ResumeContact {
   id?: string;
   name: string;
@@ -15,15 +24,17 @@ export interface ResumeContact {
 export interface ResumeSkill {
   id?: string;
   name: string;
-  tags?: string[];
+  tags?: ResumeTag[]; // Changed from string[] to ResumeTag[]
   created_at?: string;
   updated_at?: string;
 }
 
-export interface ResumeSkillTag {
+// Junction table for skills and tags
+export interface ResumeSkillTagsJunction {
   id?: string;
   skill_id: string;
-  tag: string;
+  tag_id: string;
+  created_at?: string;
 }
 
 export interface ResumeExperience {
@@ -41,15 +52,17 @@ export interface ResumeResponsibility {
   id?: string;
   experience_id: string;
   description: string;
-  tags?: string[];
+  tags?: ResumeTag[]; // Changed from string[] to ResumeTag[]
   created_at?: string;
   updated_at?: string;
 }
 
-export interface ResumeResponsibilityTag {
+// Junction table for experience and tags
+export interface ResumeExperienceTagsJunction {
   id?: string;
-  responsibility_id: string;
-  tag: string;
+  experience_id: string;
+  tag_id: string;
+  created_at?: string;
 }
 
 export interface ResumeEducation {
@@ -74,30 +87,34 @@ export interface ResumeProject {
   id?: string;
   title: string;
   description?: string;
-  tags?: string[];
+  tags?: ResumeTag[]; // Changed from string[] to ResumeTag[]
   created_at?: string;
   updated_at?: string;
 }
 
-export interface ResumeProjectTag {
+// Junction table for projects and tags
+export interface ResumeProjectTagsJunction {
   id?: string;
   project_id: string;
-  tag: string;
+  tag_id: string;
+  created_at?: string;
 }
 
 export interface ResumeVolunteer {
   id?: string;
   role: string;
   description?: string;
-  tags?: string[];
+  tags?: ResumeTag[]; // Changed from string[] to ResumeTag[]
   created_at?: string;
   updated_at?: string;
 }
 
-export interface ResumeVolunteerTag {
+// Junction table for volunteer work and tags
+export interface ResumeVolunteerTagsJunction {
   id?: string;
   volunteer_id: string;
-  tag: string;
+  tag_id: string;
+  created_at?: string;
 }
 
 // Aggregated interfaces for API responses
@@ -134,7 +151,7 @@ export interface ResumeContactForm {
 
 export interface ResumeSkillForm {
   name: string;
-  tags: string[];
+  tags: string[]; // Keep as string[] for form handling
 }
 
 export interface ResumeExperienceForm {
@@ -143,6 +160,15 @@ export interface ResumeExperienceForm {
   start_date: string;
   end_date: string;
   responsibilities: ResumeResponsibilityForm[];
+}
+
+// Flexible type for experience operations
+export interface ResumeExperienceInput {
+  role: string;
+  company: string;
+  start_date?: string;
+  end_date?: string;
+  responsibilities?: ResumeResponsibilityForm[];
 }
 
 export interface ResumeResponsibilityForm {

@@ -13,7 +13,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeProject, ResumeProjectForm } from '../../../interfaces/resume.interface';
 
 @Component({
@@ -93,7 +93,7 @@ export class ResumeProjectsComponent implements OnInit {
     this.projectForm = {
       title: project.title,
       description: project.description || '',
-      tags: [...(project.tags || [])]
+      tags: (project.tags || []).map(tag => typeof tag === 'string' ? tag : tag.name)
     };
     this.showDialog = true;
     this.cdr.detectChanges();
@@ -113,15 +113,15 @@ export class ResumeProjectsComponent implements OnInit {
     try {
       if (this.editingProject) {
         const updatedProject = await this.resumeService.updateProject(
-          this.editingProject.id!, 
-          this.projectForm as ResumeProject
+          this.editingProject.id!,
+          this.projectForm
         );
         const index = this.projects.findIndex(p => p.id === this.editingProject!.id);
         if (index !== -1) {
           this.projects[index] = updatedProject;
         }
       } else {
-        const newProject = await this.resumeService.createProject(this.projectForm as ResumeProject);
+        const newProject = await this.resumeService.createProject(this.projectForm);
         this.projects.unshift(newProject);
       }
       

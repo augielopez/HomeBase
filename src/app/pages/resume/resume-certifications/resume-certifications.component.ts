@@ -11,7 +11,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeCertification, ResumeCertificationForm } from '../../../interfaces/resume.interface';
 
 @Component({

@@ -12,7 +12,7 @@ import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeEducation, ResumeEducationForm } from '../../../interfaces/resume.interface';
 
 @Component({

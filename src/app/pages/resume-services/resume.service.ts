@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { SupabaseService } from './supabase.service';
+import { SupabaseService } from '../service/supabase.service';
+import { ResumeMasterService } from './resume-master.service';
 import { 
   ResumeContact, 
   ResumeSkill, 
@@ -11,7 +12,9 @@ import {
   MasterResume,
   TailoredResume,
   TailoringRequest,
-  TailoringResponse
+  TailoringResponse,
+  ResumeTag,
+  ResumeExperienceInput
 } from '../../interfaces/resume.interface';
 
 @Injectable({
@@ -19,7 +22,10 @@ import {
 })
 export class ResumeService {
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(
+    private supabase: SupabaseService,
+    private masterService: ResumeMasterService
+  ) {}
 
   // Contact Information
   async getContact(): Promise<ResumeContact | null> {
@@ -52,18 +58,20 @@ export class ResumeService {
       .from('resume_skills')
       .select(`
         *,
-        resume_skill_tags(tag)
+        resume_skill_tags_junction (
+          resume_tags (*)
+        )
       `);
     
     if (error) throw error;
     
     return skills.map((skill: any) => ({
       ...skill,
-      tags: skill.resume_skill_tags?.map((tag: any) => tag.tag) || []
+      tags: skill.resume_skill_tags_junction?.map((junction: any) => junction.resume_tags) || []
     }));
   }
 
-  async createSkill(skill: ResumeSkill): Promise<ResumeSkill> {
+  async createSkill(skill: ResumeSkill | { name: string; tags: string[] }): Promise<ResumeSkill> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_skills')
       .insert({ name: skill.name })
@@ -77,10 +85,186 @@ export class ResumeService {
       await this.updateSkillTags(data.id, skill.tags);
     }
     
-    return { ...data, tags: skill.tags || [] };
+    // Return the skill with tags populated
+    const createdSkill = await this.getSkillById(data.id);
+    return createdSkill;
   }
 
-  async updateSkill(id: string, skill: ResumeSkill): Promise<ResumeSkill> {
+  /**
+   * Helper method to get a single skill by ID with tags
+   */
+  private async getSkillById(id: string): Promise<ResumeSkill> {
+    const { data, error } = await this.supabase.getClient()
+      .from('resume_skills')
+      .select(`
+        *,
+        resume_skill_tags_junction (
+          resume_tags (*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      ...data,
+      tags: data.resume_skill_tags_junction?.map((junction: any) => junction.resume_tags) || []
+    };
+  }
+
+  /**
+   * Helper method to handle tag updates for skills
+   */
+  private async updateSkillTags(skillId: string, tags: ResumeTag[] | string[]): Promise<void> {
+    // Delete existing tag relationships
+    await this.supabase.getClient()
+      .from('resume_skill_tags_junction')
+      .delete()
+      .eq('skill_id', skillId);
+    
+    // Create new tag relationships
+    if (tags.length > 0) {
+      const tagIds: string[] = [];
+      
+      // Convert string tags to ResumeTag objects if needed
+      for (const tag of tags) {
+        let tagObj: ResumeTag;
+        if (typeof tag === 'string') {
+          tagObj = await this.masterService.createOrGetTag(tag);
+        } else {
+          tagObj = tag;
+        }
+        tagIds.push(tagObj.id!);
+      }
+      
+      // Insert new tag relationships
+      const junctionInserts = tagIds.map(tagId => ({ skill_id: skillId, tag_id: tagId }));
+      const { error } = await this.supabase.getClient()
+        .from('resume_skill_tags_junction')
+        .insert(junctionInserts);
+      
+      if (error) throw error;
+    }
+  }
+
+  /**
+   * Helper method to handle tag updates for projects
+   */
+  private async updateProjectTags(projectId: string, tags: ResumeTag[] | string[]): Promise<void> {
+    // Delete existing tag relationships
+    await this.supabase.getClient()
+      .from('resume_project_tags_junction')
+      .delete()
+      .eq('project_id', projectId);
+    
+    // Create new tag relationships
+    if (tags.length > 0) {
+      const tagIds: string[] = [];
+      
+      // Convert string tags to ResumeTag objects if needed
+      for (const tag of tags) {
+        let tagObj: ResumeTag;
+        if (typeof tag === 'string') {
+          tagObj = await this.masterService.createOrGetTag(tag);
+        } else {
+          tagObj = tag;
+        }
+        tagIds.push(tagObj.id!);
+      }
+      
+      // Insert new tag relationships
+      const junctionInserts = tagIds.map(tagId => ({ project_id: projectId, tag_id: tagId }));
+      const { error } = await this.supabase.getClient()
+        .from('resume_project_tags_junction')
+        .insert(junctionInserts);
+      
+      if (error) throw error;
+    }
+  }
+
+  /**
+   * Helper method to handle tag updates for volunteer work
+   */
+  private async updateVolunteerTags(volunteerId: string, tags: ResumeTag[] | string[]): Promise<void> {
+    // Delete existing tag relationships
+    await this.supabase.getClient()
+      .from('resume_volunteer_tags_junction')
+      .delete()
+      .eq('volunteer_id', volunteerId);
+    
+    // Create new tag relationships
+    if (tags.length > 0) {
+      const tagIds: string[] = [];
+      
+      // Convert string tags to ResumeTag objects if needed
+      for (const tag of tags) {
+        let tagObj: ResumeTag;
+        if (typeof tag === 'string') {
+          tagObj = await this.masterService.createOrGetTag(tag);
+        } else {
+          tagObj = tag;
+        }
+        tagIds.push(tagObj.id!);
+      }
+      
+      // Insert new tag relationships
+      const junctionInserts = tagIds.map(tagId => ({ volunteer_id: volunteerId, tag_id: tagId }));
+      const { error } = await this.supabase.getClient()
+        .from('resume_volunteer_tags_junction')
+        .insert(junctionInserts);
+      
+      if (error) throw error;
+    }
+  }
+
+  /**
+   * Helper method to get a single project by ID with tags
+   */
+  private async getProjectById(id: string): Promise<ResumeProject> {
+    const { data, error } = await this.supabase.getClient()
+      .from('resume_projects')
+      .select(`
+        *,
+        resume_project_tags_junction (
+          resume_tags (*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      ...data,
+      tags: data.resume_project_tags_junction?.map((junction: any) => junction.resume_tags) || []
+    };
+  }
+
+  /**
+   * Helper method to get a single volunteer work by ID with tags
+   */
+  private async getVolunteerById(id: string): Promise<ResumeVolunteer> {
+    const { data, error } = await this.supabase.getClient()
+      .from('resume_volunteer')
+      .select(`
+        *,
+        resume_volunteer_tags_junction (
+          resume_tags (*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      ...data,
+      tags: data.resume_volunteer_tags_junction?.map((junction: any) => junction.resume_tags) || []
+    };
+  }
+
+  async updateSkill(id: string, skill: ResumeSkill | { name: string; tags: string[] }): Promise<ResumeSkill> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_skills')
       .update({ name: skill.name })
@@ -95,7 +279,8 @@ export class ResumeService {
       await this.updateSkillTags(id, skill.tags);
     }
     
-    return { ...data, tags: skill.tags || [] };
+    // Return the updated skill with tags populated
+    return await this.getSkillById(id);
   }
 
   async deleteSkill(id: string): Promise<void> {
@@ -107,23 +292,6 @@ export class ResumeService {
     if (error) throw error;
   }
 
-  private async updateSkillTags(skillId: string, tags: string[]): Promise<void> {
-    // Delete existing tags
-    await this.supabase.getClient()
-      .from('resume_skill_tags')
-      .delete()
-      .eq('skill_id', skillId);
-    
-    // Insert new tags
-    if (tags.length > 0) {
-      const tagInserts = tags.map(tag => ({ skill_id: skillId, tag }));
-      const { error } = await this.supabase.getClient()
-        .from('resume_skill_tags')
-        .insert(tagInserts);
-      
-      if (error) throw error;
-    }
-  }
 
   // Experience
   async getExperience(): Promise<ResumeExperience[]> {
@@ -149,7 +317,7 @@ export class ResumeService {
     }));
   }
 
-  async createExperience(experience: ResumeExperience): Promise<ResumeExperience> {
+  async createExperience(experience: ResumeExperienceInput): Promise<ResumeExperience> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_experience')
       .insert({
@@ -171,7 +339,7 @@ export class ResumeService {
     return { ...data, responsibilities: experience.responsibilities || [] };
   }
 
-  async updateExperience(id: string, experience: ResumeExperience): Promise<ResumeExperience> {
+  async updateExperience(id: string, experience: ResumeExperienceInput): Promise<ResumeExperience> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_experience')
       .update({
@@ -338,7 +506,7 @@ export class ResumeService {
     }));
   }
 
-  async createProject(project: ResumeProject): Promise<ResumeProject> {
+  async createProject(project: ResumeProject | { title: string; description?: string; tags: string[] }): Promise<ResumeProject> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_projects')
       .insert({ title: project.title, description: project.description })
@@ -352,10 +520,12 @@ export class ResumeService {
       await this.updateProjectTags(data.id, project.tags);
     }
     
-    return { ...data, tags: project.tags || [] };
+    // Return the project with tags populated
+    const createdProject = await this.getProjectById(data.id);
+    return createdProject;
   }
 
-  async updateProject(id: string, project: ResumeProject): Promise<ResumeProject> {
+  async updateProject(id: string, project: ResumeProject | { title: string; description?: string; tags: string[] }): Promise<ResumeProject> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_projects')
       .update({ title: project.title, description: project.description })
@@ -370,7 +540,8 @@ export class ResumeService {
       await this.updateProjectTags(id, project.tags);
     }
     
-    return { ...data, tags: project.tags || [] };
+    // Return the updated project with tags populated
+    return await this.getProjectById(id);
   }
 
   async deleteProject(id: string): Promise<void> {
@@ -382,23 +553,6 @@ export class ResumeService {
     if (error) throw error;
   }
 
-  private async updateProjectTags(projectId: string, tags: string[]): Promise<void> {
-    // Delete existing tags
-    await this.supabase.getClient()
-      .from('resume_project_tags')
-      .delete()
-      .eq('project_id', projectId);
-    
-    // Insert new tags
-    if (tags.length > 0) {
-      const tagInserts = tags.map(tag => ({ project_id: projectId, tag }));
-      const { error } = await this.supabase.getClient()
-        .from('resume_project_tags')
-        .insert(tagInserts);
-      
-      if (error) throw error;
-    }
-  }
 
   // Volunteer Work
   async getVolunteerWork(): Promise<ResumeVolunteer[]> {
@@ -417,7 +571,7 @@ export class ResumeService {
     }));
   }
 
-  async createVolunteerWork(volunteer: ResumeVolunteer): Promise<ResumeVolunteer> {
+  async createVolunteerWork(volunteer: ResumeVolunteer | { role: string; description?: string; tags: string[] }): Promise<ResumeVolunteer> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_volunteer')
       .insert({ role: volunteer.role, description: volunteer.description })
@@ -431,10 +585,12 @@ export class ResumeService {
       await this.updateVolunteerTags(data.id, volunteer.tags);
     }
     
-    return { ...data, tags: volunteer.tags || [] };
+    // Return the volunteer work with tags populated
+    const createdVolunteer = await this.getVolunteerById(data.id);
+    return createdVolunteer;
   }
 
-  async updateVolunteerWork(id: string, volunteer: ResumeVolunteer): Promise<ResumeVolunteer> {
+  async updateVolunteerWork(id: string, volunteer: ResumeVolunteer | { role: string; description?: string; tags: string[] }): Promise<ResumeVolunteer> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_volunteer')
       .update({ role: volunteer.role, description: volunteer.description })
@@ -449,7 +605,8 @@ export class ResumeService {
       await this.updateVolunteerTags(id, volunteer.tags);
     }
     
-    return { ...data, tags: volunteer.tags || [] };
+    // Return the updated volunteer work with tags populated
+    return await this.getVolunteerById(id);
   }
 
   async deleteVolunteerWork(id: string): Promise<void> {
@@ -461,23 +618,6 @@ export class ResumeService {
     if (error) throw error;
   }
 
-  private async updateVolunteerTags(volunteerId: string, tags: string[]): Promise<void> {
-    // Delete existing tags
-    await this.supabase.getClient()
-      .from('resume_volunteer_tags')
-      .delete()
-      .eq('volunteer_id', volunteerId);
-    
-    // Insert new tags
-    if (tags.length > 0) {
-      const tagInserts = tags.map(tag => ({ volunteer_id: volunteerId, tag }));
-      const { error } = await this.supabase.getClient()
-        .from('resume_volunteer_tags')
-        .insert(tagInserts);
-      
-      if (error) throw error;
-    }
-  }
 
   // Master Resume
   async getMasterResume(): Promise<MasterResume> {

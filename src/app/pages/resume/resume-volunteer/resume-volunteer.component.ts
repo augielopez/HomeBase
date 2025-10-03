@@ -13,7 +13,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
-import { ResumeService } from '../../service/resume.service';
+import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeVolunteer, ResumeVolunteerForm } from '../../../interfaces/resume.interface';
 
 @Component({
@@ -93,7 +93,7 @@ export class ResumeVolunteerComponent implements OnInit {
     this.volunteerForm = {
       role: volunteer.role,
       description: volunteer.description || '',
-      tags: [...(volunteer.tags || [])]
+      tags: (volunteer.tags || []).map(tag => typeof tag === 'string' ? tag : tag.name)
     };
     this.showDialog = true;
     this.cdr.detectChanges();
@@ -113,15 +113,15 @@ export class ResumeVolunteerComponent implements OnInit {
     try {
       if (this.editingVolunteer) {
         const updatedVolunteer = await this.resumeService.updateVolunteerWork(
-          this.editingVolunteer.id!, 
-          this.volunteerForm as ResumeVolunteer
+          this.editingVolunteer.id!,
+          this.volunteerForm
         );
         const index = this.volunteerWork.findIndex(v => v.id === this.editingVolunteer!.id);
         if (index !== -1) {
           this.volunteerWork[index] = updatedVolunteer;
         }
       } else {
-        const newVolunteer = await this.resumeService.createVolunteerWork(this.volunteerForm as ResumeVolunteer);
+        const newVolunteer = await this.resumeService.createVolunteerWork(this.volunteerForm);
         this.volunteerWork.unshift(newVolunteer);
       }
       
