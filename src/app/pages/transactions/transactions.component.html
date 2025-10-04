@@ -450,27 +450,48 @@
             <p-dropdown 
                 [options]="availableBills || []" 
                 [(ngModel)]="selectedBillId"
-                optionLabel="account.name"
+                optionLabel="bill_name"
                 optionValue="id"
                 placeholder="Choose a bill"
                 [showClear]="true"
+                (onChange)="onBillSelectionChange($event)"
                 appendTo="body">
             </p-dropdown>
         </div>
     </div>
     
     <ng-template pTemplate="footer">
-        <p-button 
-            label="Cancel" 
-            (onClick)="showManualMatch = false"
-            [outlined]="true">
-        </p-button>
-        <p-button 
-            label="Match" 
-            (onClick)="applyManualMatch()"
-            [disabled]="!selectedBillId">
-        </p-button>
+        <div class="flex justify-between w-full">
+            <div class="flex gap-2">
+                <p-button 
+                    label="Create New Bill" 
+                    icon="pi pi-plus"
+                    (onClick)="openNewBillDialog()"
+                    severity="secondary"
+                    [outlined]="true">
+                </p-button>
+            </div>
+            <div class="flex gap-2">
+                <p-button 
+                    label="Cancel" 
+                    (onClick)="showManualMatch = false"
+                    [outlined]="true">
+                </p-button>
+                <p-button 
+                    label="Match" 
+                    (onClick)="applyManualMatch()"
+                    [disabled]="!selectedBillId">
+                </p-button>
+            </div>
+        </div>
     </ng-template>
 </p-dialog>
+
+<!-- New Bill Creation Dialog -->
+<app-bill-creation-dialog
+    [(visible)]="showNewBillDialog"
+    (visibleChange)="onNewBillDialogVisibleChange($event)"
+    (billCreated)="onBillCreated($event)">
+</app-bill-creation-dialog>
 
 <p-toast></p-toast>

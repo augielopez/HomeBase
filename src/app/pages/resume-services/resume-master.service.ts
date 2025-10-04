@@ -171,8 +171,8 @@ export class ResumeMasterService {
    */
   async getPopularTags(limit: number = 10): Promise<string[]> {
     try {
-      const tagStats = await this.getTagStatistics();
-      return tagStats.slice(0, limit).map(stat => stat.tag);
+      const allTags = await this.getAllTags();
+      return allTags.slice(0, limit).map(tag => tag.name);
     } catch (error) {
       console.error('Error getting popular tags:', error);
       return [];

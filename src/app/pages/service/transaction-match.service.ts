@@ -70,26 +70,42 @@ export class TransactionMatchService {
     async loadAvailableBills(): Promise<any[]> {
         try {
             const { data: bills, error } = await this.supabaseService.getClient()
-                .from('hb_accounts')
+                .from('hb_bills')
                 .select(`
                     id,
-                    name,
-                    hb_bills!bill_id(*)
+                    bill_name,
+                    account_id
                 `)
-                .eq('hb_bills.status', 'Active')
-                .order('name', { ascending: true });
+                .eq('status', 'Active')
+                .order('bill_name', { ascending: true });
 
             if (error) {
                 console.error('Error loading bills:', error);
                 throw error;
             }
 
+            // Get account information for each bill
+            const accountIds = [...new Set(bills?.map(bill => bill.account_id).filter(id => id != null) || [])];
+            const { data: accounts, error: accountError } = await this.supabaseService.getClient()
+                .from('hb_accounts')
+                .select('id, name')
+                .in('id', accountIds);
+
+            if (accountError) {
+                console.error('Error loading accounts:', accountError);
+                throw accountError;
+            }
+
+            // Create a map of account_id to account info
+            const accountMap = new Map(accounts?.map(account => [account.id, account]) || []);
+
             // Transform the data to match the expected structure
-            const availableBills = (bills?.map(account => ({
-                ...account.hb_bills,
+            const availableBills = (bills?.map(bill => ({
+                id: bill.id,
+                bill_name: bill.bill_name,
                 account: {
-                    id: account.id,
-                    name: account.name
+                    id: bill.account_id,
+                    name: bill.account_id ? (accountMap.get(bill.account_id)?.name || 'Unknown Account') : 'No Account'
                 }
             })) as unknown as any[]) || [];
 

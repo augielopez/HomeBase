@@ -26,6 +26,7 @@ import { AiCategorizationService } from '../service/ai-categorization.service';
 import { TransactionMatchService } from '../service/transaction-match.service';
 import { Bill } from '../../interfaces/bill.interface';
 import {MultiSelect} from "primeng/multiselect";
+import { BillCreationDialogComponent } from '../reconciliation/bill-creation-dialog/bill-creation-dialog.component';
 
 @Component({
     selector: 'app-transactions',
@@ -49,7 +50,8 @@ import {MultiSelect} from "primeng/multiselect";
         DialogModule,
         ToastModule,
         CheckboxModule,
-        MultiSelect
+        MultiSelect,
+        BillCreationDialogComponent
     ],
     providers: [MessageService],
     templateUrl: './transactions.component.html',
@@ -79,6 +81,12 @@ export class TransactionsComponent implements OnInit {
     selectedItem: any = null;
     selectedBillId: string | null = null;
     availableBills: any[] = [];
+    
+    // New bill dialog properties
+    showNewBillDialog = false;
+    
+    // Debug property to track dropdown changes
+    private lastSelectedBillId: string | null = null;
 
     // Selection properties
     selectAll = false;
@@ -121,6 +129,19 @@ export class TransactionsComponent implements OnInit {
         this.setupMenuItems();
 
         this.buildFilterOptions();
+        
+        // Watch for changes to selectedBillId
+        setInterval(() => {
+            if (this.selectedBillId !== this.lastSelectedBillId) {
+                console.log('selectedBillId changed from', this.lastSelectedBillId, 'to', this.selectedBillId);
+                this.lastSelectedBillId = this.selectedBillId;
+                
+                if (this.selectedBillId === 'new_bill') {
+                    console.log('New bill option detected via ngModel change');
+                    this.showNewBillDialog = true;
+                }
+            }
+        }, 100);
     }
 
     async loadTransactions() {
@@ -604,7 +625,12 @@ export class TransactionsComponent implements OnInit {
      */
     private async loadAvailableBills() {
         try {
-            this.availableBills = await this.transactionMatchService.loadAvailableBills();
+            const bills = await this.transactionMatchService.loadAvailableBills();
+            console.log('Raw bills from service:', bills);
+            
+            // Use the bills directly without adding a "New Bill" option
+            this.availableBills = bills || [];
+            console.log('Available bills loaded with New Bill option:', this.availableBills);
         } catch (error) {
             console.error('Error loading bills:', error);
             this.messageService.add({
@@ -613,6 +639,24 @@ export class TransactionsComponent implements OnInit {
                 detail: 'Failed to load available bills'
             });
         }
+    }
+
+    /**
+     * Handle bill selection change in dropdown
+     */
+    onBillSelectionChange(event: any) {
+        console.log('Bill selection changed:', event);
+        console.log('Event value:', event.value);
+        console.log('Event target:', event.target);
+        this.selectedBillId = event.value;
+    }
+
+    /**
+     * Open new bill dialog
+     */
+    openNewBillDialog() {
+        console.log('Opening new bill dialog');
+        this.showNewBillDialog = true;
     }
 
     /**
@@ -819,5 +863,49 @@ export class TransactionsComponent implements OnInit {
      */
     getReconStatusSeverity(transaction: any): string {
         return transaction.bill_id ? 'success' : 'warning';
+    }
+
+    /**
+     * Handle new bill creation
+     */
+    onBillCreated(newBill: any) {
+        console.log('New bill created:', newBill);
+        
+        // Close the new bill dialog
+        this.showNewBillDialog = false;
+        
+        // Reload available bills to include the new one
+        this.loadAvailableBills();
+        
+        // Show success message
+        this.messageService.add({
+            severity: 'success',
+            summary: 'Bill Created',
+            detail: 'New bill has been created successfully'
+        });
+        
+        // Auto-select the newly created bill
+        this.selectedBillId = newBill.id;
+        
+        // Automatically match the transaction to the new bill
+        this.applyManualMatch();
+    }
+
+    /**
+     * Handle new bill dialog visibility change
+     */
+    onNewBillDialogVisibleChange(visible: boolean) {
+        console.log('New bill dialog visibility changed:', visible);
+        this.showNewBillDialog = visible;
+    }
+
+    /**
+     * Test method to manually open the new bill dialog
+     * This can be called from the browser console for testing
+     */
+    testOpenNewBillDialog() {
+        console.log('Manually opening new bill dialog for testing');
+        this.showNewBillDialog = true;
+        console.log('showNewBillDialog set to:', this.showNewBillDialog);
     }
 }

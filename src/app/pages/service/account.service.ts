@@ -477,7 +477,7 @@ export class AccountService {
           *,
           owner:hb_owner_types!owner_type_id (*),
           login:hb_logins!login_id (*),
-          bill:hb_bills!bill_id (*),
+          bills:hb_bills!account_id (*),
           creditCard:hb_credit_cards(*),
           warranty:hb_warranties(*)
         `)

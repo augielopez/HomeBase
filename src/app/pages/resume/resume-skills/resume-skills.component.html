@@ -45,11 +45,14 @@
                   </td>
                   <td>
                     <div *ngIf="skill.tags && skill.tags.length > 0; else noTags">
-                      <p-chips 
-                        [ngModel]="getTagNames(skill.tags)" 
-                        [disabled]="true"
-                        styleClass="p-chips-sm"
-                      ></p-chips>
+                      <div class="flex flex-wrap gap-1">
+                        <p-tag 
+                          *ngFor="let tag of getTagNames(skill.tags)" 
+                          [value]="tag"
+                          severity="secondary"
+                          styleClass="text-xs"
+                        ></p-tag>
+                      </div>
                     </div>
                     <ng-template #noTags>
                       <span class="text-600 text-sm">No tags</span>
@@ -132,11 +135,14 @@
           [forceSelection]="false"
         ></p-autocomplete>
         <div *ngIf="skillForm.tags && skillForm.tags.length > 0" class="mt-2">
-          <p-chips 
-            [(ngModel)]="skillForm.tags"
-            [disabled]="true"
-            styleClass="p-chips-sm"
-          ></p-chips>
+          <div class="flex flex-wrap gap-1">
+            <p-tag 
+              *ngFor="let tag of skillForm.tags" 
+              [value]="tag"
+              severity="info"
+              styleClass="text-xs"
+            ></p-tag>
+          </div>
         </div>
       </div>
       <small class="text-600 block mt-2">Add relevant tags to categorize this skill (e.g., Frontend, Backend, Database)</small>

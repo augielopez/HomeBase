@@ -4,13 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
-import { ChipsModule } from 'primeng/chips';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -28,13 +28,13 @@ import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interfa
     AutoCompleteModule,
     ButtonModule,
     CardModule,
-    ChipsModule,
     ConfirmDialogModule,
     DialogModule,
     InputTextModule,
     MessageModule,
     ProgressSpinnerModule,
     TableModule,
+    TagModule,
     ToastModule,
     TooltipModule
   ],
