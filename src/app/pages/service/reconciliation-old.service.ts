@@ -56,7 +56,6 @@ export class ReconciliationOldService {
             .select(`
                 *,
                 category:category_id(*),
-                bill:bill_id(*),
                 account:account_id(*)
             `)
             .gte('date', startDate)

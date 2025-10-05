@@ -458,7 +458,6 @@ export class MasterDataService {
                 routing_number,
                 is_active
             `)
-            .eq('user_id', userId)
             .eq('is_active', true)
             .order('account_type, name');
         

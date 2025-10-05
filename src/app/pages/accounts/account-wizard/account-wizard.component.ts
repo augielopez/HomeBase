@@ -391,7 +391,7 @@ export class AccountWizardComponent implements OnInit {
                 description: extended.account.notes || ''
             },
             bill: {
-                hasBill: !!extended.account.billId,
+                hasBill: !!extended.bill,
                 billTypeId: extended.bill ? extended.bill.bill_type_id : '',
                 billAmount: extended.bill ? extended.bill.amount_due : null,
                 dueDate: extended.bill ? extended.bill.due_date : '',

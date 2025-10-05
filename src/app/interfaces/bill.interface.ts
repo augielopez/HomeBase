@@ -13,6 +13,7 @@ export interface Bill {
     payment_type_id: string | null;  // UUID
     tag_id: string | null;  // UUID
     is_included_in_monthly_payment: boolean;
+    account_id: string | null;  // UUID - references hb_accounts
     created_at: Date;
     updated_at: Date;
     created_by: string;

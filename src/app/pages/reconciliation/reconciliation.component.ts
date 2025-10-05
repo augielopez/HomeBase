@@ -503,8 +503,8 @@ export class ReconciliationComponent {
                     day: '2-digit' 
                 }),
                 description: t.name || t.description || 'Unknown Transaction',
-                amount: `$${t.amount.toFixed(2)} USD`,
-                type: t.amount >= 0 ? 'positive' : 'negative',
+                amount: `$${(t.amount || 0).toFixed(2)} USD`,
+                type: (t.amount || 0) >= 0 ? 'positive' : 'negative',
                 isRefund: false, // You can add logic to detect refunds
                 subtext: t.bank_source || undefined,
                 account: this.mapAccountIdToName(t.account_id) // Map account_id to account name
@@ -530,10 +530,10 @@ export class ReconciliationComponent {
             
             // Transform database bills to component format
             this.bills = dbBills.map(item => ({
-                id: item.bill.id, // bill id
-                date: item.bill.due_date,
-                merchant: item.name, // account_name
-                amount: `-$${item.bill.amount_due} USD`,
+                id: item.bill?.id || item.id, // bill id
+                date: item.bill?.due_date || '',
+                merchant: item.name || 'Unknown Account', // account_name
+                amount: `-$${(item.bill?.amount_due || 0).toFixed(2)} USD`,
                 category: {
                     icon: 'pi pi-file', // You can customize this based on bill type
                     name: 'Other'
@@ -567,10 +567,10 @@ export class ReconciliationComponent {
                     day: '2-digit' 
                 }),
                 transactionDescription: t.name || t.description || 'Unknown Transaction',
-                transactionAmount: `$${t.amount.toFixed(2)} USD`,
-                billDate: t.bill.due_date,
-                billName: t.bill?.account?.[0]?.name || t.bill?.account?.name || 'Unknown Bill',
-                billAmount: t.bill ? `-$${t.bill.amount_due.toFixed(2)} USD` : '',
+                transactionAmount: `$${(t.amount || 0).toFixed(2)} USD`,
+                billDate: t.bill?.due_date || '',
+                billName: t.bill?.bill_name || t.bill?.account?.name || 'Unknown Bill',
+                billAmount: t.bill ? `-$${(t.bill.amount_due || 0).toFixed(2)} USD` : '',
                 billCategory: t.bill?.bill_type?.name || 'Other'
                    }));
                    

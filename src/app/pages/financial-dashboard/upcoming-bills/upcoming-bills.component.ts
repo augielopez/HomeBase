@@ -88,11 +88,11 @@ export class UpcomingBillsComponent implements OnInit, OnDestroy {
         .from('hb_bills')
         .select(`
           id,
-          name,
-          amount,
+          bill_name,
+          amount_due,
           due_date,
           status,
-          notes,
+          description,
           category:category_id (
             name
           ),
@@ -103,7 +103,6 @@ export class UpcomingBillsComponent implements OnInit, OnDestroy {
             name
           )
         `)
-        .eq('user_id', userId)
         .eq('status', 'Active')
         .lte('due_date', thirtyDaysFromNow.toISOString())
         .order('due_date', { ascending: true });
@@ -111,7 +110,12 @@ export class UpcomingBillsComponent implements OnInit, OnDestroy {
       if (error) throw error;
 
       this.upcomingBills = (data || []).map((bill: any) => ({
-        ...bill,
+        id: bill.id,
+        name: bill.bill_name,
+        amount: bill.amount_due,
+        due_date: bill.due_date,
+        status: bill.status,
+        notes: bill.description,
         category: bill.category || { name: 'Uncategorized' },
         account: bill.account || { name: 'Unknown' },
         frequency: bill.frequency || { name: 'Monthly' }

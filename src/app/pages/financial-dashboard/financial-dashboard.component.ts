@@ -134,8 +134,7 @@ export class FinancialDashboardComponent implements OnInit, OnDestroy {
       
       const { data: upcomingBills, error: billsError } = await this.supabaseService.getClient()
         .from('hb_bills')
-        .select('amount, due_date')
-        .eq('user_id', userId)
+        .select('amount_due, due_date')
         .eq('status', 'Active')
         .lte('due_date', thirtyDaysFromNow.toISOString())
         .gte('due_date', new Date().toISOString());
@@ -174,7 +173,7 @@ export class FinancialDashboardComponent implements OnInit, OnDestroy {
 
       const upcomingBillsCount = (upcomingBills || []).length;
       const upcomingBillsTotal = (upcomingBills || [])
-        .reduce((sum, bill) => sum + (bill.amount || 0), 0);
+        .reduce((sum, bill) => sum + (bill.amount_due || 0), 0);
 
       const monthlySpending = Math.abs((monthlyTransactions || [])
         .reduce((sum, tx) => sum + (tx.amount || 0), 0));

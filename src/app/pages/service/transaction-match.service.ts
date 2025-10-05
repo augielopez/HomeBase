@@ -84,29 +84,11 @@ export class TransactionMatchService {
                 throw error;
             }
 
-            // Get account information for each bill
-            const accountIds = [...new Set(bills?.map(bill => bill.account_id).filter(id => id != null) || [])];
-            const { data: accounts, error: accountError } = await this.supabaseService.getClient()
-                .from('hb_accounts')
-                .select('id, name')
-                .in('id', accountIds);
-
-            if (accountError) {
-                console.error('Error loading accounts:', accountError);
-                throw accountError;
-            }
-
-            // Create a map of account_id to account info
-            const accountMap = new Map(accounts?.map(account => [account.id, account]) || []);
-
             // Transform the data to match the expected structure
+            // Since bills now have bill_name directly, we don't need to join with accounts
             const availableBills = (bills?.map(bill => ({
                 id: bill.id,
-                bill_name: bill.bill_name,
-                account: {
-                    id: bill.account_id,
-                    name: bill.account_id ? (accountMap.get(bill.account_id)?.name || 'Unknown Account') : 'No Account'
-                }
+                bill_name: bill.bill_name
             })) as unknown as any[]) || [];
 
             console.log('Available bills for matching:', availableBills);

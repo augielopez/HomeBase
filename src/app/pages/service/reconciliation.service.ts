@@ -44,6 +44,7 @@ export class ReconciliationService {
                 throw error;
             }
 
+            console.log('ReconciliationService: Raw transactions data:', transactions);
             return transactions || [];
         } catch (error) {
             console.error('Error in getUnreconciledTransactions:', error);
@@ -78,24 +79,47 @@ export class ReconciliationService {
 
             const matchedIds = (matchedBillIds || []).map((t: any) => t.bill_id);
 
-            // Then get bills that are NOT in the matched list
-            const { data: bills, error } = await this.supabaseService.getClient()
-                .from('hb_accounts')
+            // Now get bills directly from hb_bills table with account information
+            let billsQuery = this.supabaseService.getClient()
+                .from('hb_bills')
                 .select(`
-                    id,
-                    name,
-                    bill:hb_bills!inner(*)
+                    *,
+                    account:hb_accounts!account_id(
+                        id,
+                        name
+                    )
                 `)
-                .eq('bill.status', 'Active')
-                .not('bill.id', 'in', `(${matchedIds.join(',')})`)
-                .order('name', { ascending: true });
+                .eq('status', 'Active')
+                .order('bill_name', { ascending: true });
+
+            // If there are matched bill IDs, exclude them
+            if (matchedIds.length > 0) {
+                billsQuery = billsQuery.not('id', 'in', matchedIds);
+            }
+
+            const { data: bills, error } = await billsQuery;
 
             if (error) {
                 console.error('Error fetching unmatched bills:', error);
                 throw error;
             }
 
-            return bills || [];
+            console.log('ReconciliationService: Raw bills data:', bills);
+            console.log('ReconciliationService: Matched bill IDs:', matchedIds);
+
+            // Transform the data to match the expected format
+            return (bills || []).map(bill => ({
+                id: bill.account?.id,
+                name: bill.account?.name,
+                bill: {
+                    id: bill.id,
+                    bill_name: bill.bill_name,
+                    amount_due: bill.amount_due,
+                    due_date: bill.due_date,
+                    status: bill.status,
+                    description: bill.description
+                }
+            }));
         } catch (error) {
             console.error('Error in getUnmatchedBills:', error);
             throw error;
@@ -117,19 +141,10 @@ export class ReconciliationService {
             // Use account type strings directly (same as unreconciled)
             const accountIds = ['CHECKING', 'Credit Card'];
 
-            // Query matched transactions with proper joins
+            // First get matched transactions
             const { data: transactions, error } = await this.supabaseService.getClient()
                 .from('hb_transactions')
-                .select(`
-                    *,
-                    bill:hb_bills!inner(
-                        *,
-                        account:hb_accounts!inner(
-                            id,
-                            name
-                        )
-                    )
-                `)
+                .select('*')
                 .not('bill_id', 'is', null) // Has a bill_id (matched)
                 .in('account_id', accountIds) // Filter by transaction's account_id
                 .gte('date', startDateStr)
@@ -141,7 +156,41 @@ export class ReconciliationService {
                 throw error;
             }
 
-            return transactions || [];
+            // Then get bills for the matched transactions
+            const billIds = [...new Set((transactions || []).map(t => t.bill_id).filter(id => id != null))];
+            
+            let billsData = [];
+            if (billIds.length > 0) {
+                const { data: bills, error: billsError } = await this.supabaseService.getClient()
+                    .from('hb_bills')
+                    .select(`
+                        *,
+                        account:hb_accounts!account_id(
+                            id,
+                            name
+                        )
+                    `)
+                    .in('id', billIds);
+
+                if (billsError) {
+                    console.error('Error fetching bills for matched transactions:', billsError);
+                    throw billsError;
+                }
+
+                billsData = bills || [];
+            }
+
+            // Create a map of bills by ID
+            const billsMap = new Map();
+            billsData.forEach(bill => {
+                billsMap.set(bill.id, bill);
+            });
+
+            // Combine transactions with their bills
+            return (transactions || []).map(transaction => ({
+                ...transaction,
+                bill: billsMap.get(transaction.bill_id) || null
+            }));
         } catch (error) {
             console.error('Error in getMatchedTransactions:', error);
             throw error;

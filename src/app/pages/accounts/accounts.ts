@@ -542,7 +542,6 @@ export class AccountsComponent implements OnInit {
                 .update({
                     name: updatedAccount.name,
                     url: updatedAccount.url,
-                    owner_type_id: updatedAccount.owner_type_id,
                     updated_at: new Date().toISOString(),
                     updated_by: this.supabaseService.getCurrentUserId()
                 })

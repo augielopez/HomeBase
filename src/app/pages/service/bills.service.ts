@@ -44,7 +44,6 @@ export class BillsService {
             switchMap(userId => {
                 const billData = {
                     ...bill,
-                    user_id: userId,
                     created_by: userId,
                     updated_by: userId,
                     created_at: new Date().toISOString(),

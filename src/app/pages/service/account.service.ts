@@ -138,12 +138,13 @@ export class AccountService {
   /**
    * Create or update a bill record
    */
-  private async handleBill(billData: AccountFormData['bill'], accountName: string, existingBillId?: string): Promise<string | null> {
+  private async handleBill(billData: AccountFormData['bill'], accountName: string, accountId: string, existingBillId?: string): Promise<string | null> {
     if (!billData.hasBill) {
       return null;
     }
 
     const billPayload = {
+      bill_name: `${accountName} - Bill`,
       amount_due: billData.billAmount,
       due_date: billData.dueDate,
       status: billData.isActive ? 'Active' : 'Inactive',
@@ -156,6 +157,7 @@ export class AccountService {
       payment_type_id: billData.paymentTypeId,
       tag_id: billData.tagId,
       is_included_in_monthly_payment: billData.isIncludedInMonthlyPayment,
+      account_id: accountId,
       updated_by: 'USER'
     };
 
@@ -266,6 +268,37 @@ export class AccountService {
   }
 
   /**
+   * Handle account owner relationship
+   */
+  private async handleAccountOwner(accountId: string, ownerTypeId: string): Promise<void> {
+    // Check if relationship already exists
+    const { data: existingOwner, error: checkError } = await this.supabaseService
+      .getClient()
+      .from('hb_account_owners')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('owner_type_id', ownerTypeId)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
+    }
+
+    if (!existingOwner) {
+      // Create new relationship
+      const { error } = await this.supabaseService
+        .getClient()
+        .from('hb_account_owners')
+        .insert([{
+          account_id: accountId,
+          owner_type_id: ownerTypeId
+        }]);
+
+      if (error) throw error;
+    }
+  }
+
+  /**
    * Save account (create or update)
    */
   async saveAccount(formData: AccountFormData, isEditMode: boolean = false, accountToEdit?: AccountExtended): Promise<void> {
@@ -276,20 +309,11 @@ export class AccountService {
         isEditMode ? accountToEdit?.login?.id : undefined
       );
 
-      // Handle bill
-      const billId = await this.handleBill(
-        formData.bill,
-        formData.account.accountName,
-        isEditMode ? accountToEdit?.bill?.id : undefined
-      );
-
       // Handle account
       const accountPayload = {
         name: formData.account.accountName,
         url: formData.account.url,
         login_id: loginId,
-        owner_type_id: formData.account.ownerTypeId,
-        bill_id: billId,
         updated_by: 'USER'
       };
 
@@ -316,6 +340,19 @@ export class AccountService {
         if (error) throw error;
         accountId = newAccount.id;
       }
+
+      // Handle account owner relationship
+      if (formData.account.ownerTypeId) {
+        await this.handleAccountOwner(accountId, formData.account.ownerTypeId);
+      }
+
+      // Handle bill (now with account_id)
+      const billId = await this.handleBill(
+        formData.bill,
+        formData.account.accountName,
+        accountId,
+        isEditMode ? accountToEdit?.bill?.id : undefined
+      );
 
       // Handle credit card
       await this.handleCreditCard(
@@ -470,20 +507,41 @@ export class AccountService {
    */
   async loadAccounts(): Promise<AccountExtended[]> {
     try {
+      // First, load accounts with basic relationships
       const { data: accountsData, error: accountsError } = await this.supabaseService
         .getClient()
         .from('hb_accounts')
         .select(`
           *,
-          owner:hb_owner_types!owner_type_id (*),
           login:hb_logins!login_id (*),
-          bills:hb_bills!account_id (*),
           creditCard:hb_credit_cards(*),
-          warranty:hb_warranties(*)
+          warranty:hb_warranties(*),
+          account_owners:hb_account_owners(
+            owner_type:hb_owner_types(*)
+          )
         `)
         .order('created_at', { ascending: false });
 
       if (accountsError) throw accountsError;
+
+      // Then load bills separately and match them by account_id
+      const { data: billsData, error: billsError } = await this.supabaseService
+        .getClient()
+        .from('hb_bills')
+        .select('*');
+
+      if (billsError) throw billsError;
+
+      // Create a map of bills by account_id
+      const billsMap = new Map();
+      (billsData || []).forEach(bill => {
+        if (bill.account_id) {
+          if (!billsMap.has(bill.account_id)) {
+            billsMap.set(bill.account_id, []);
+          }
+          billsMap.get(bill.account_id).push(bill);
+        }
+      });
 
       // Transform the data to match AccountExtended interface
       return (accountsData || []).map(rawAccount => ({
@@ -492,17 +550,15 @@ export class AccountService {
           name: rawAccount.name,
           url: rawAccount.url,
           loginId: rawAccount.login_id,
-          ownerTypeId: rawAccount.owner_type_id,
-          billId: rawAccount.bill_id,
           createdAt: new Date(rawAccount.created_at),
           updatedAt: new Date(rawAccount.updated_at),
           createdBy: rawAccount.created_by,
           updatedBy: rawAccount.updated_by,
           notes: rawAccount.notes || ''
         },
-        owner: rawAccount.owner,
+        owner: rawAccount.account_owners?.[0]?.owner_type || null,
         login: rawAccount.login,
-        bill: rawAccount.bill,
+        bill: billsMap.get(rawAccount.id)?.[0] || null,
         creditCard: rawAccount.creditCard?.[0] || undefined,
         warranty: rawAccount.warranty?.[0] || undefined
       }));

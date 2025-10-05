@@ -36,6 +36,7 @@ export class BillCreationService {
 
       // Create the bill payload
       const billPayload = {
+        bill_name: formData.billName,
         amount_due: formData.amount,
         due_date: formData.dueDate.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
         status: 'Active',
@@ -49,33 +50,12 @@ export class BillCreationService {
       const { data: newBill, error } = await this.supabaseService.getClient()
         .from('hb_bills')
         .insert([billPayload])
-        .select('id, amount_due, due_date, status, description, bill_type_id')
+        .select('id, bill_name, amount_due, due_date, status, description, bill_type_id, account_id')
         .single();
 
       if (error) {
         console.error('Error creating bill:', error);
         throw new Error(`Failed to create bill: ${error.message}`);
-      }
-
-      // Create a corresponding account record for the bill
-      const accountPayload = {
-        name: formData.billName,
-        owner_type_id: await this.getDefaultOwnerTypeId(),
-        bill_id: newBill.id,
-        created_by: 'USER',
-        updated_by: 'USER'
-      };
-
-      const { data: newAccount, error: accountError } = await this.supabaseService.getClient()
-        .from('hb_accounts')
-        .insert([accountPayload])
-        .select('id, name')
-        .single();
-
-      if (accountError) {
-        console.error('Error creating account for bill:', accountError);
-        // Don't throw here - the bill was created successfully
-        // We can still return the bill data
       }
 
       // Return the created bill in the format expected by the reconciliation component
