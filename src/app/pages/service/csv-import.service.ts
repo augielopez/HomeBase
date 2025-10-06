@@ -4,6 +4,7 @@ import { Transaction, BankAccount, CsvImport, TransactionCategory } from '../../
 import { Observable, from, map, switchMap, forkJoin, catchError } from 'rxjs';
 import { AiCategorizationService, CategorizationResult } from './ai-categorization.service';
 import { ErrorLogService } from './error-log.service';
+import { DuplicateCheckService } from './duplicate-check.service';
 
 export interface CsvTransaction {
     date: string;
@@ -144,7 +145,8 @@ export class CsvImportService {
     constructor(
         private supabaseService: SupabaseService,
         private aiCategorizationService: AiCategorizationService,
-        private errorLogService: ErrorLogService
+        private errorLogService: ErrorLogService,
+        private duplicateCheckService: DuplicateCheckService
     ) {}
 
     /**
@@ -830,6 +832,21 @@ export class CsvImportService {
                         // Determine account_id - use filename-based owner for specific banks, otherwise use CSV field
                         const accountId = accountOwner || csvTransaction.account || 'unknown';
                         
+                        // Check for duplicates before creating transaction record
+                        const duplicateCheck = await this.duplicateCheckService.checkForDuplicate(
+                            accountId,
+                            csvTransaction.date,
+                            csvTransaction.amount,
+                            csvTransaction.description,
+                            'csv',
+                            filename || 'unknown.csv'
+                        );
+
+                        if (duplicateCheck.isDuplicate) {
+                            console.log(`Skipping duplicate transaction: ${csvTransaction.description} on ${csvTransaction.date}`);
+                            continue; // Skip this transaction
+                        }
+
                         // Create transaction record
                         const transaction: Partial<Transaction> = {
                             user_id: await this.supabaseService.getCurrentUserId(),

@@ -34,6 +34,7 @@ export class ReconciliationService {
                 .from('hb_transactions')
                 .select('*')
                 .is('bill_id', null) // No bill_id means unreconciled - use .is() for null checks
+                .lt('amount', 0) // Only negative amounts (debits), exclude deposits
                 .gte('date', startDateStr)
                 .lte('date', endDateStr)
                 .in('account_id', accountIds)
@@ -69,6 +70,7 @@ export class ReconciliationService {
                 .from('hb_transactions')
                 .select('bill_id')
                 .not('bill_id', 'is', null)
+                .lt('amount', 0) // Only negative amounts (debits)
                 .gte('date', startDateStr)
                 .lte('date', endDateStr);
 
@@ -79,25 +81,17 @@ export class ReconciliationService {
 
             const matchedIds = (matchedBillIds || []).map((t: any) => t.bill_id);
 
-            // Now get bills directly from hb_bills table with account information
-            let billsQuery = this.supabaseService.getClient()
+            // Now get bills directly from hb_bills table
+            let { data: bills, error } = await this.supabaseService.getClient()
                 .from('hb_bills')
-                .select(`
-                    *,
-                    account:hb_accounts!account_id(
-                        id,
-                        name
-                    )
-                `)
+                .select('*')
                 .eq('status', 'Active')
                 .order('bill_name', { ascending: true });
 
-            // If there are matched bill IDs, exclude them
-            if (matchedIds.length > 0) {
-                billsQuery = billsQuery.not('id', 'in', matchedIds);
+            // If there are matched bill IDs, filter them out in JavaScript
+            if (matchedIds.length > 0 && bills) {
+                bills = bills.filter(bill => !matchedIds.includes(bill.id));
             }
-
-            const { data: bills, error } = await billsQuery;
 
             if (error) {
                 console.error('Error fetching unmatched bills:', error);
@@ -109,8 +103,8 @@ export class ReconciliationService {
 
             // Transform the data to match the expected format
             return (bills || []).map(bill => ({
-                id: bill.account?.id,
-                name: bill.account?.name,
+                id: bill.id, // Use bill id as the main id
+                name: bill.bill_name || 'Unnamed Bill', // Use bill name
                 bill: {
                     id: bill.id,
                     bill_name: bill.bill_name,
@@ -127,7 +121,7 @@ export class ReconciliationService {
     }
 
     /**
-     * Get matched transactions (transactions that have a bill_id)
+     * Get transactions that are already matched to bills
      */
     async getMatchedTransactions(year: number, month: number): Promise<any[]> {
         try {
@@ -138,7 +132,7 @@ export class ReconciliationService {
             const startDateStr = startDate.toISOString().split('T')[0];
             const endDateStr = endDate.toISOString().split('T')[0];
 
-            // Use account type strings directly (same as unreconciled)
+            // Use account type strings directly
             const accountIds = ['CHECKING', 'Credit Card'];
 
             // First get matched transactions
@@ -146,6 +140,7 @@ export class ReconciliationService {
                 .from('hb_transactions')
                 .select('*')
                 .not('bill_id', 'is', null) // Has a bill_id (matched)
+                .lt('amount', 0) // Only negative amounts (debits)
                 .in('account_id', accountIds) // Filter by transaction's account_id
                 .gte('date', startDateStr)
                 .lte('date', endDateStr)
@@ -163,13 +158,7 @@ export class ReconciliationService {
             if (billIds.length > 0) {
                 const { data: bills, error: billsError } = await this.supabaseService.getClient()
                     .from('hb_bills')
-                    .select(`
-                        *,
-                        account:hb_accounts!account_id(
-                            id,
-                            name
-                        )
-                    `)
+                    .select('*')
                     .in('id', billIds);
 
                 if (billsError) {
@@ -198,64 +187,31 @@ export class ReconciliationService {
     }
 
     /**
-     * Match a transaction to a bill
-     * Delegates to TransactionMatchService with additional reconciliation logic
+     * Manually match a transaction to a bill
      */
-    async matchTransactionToBill(transactionId: string, billId: string): Promise<void> {
+    async manualMatch(transactionId: string, billId: string): Promise<boolean> {
         try {
-            const userId = await this.supabaseService.getCurrentUserId();
-
-            // Use the transaction match service for the core matching logic
-            await this.transactionMatchService.matchTransactionToBill(transactionId, billId);
-
-            // Additional reconciliation-specific logic
             const { error } = await this.supabaseService.getClient()
                 .from('hb_transactions')
-                .update({ 
-                    is_reconciled: true,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', transactionId)
-                .eq('user_id', userId);
+                .update({ bill_id: billId })
+                .eq('id', transactionId);
 
             if (error) {
-                console.error('Error updating reconciliation status:', error);
+                console.error('Error matching transaction to bill:', error);
                 throw error;
             }
+
+            return true;
         } catch (error) {
-            console.error('Error in matchTransactionToBill:', error);
+            console.error('Error in manualMatch:', error);
             throw error;
         }
     }
 
     /**
-     * Unmatch a transaction from its bill
-     * Delegates to TransactionMatchService with additional reconciliation logic
+     * Match a transaction to a bill (alias for manualMatch for backward compatibility)
      */
-    async unmatchTransaction(transactionId: string): Promise<void> {
-        try {
-            const userId = await this.supabaseService.getCurrentUserId();
-
-            // Use the transaction match service for the core unmatching logic
-            await this.transactionMatchService.unmatchTransaction(transactionId);
-
-            // Additional reconciliation-specific logic
-            const { error } = await this.supabaseService.getClient()
-                .from('hb_transactions')
-                .update({ 
-                    is_reconciled: false,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', transactionId)
-                .eq('user_id', userId);
-
-            if (error) {
-                console.error('Error updating reconciliation status:', error);
-                throw error;
-            }
-        } catch (error) {
-            console.error('Error in unmatchTransaction:', error);
-            throw error;
-        }
+    async matchTransactionToBill(transactionId: string, billId: string): Promise<boolean> {
+        return this.manualMatch(transactionId, billId);
     }
 }
