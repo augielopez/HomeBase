@@ -2,96 +2,189 @@
     header="Create New Bill" 
     [(visible)]="visible"
     [modal]="true" 
-    [style]="{ width: '500px' }"
+    [style]="{ width: '700px' }"
     [closable]="true"
     (onHide)="onVisibleChange(false)"
     appendTo="body">
     
     <form [formGroup]="billForm" (ngSubmit)="onSubmit()" class="bill-creation-form">
-        
-        <!-- Bill Name -->
-        <div class="field mb-4">
-            <label class="block mb-2 font-medium">
-                Bill Name <span class="text-red-500">*</span>
-            </label>
-            <input 
-                type="text" 
-                pInputText 
-                formControlName="billName"
-                placeholder="e.g., Electric Company, Rent, etc."
-                class="w-full"
-                [class.p-invalid]="hasFieldError('billName')" />
-            <small 
-                class="text-red-500 mt-1 block" 
-                *ngIf="hasFieldError('billName')">
-                {{ getFieldError('billName') }}
-            </small>
-        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Left Column -->
+            <div class="space-y-4">
+                <!-- Bill Name -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Bill Name <span class="text-red-500">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        pInputText 
+                        formControlName="billName"
+                        placeholder="e.g., Electric Company, Rent, etc."
+                        class="w-full"
+                        [class.p-invalid]="hasFieldError('billName')" />
+                    <small 
+                        class="text-red-500 mt-1 block" 
+                        *ngIf="hasFieldError('billName')">
+                        {{ getFieldError('billName') }}
+                    </small>
+                </div>
 
-        <!-- Amount -->
-        <div class="field mb-4">
-            <label class="block mb-2 font-medium">
-                Amount <span class="text-red-500">*</span>
-            </label>
-            <p-inputNumber 
-                formControlName="amount"
-                mode="currency" 
-                currency="USD" 
-                [useGrouping]="true"
-                placeholder="0.00"
-                class="w-full"
-                [class.p-invalid]="hasFieldError('amount')" />
-            <small 
-                class="text-red-500 mt-1 block" 
-                *ngIf="hasFieldError('amount')">
-                {{ getFieldError('amount') }}
-            </small>
-        </div>
+                <!-- Amount -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Amount <span class="text-red-500">*</span>
+                    </label>
+                    <p-inputNumber 
+                        formControlName="amount"
+                        mode="currency" 
+                        currency="USD" 
+                        [useGrouping]="true"
+                        placeholder="0.00"
+                        class="w-full"
+                        [class.p-invalid]="hasFieldError('amount')" />
+                    <small 
+                        class="text-red-500 mt-1 block" 
+                        *ngIf="hasFieldError('amount')">
+                        {{ getFieldError('amount') }}
+                    </small>
+                </div>
 
-        <!-- Due Date -->
-        <div class="field mb-4">
-            <label class="block mb-2 font-medium">
-                Due Date <span class="text-red-500">*</span>
-            </label>
-            <p-calendar 
-                formControlName="dueDate"
-                dateFormat="mm/dd/yy"
-                [showIcon]="true"
-                placeholder="Select due date"
-                class="w-full"
-                [class.p-invalid]="hasFieldError('dueDate')" />
-            <small 
-                class="text-red-500 mt-1 block" 
-                *ngIf="hasFieldError('dueDate')">
-                {{ getFieldError('dueDate') }}
-            </small>
-        </div>
+                <!-- Due Date -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Due Date <span class="text-red-500">*</span>
+                    </label>
+                    <p-calendar 
+                        formControlName="dueDate"
+                        dateFormat="mm/dd/yy"
+                        [showIcon]="true"
+                        placeholder="Select due date"
+                        class="w-full"
+                        [class.p-invalid]="hasFieldError('dueDate')" />
+                    <small 
+                        class="text-red-500 mt-1 block" 
+                        *ngIf="hasFieldError('dueDate')">
+                        {{ getFieldError('dueDate') }}
+                    </small>
+                </div>
 
-        <!-- Bill Type -->
-        <div class="field mb-4">
-            <label class="block mb-2 font-medium">
-                Bill Type
-            </label>
-            <p-dropdown 
-                [options]="billTypes"
-                optionLabel="label"
-                optionValue="value"
-                formControlName="billType"
-                placeholder="Select bill type"
-                class="w-full" />
-        </div>
+                <!-- Priority -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Priority
+                    </label>
+                    <p-dropdown 
+                        [options]="priorityOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="priorityId"
+                        placeholder="Select priority"
+                        appendTo="body"
+                        class="w-full" />
+                </div>
 
-        <!-- Description -->
-        <div class="field mb-6">
-            <label class="block mb-2 font-medium">
-                Description
-            </label>
-            <input 
-                type="text" 
-                pInputText 
-                formControlName="description"
-                placeholder="Optional additional notes..."
-                class="w-full" />
+                <!-- Frequency -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Frequency
+                    </label>
+                    <p-dropdown 
+                        [options]="frequencyOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="frequencyId"
+                        placeholder="Select frequency"
+                        appendTo="body"
+                        class="w-full" />
+                </div>
+
+                <!-- Bill Type -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Bill Type
+                    </label>
+                    <p-dropdown 
+                        [options]="billTypeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="billTypeId"
+                        placeholder="Select bill type"
+                        appendTo="body"
+                        class="w-full" />
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-4">
+                <!-- Payment Type -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Payment Type
+                    </label>
+                    <p-dropdown 
+                        [options]="paymentTypeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="paymentTypeId"
+                        placeholder="Select payment type"
+                        appendTo="body"
+                        class="w-full" />
+                </div>
+
+                <!-- Tag -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Tag
+                    </label>
+                    <p-dropdown 
+                        [options]="tagOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="tagId"
+                        placeholder="Select tag"
+                        appendTo="body"
+                        class="w-full" />
+                </div>
+
+                <!-- Description -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Description
+                    </label>
+                    <input 
+                        type="text" 
+                        pInputText 
+                        formControlName="description"
+                        placeholder="Optional additional notes..."
+                        class="w-full" />
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="field">
+                    <div class="flex flex-col space-y-3">
+                        <div class="flex items-center">
+                            <p-checkbox 
+                                formControlName="isFixedBill"
+                                [binary]="true"
+                                inputId="isFixedBill" />
+                            <label for="isFixedBill" class="ml-2">
+                                Fixed Bill
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <p-checkbox 
+                                formControlName="isIncludedInMonthlyPayment"
+                                [binary]="true"
+                                inputId="isIncludedInMonthlyPayment" />
+                            <label for="isIncludedInMonthlyPayment" class="ml-2">
+                                Include in Monthly Payment
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Action Buttons -->

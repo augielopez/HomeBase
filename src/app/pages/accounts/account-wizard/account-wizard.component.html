@@ -7,7 +7,7 @@
 
         <div class="wizard-content w-full p-6 rounded-lg shadow-sm" style="height: 550px;">
             <!-- Step 1: Account -->
-            <div *ngIf="activeStep === 0" [formGroup]="accountFormGroup" class="flex flex-col gap-4">
+            <div *ngIf="activeStep === 0 && accountFormGroup" [formGroup]="accountFormGroup" class="flex flex-col gap-4">
                 <h3 class="text-2xl font-semibold mb-4">Account Information</h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -52,7 +52,7 @@
             </div>
 
             <!-- Step 2: Bill -->
-            <div *ngIf="activeStep === 1" [formGroup]="billFormGroup" class="flex flex-col gap-4">
+            <div *ngIf="activeStep === 1 && billFormGroup" [formGroup]="billFormGroup" class="flex flex-col gap-4">
                 <h3 class="text-2xl font-semibold mb-0">Bill Information</h3>
 
                 <div class="flex items-center mb-4">
@@ -172,7 +172,7 @@
             </div>
 
             <!-- Step 3: Credit Card -->
-            <div *ngIf="activeStep === 2" [formGroup]="creditCardFormGroup" class="flex flex-col gap-4">
+            <div *ngIf="activeStep === 2 && creditCardFormGroup" [formGroup]="creditCardFormGroup" class="flex flex-col gap-4">
                 <h3 class="text-2xl font-semibold mb-0">Credit Card Information</h3>
 
                 <div class="flex items-center mb-4">
@@ -267,7 +267,7 @@
             </div>
 
             <!-- Step 4: Warranty -->
-            <div *ngIf="activeStep === 3" [formGroup]="warrantyFormGroup" class="flex flex-col gap-4">
+            <div *ngIf="activeStep === 3 && warrantyFormGroup" [formGroup]="warrantyFormGroup" class="flex flex-col gap-4">
                 <h3 class="text-2xl font-semibold mb-0">Warranty Information</h3>
 
                 <div class="flex items-center mb-4">

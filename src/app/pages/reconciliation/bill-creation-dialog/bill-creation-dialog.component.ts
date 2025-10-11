@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
@@ -7,8 +7,11 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
 import { DropdownModule } from 'primeng/dropdown';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService } from 'primeng/api';
 import { BillCreationService } from '../../service/bill-creation.service';
+import { MasterDataService } from '../../service/master-data.service';
+import { Subscription } from 'rxjs';
 
 export interface QuickBillForm {
   billName: string;
@@ -16,6 +19,13 @@ export interface QuickBillForm {
   dueDate: Date;
   billType?: string;
   description?: string;
+  priorityId?: string;
+  frequencyId?: string;
+  billTypeId?: string;
+  paymentTypeId?: string;
+  tagId?: string;
+  isFixedBill?: boolean;
+  isIncludedInMonthlyPayment?: boolean;
 }
 
 @Component({
@@ -29,40 +39,42 @@ export interface QuickBillForm {
     InputTextModule,
     InputNumberModule,
     CalendarModule,
-    DropdownModule
+    DropdownModule,
+    CheckboxModule
   ],
   templateUrl: './bill-creation-dialog.component.html',
   styleUrls: ['./bill-creation-dialog.component.scss']
 })
-export class BillCreationDialogComponent implements OnInit {
+export class BillCreationDialogComponent implements OnInit, OnDestroy {
   @Input() visible: boolean = false;
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() billCreated = new EventEmitter<any>();
 
   billForm!: FormGroup;
   isSubmitting = false;
+  private subscriptions: Subscription[] = [];
 
-  // Common bill types for dropdown
-  billTypes = [
-    { label: 'Utilities', value: 'utilities' },
-    { label: 'Rent/Mortgage', value: 'rent_mortgage' },
-    { label: 'Insurance', value: 'insurance' },
-    { label: 'Credit Card', value: 'credit_card' },
-    { label: 'Loan Payment', value: 'loan_payment' },
-    { label: 'Subscription', value: 'subscription' },
-    { label: 'Phone/Internet', value: 'phone_internet' },
-    { label: 'Medical', value: 'medical' },
-    { label: 'Other', value: 'other' }
-  ];
+  // Dropdown options from master data
+  priorityOptions: any[] = [];
+  frequencyOptions: any[] = [];
+  billTypeOptions: any[] = [];
+  paymentTypeOptions: any[] = [];
+  tagOptions: any[] = [];
 
   constructor(
     private fb: FormBuilder,
     private billCreationService: BillCreationService,
+    private masterDataService: MasterDataService,
     private messageService: MessageService
   ) {}
 
   ngOnInit() {
     this.initForm();
+    this.loadMasterData();
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
   private initForm() {
@@ -71,8 +83,70 @@ export class BillCreationDialogComponent implements OnInit {
       amount: [null, [Validators.required, Validators.min(0.01)]],
       dueDate: ['', Validators.required],
       billType: ['other'], // Default to 'other'
-      description: ['']
+      description: [''],
+      priorityId: [''],
+      frequencyId: [''],
+      billTypeId: [''],
+      paymentTypeId: [''],
+      tagId: [''],
+      isFixedBill: [false],
+      isIncludedInMonthlyPayment: [false]
     });
+  }
+
+  /**
+   * Load master data for dropdowns
+   */
+  private loadMasterData() {
+    // Load priority types
+    this.subscriptions.push(
+      this.masterDataService.priorityTypes$.subscribe(priorities => {
+        this.priorityOptions = priorities.map(p => ({
+          label: p.name,
+          value: p.id
+        }));
+      })
+    );
+
+    // Load frequency types
+    this.subscriptions.push(
+      this.masterDataService.frequencyTypes$.subscribe(frequencies => {
+        this.frequencyOptions = frequencies.map(f => ({
+          label: f.name,
+          value: f.id
+        }));
+      })
+    );
+
+    // Load bill types
+    this.subscriptions.push(
+      this.masterDataService.billTypes$.subscribe(billTypes => {
+        this.billTypeOptions = billTypes.map(bt => ({
+          label: bt.name,
+          value: bt.id
+        }));
+      })
+    );
+
+    // Load payment types
+    this.subscriptions.push(
+      this.masterDataService.paymentTypes$.subscribe(paymentTypes => {
+        this.paymentTypeOptions = paymentTypes.map(pt => ({
+          label: pt.name,
+          value: pt.id
+        }));
+      })
+    );
+
+    // Load tags
+    this.subscriptions.push(
+      this.masterDataService.tags$.subscribe(tags => {
+        this.tagOptions = tags.map(t => ({
+          label: t.name,
+          value: t.id
+        }));
+      })
+    );
   }
 
   /**
@@ -118,7 +192,11 @@ export class BillCreationDialogComponent implements OnInit {
    */
   closeDialog() {
     this.billForm.reset();
-    this.billForm.patchValue({ billType: 'other' }); // Reset to default
+    this.billForm.patchValue({ 
+      billType: 'other',
+      isFixedBill: false,
+      isIncludedInMonthlyPayment: false
+    }); // Reset to defaults
     this.visibleChange.emit(false);
   }
 
@@ -160,7 +238,14 @@ export class BillCreationDialogComponent implements OnInit {
       amount: 'Amount',
       dueDate: 'Due Date',
       billType: 'Bill Type',
-      description: 'Description'
+      description: 'Description',
+      priorityId: 'Priority',
+      frequencyId: 'Frequency',
+      billTypeId: 'Bill Type',
+      paymentTypeId: 'Payment Type',
+      tagId: 'Tag',
+      isFixedBill: 'Fixed Bill',
+      isIncludedInMonthlyPayment: 'Include in Monthly Payment'
     };
     return labels[fieldName] || fieldName;
   }

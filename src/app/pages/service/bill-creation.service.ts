@@ -41,7 +41,13 @@ export class BillCreationService {
         due_date: formData.dueDate.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
         status: 'Active',
         description: formData.description || `${formData.billName} - Bill`,
-        bill_type_id: billTypeId,
+        priority_id: formData.priorityId || null,
+        frequency_id: formData.frequencyId || null,
+        bill_type_id: formData.billTypeId || billTypeId,
+        payment_type_id: formData.paymentTypeId || null,
+        tag_id: formData.tagId || null,
+        is_fixed_bill: formData.isFixedBill || false,
+        is_included_in_monthly_payment: formData.isIncludedInMonthlyPayment || false,
         created_by: 'USER',
         updated_by: 'USER'
       };

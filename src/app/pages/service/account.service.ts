@@ -14,6 +14,8 @@ export interface AccountFormData {
   };
   bill: {
     hasBill: boolean;
+    linkExistingBill?: boolean;
+    existingBillId?: string;
     billTypeId?: string;
     billAmount?: number;
     dueDate?: string;
@@ -143,6 +145,22 @@ export class AccountService {
       return null;
     }
 
+    // If linking to an existing bill, just update its account_id
+    if (billData.linkExistingBill && billData.existingBillId) {
+      const { error } = await this.supabaseService
+        .getClient()
+        .from('hb_bills')
+        .update({
+          account_id: accountId,
+          updated_by: 'USER'
+        })
+        .eq('id', billData.existingBillId);
+
+      if (error) throw error;
+      return billData.existingBillId;
+    }
+
+    // Otherwise, create new bill or update existing one
     const billPayload = {
       bill_name: `${accountName} - Bill`,
       amount_due: billData.billAmount,

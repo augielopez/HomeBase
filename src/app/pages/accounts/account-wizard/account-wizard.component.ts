@@ -60,7 +60,7 @@ export class AccountWizardComponent implements OnInit {
     @Output() wizardClosed = new EventEmitter<void>();
 
     // Component state
-    accountForm!: FormGroup;
+    accountForm: FormGroup;
     activeStep = 0;
     isEditMode = false;
     isTransitioning = false;
@@ -95,7 +95,11 @@ export class AccountWizardComponent implements OnInit {
         private billsService: BillsService,
         private messageService: MessageService,
         private cdr: ChangeDetectorRef
-    ) {}
+    ) {
+        // Initialize form first
+        this.accountForm = this.createForm();
+        this.setupFormSubscriptions();
+    }
 
     // PUBLIC METHODS (alphabetically ordered)
 
@@ -219,8 +223,55 @@ export class AccountWizardComponent implements OnInit {
         this.activeStep = 0;
 
         if (this.accountForm) {
-            this.accountForm.reset();
-            this.initForm(); // Reinitialize the form with default values
+            this.accountForm.reset({
+                account: {
+                    accountName: '',
+                    ownerTypeId: '',
+                    username: '',
+                    password: '',
+                    url: '',
+                    description: ''
+                },
+                bill: {
+                    hasBill: false,
+                    linkExistingBill: false,
+                    existingBillId: '',
+                    billTypeId: '',
+                    billAmount: null,
+                    dueDate: '',
+                    isActive: false,
+                    priorityId: '',
+                    frequencyId: '',
+                    lastPaid: '',
+                    isFixedBill: false,
+                    paymentTypeId: '',
+                    tagId: '',
+                    isIncludedInMonthlyPayment: false
+                },
+                creditCard: {
+                    hasCreditCard: false,
+                    cardType: '',
+                    cardNumber: '',
+                    cardHolderName: '',
+                    expiryDate: '',
+                    creditLimit: null,
+                    balance: null,
+                    apr: null,
+                    purchaseRate: null,
+                    cashAdvanceRate: null,
+                    balanceTransferRate: null,
+                    annualFee: null
+                },
+                warranty: {
+                    hasWarranty: false,
+                    warrantyTypeId: '',
+                    provider: '',
+                    coverageStart: '',
+                    coverageEnd: '',
+                    terms: '',
+                    claimProcedure: ''
+                }
+            });
         }
     }
 
@@ -256,10 +307,10 @@ export class AccountWizardComponent implements OnInit {
     }
 
     /**
-     * Initialize form with validation
+     * Create form with validation
      */
-    private initForm(): void {
-        this.accountForm = this.fb.group({
+    private createForm(): FormGroup {
+        return this.fb.group({
             account: this.fb.group({
                 accountName: ['', Validators.required],
                 ownerTypeId: ['', Validators.required],
@@ -308,8 +359,12 @@ export class AccountWizardComponent implements OnInit {
                 claimProcedure: ['']
             })
         });
+    }
 
-        // Add subscription to password changes
+    /**
+     * Setup form subscriptions
+     */
+    private setupFormSubscriptions(): void {
         const accountGroup = this.accountForm.get('account') as FormGroup;
         accountGroup.get('password')?.valueChanges
             .pipe(debounceTime(300))
@@ -334,7 +389,16 @@ export class AccountWizardComponent implements OnInit {
                 return true;
             }
 
-            // Check all required fields when hasBill is true
+            // Check if linking to existing bill
+            const linkExistingBill = stepGroup.get('linkExistingBill')?.value;
+            
+            if (linkExistingBill) {
+                // When linking existing bill, only existingBillId is required
+                const existingBillId = stepGroup.get('existingBillId')?.value;
+                return !!existingBillId;
+            }
+
+            // For new bill creation, check all required fields
             const requiredFields = ['billTypeId', 'dueDate', 'priorityId', 'frequencyId', 'paymentTypeId', 'lastPaid'];
 
             // Special check for billAmount since 0 is invalid
@@ -349,19 +413,41 @@ export class AccountWizardComponent implements OnInit {
             });
         }
 
+        if (this.activeStep === 2) {
+            // Credit Card step
+            const hasCreditCard = stepGroup.get('hasCreditCard')?.value;
+
+            if (!hasCreditCard) {
+                return true;
+            }
+
+            // When hasCreditCard is true, validate required fields
+            const requiredFields = ['cardType', 'cardNumber', 'cardHolderName', 'expiryDate'];
+            return requiredFields.every((field) => {
+                const control = stepGroup.get(field);
+                return control && control.valid && control.value !== null && control.value !== '';
+            });
+        }
+
+        if (this.activeStep === 3) {
+            // Warranty step
+            const hasWarranty = stepGroup.get('hasWarranty')?.value;
+
+            if (!hasWarranty) {
+                return true;
+            }
+
+            // When hasWarranty is true, validate required fields
+            const requiredFields = ['warrantyTypeId', 'coverageStart', 'coverageEnd'];
+            return requiredFields.every((field) => {
+                const control = stepGroup.get(field);
+                return control && control.valid && control.value !== null && control.value !== '';
+            });
+        }
+
         return stepGroup.valid;
     }
 
-    /**
-     * Load dropdown data from services
-     */
-    private async loadDropdownData(): Promise<void> {
-        try {
-            this.ownerTypes = await this.accountService.loadOwnerTypes();
-        } catch (error) {
-            console.error('Error loading dropdown data:', error);
-        }
-    }
 
     /**
      * Populate form with account data for editing
@@ -481,6 +567,7 @@ export class AccountWizardComponent implements OnInit {
         this.masterDataService.tags$.subscribe((data) => (this.tags = data || []));
         this.masterDataService.loginTypes$.subscribe((data) => (this.loginTypes = data || []));
         this.masterDataService.cardTypes$.subscribe((data: any[]) => (this.creditCardTypes = data || []));
+        this.masterDataService.ownerTypes$.subscribe((data) => (this.ownerTypes = data || []));
     }
 
     /**
@@ -495,8 +582,6 @@ export class AccountWizardComponent implements OnInit {
     // LIFECYCLE METHODS
 
     ngOnInit(): void {
-        this.initForm();
-        this.loadDropdownData().then(() => console.log('Dropdown data loaded successfully'));
         this.loadExistingBills();
         this.subscribeToMasterData();
     }
@@ -630,7 +715,10 @@ export class AccountWizardComponent implements OnInit {
 
     // GETTERS (alphabetically ordered)
 
-    get accountFormGroup(): FormGroup {
+    get accountFormGroup(): FormGroup | null {
+        if (!this.accountForm) {
+            return null;
+        }
         return this.accountForm.get('account') as FormGroup;
     }
 

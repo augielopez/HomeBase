@@ -303,13 +303,13 @@ export class AiCategorizationService {
         
         return `Categorize this transaction into one of the following categories: ${categoryList}
 
-Transaction details:
-- Name: ${transaction.name}
-- Description: ${transaction.description || 'N/A'}
-- Merchant: ${transaction.merchant_name || 'N/A'}
-- Amount: $${Math.abs(transaction.amount).toFixed(2)}
+            Transaction details:
+            - Name: ${transaction.name}
+            - Description: ${transaction.description || 'N/A'}
+            - Merchant: ${transaction.merchant_name || 'N/A'}
+            - Amount: $${Math.abs(transaction.amount).toFixed(2)}
 
-Please respond with only the category name from the list above.`;
+            Please respond with only the category name from the list above.`;
     }
 
     /**
