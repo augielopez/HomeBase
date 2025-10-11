@@ -39,7 +39,7 @@ export class BillCreationService {
         bill_name: formData.billName,
         amount_due: formData.amount,
         due_date: formData.dueDate.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
-        status: 'Active',
+        status: formData.status || 'Active',
         description: formData.description || `${formData.billName} - Bill`,
         priority_id: formData.priorityId || null,
         frequency_id: formData.frequencyId || null,
@@ -85,7 +85,7 @@ export class BillCreationService {
    * Get bill type ID for a given bill type string
    * This is a simplified implementation - in production you'd query the database
    */
-  private async getBillTypeId(billType: string): Promise<string> {
+  private async getBillTypeId(billType: string): Promise<string | null> {
     try {
       const { data: billTypes, error } = await this.supabaseService.getClient()
         .from('hb_bill_types')
@@ -114,7 +114,7 @@ export class BillCreationService {
   /**
    * Get default bill type ID
    */
-  private async getDefaultBillTypeId(): Promise<string> {
+  private async getDefaultBillTypeId(): Promise<string | null> {
     try {
       const { data: defaultBillType, error } = await this.supabaseService.getClient()
         .from('hb_bill_types')
@@ -123,16 +123,16 @@ export class BillCreationService {
         .single();
 
       if (error || !defaultBillType) {
-        // If no default found, create one or use a fallback
-        console.warn('No default bill type found, using fallback');
-        return 'default-bill-type-id'; // This should be a real UUID in production
+        // If no default found, return null instead of invalid UUID
+        console.warn('No default bill type found, will insert null');
+        return null;
       }
 
       return defaultBillType.id;
 
     } catch (error) {
       console.error('Error getting default bill type ID:', error);
-      return 'default-bill-type-id'; // Fallback
+      return null; // Return null instead of invalid UUID
     }
   }
 

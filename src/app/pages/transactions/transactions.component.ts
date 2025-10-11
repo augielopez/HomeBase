@@ -22,6 +22,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { finalize, interval, take } from 'rxjs';
 import { CsvImportService } from '../service/csv-import.service';
 import { ReconciliationOldService } from '../service/reconciliation-old.service';
+import { ReconciliationService } from '../service/reconciliation.service';
 import { AiCategorizationService } from '../service/ai-categorization.service';
 import { TransactionMatchService } from '../service/transaction-match.service';
 import { Bill } from '../../interfaces/bill.interface';
@@ -114,11 +115,15 @@ export class TransactionsComponent implements OnInit {
         { label: 'Manual', value: 'manual' }
     ];
 
+    // Store the excluded transaction ID constant
+    readonly EXCLUDED_TRANSACTION_ID = '00000000-0000-0000-0000-000000000001';
+
     constructor(
         private supabaseService: SupabaseService,
-        private messageService: MessageService,
+        public messageService: MessageService,
         private csvImportService: CsvImportService,
         private reconciliationService: ReconciliationOldService,
+        private reconciliationServiceNew: ReconciliationService,
         private aiCategorizationService: AiCategorizationService,
         private transactionMatchService: TransactionMatchService,
     ) {}
@@ -200,7 +205,8 @@ export class TransactionsComponent implements OnInit {
                 .from('hb_transactions')
                 .select(`
                     *,
-                    category:category_id(*)
+                    category:category_id(*),
+                    bill:bill_id(id, bill_name)
                 `)
                 .eq('user_id', userId)
                 .order('date', { ascending: false });
@@ -855,14 +861,150 @@ export class TransactionsComponent implements OnInit {
      * Get the reconciliation status text for a transaction
      */
     getReconStatus(transaction: any): string {
-        return transaction.bill_id ? 'Matched' : 'Unmatched';
+        if (!transaction.bill_id) {
+            return 'Unmatched';
+        }
+        if (transaction.bill_id === this.EXCLUDED_TRANSACTION_ID) {
+            return 'Excluded';
+        }
+        return 'Matched';
     }
 
     /**
      * Get the severity level for the reconciliation status tag
      */
     getReconStatusSeverity(transaction: any): string {
-        return transaction.bill_id ? 'success' : 'warning';
+        if (!transaction.bill_id) {
+            return 'warning';
+        }
+        if (transaction.bill_id === this.EXCLUDED_TRANSACTION_ID) {
+            return 'secondary';
+        }
+        return 'success';
+    }
+
+    /**
+     * Get the matched bill name for a transaction
+     */
+    getMatchedBillName(transaction: any): string {
+        if (!transaction.bill_id) {
+            return '-';
+        }
+        if (transaction.bill_id === this.EXCLUDED_TRANSACTION_ID) {
+            return 'Excluded (Not a Bill)';
+        }
+        if (transaction.bill && transaction.bill.bill_name) {
+            return transaction.bill.bill_name;
+        }
+        return 'Unknown Bill';
+    }
+
+    /**
+     * Handle category change for a transaction
+     */
+    async onCategoryChange(transaction: any, event: any) {
+        try {
+            const newCategoryId = event.value;
+            
+            // Update in database
+            const { error } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .update({ 
+                    category_id: newCategoryId,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', transaction.id);
+
+            if (error) throw error;
+
+            // Update local object
+            transaction.category_id = newCategoryId;
+            const category = this.categoryOptions.find(c => c.value === newCategoryId);
+            transaction.category = { 
+                id: newCategoryId, 
+                name: category?.label || 'Unknown' 
+            };
+
+            this.messageService.add({
+                severity: 'success',
+                summary: 'Category Updated',
+                detail: `Category changed to ${category?.label}`
+            });
+
+            // Prompt for bulk update
+            this.promptBulkCategoryUpdate(transaction, newCategoryId);
+        } catch (error) {
+            console.error('Error updating category:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Update Failed',
+                detail: 'Failed to update category'
+            });
+        }
+    }
+
+    /**
+     * Prompt user to apply category to similar transactions
+     */
+    private promptBulkCategoryUpdate(transaction: any, newCategoryId: string) {
+        // Find similar transactions (same description, different or no category)
+        const similarTransactions = this.transactions.filter(t => 
+            t.name === transaction.name && 
+            t.id !== transaction.id &&
+            t.category_id !== newCategoryId
+        );
+
+        if (similarTransactions.length > 0) {
+            // Show confirmation dialog
+            this.messageService.add({
+                severity: 'info',
+                summary: 'Similar Transactions Found',
+                detail: `Found ${similarTransactions.length} similar transaction(s). Apply category to all?`,
+                sticky: true,
+                key: 'bulk-category-update',
+                data: { transaction, newCategoryId, similarTransactions }
+            });
+        }
+    }
+
+    /**
+     * Apply category to multiple similar transactions
+     */
+    async applyBulkCategoryUpdate(similarTransactions: any[], newCategoryId: string) {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const transaction of similarTransactions) {
+            try {
+                const { error } = await this.supabaseService.getClient()
+                    .from('hb_transactions')
+                    .update({ 
+                        category_id: newCategoryId,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', transaction.id);
+
+                if (error) {
+                    errorCount++;
+                } else {
+                    transaction.category_id = newCategoryId;
+                    const category = this.categoryOptions.find(c => c.value === newCategoryId);
+                    transaction.category = { 
+                        id: newCategoryId, 
+                        name: category?.label || 'Unknown' 
+                    };
+                    successCount++;
+                }
+            } catch (error) {
+                errorCount++;
+            }
+        }
+
+        this.messageService.add({
+            severity: 'success',
+            summary: 'Bulk Update Complete',
+            detail: `Updated ${successCount} transaction(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        });
     }
 
     /**

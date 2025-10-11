@@ -6,8 +6,8 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { ChartModule } from 'primeng/chart';
 import { ToastModule } from 'primeng/toast';
+import { TableModule } from 'primeng/table';
 import { MessageService } from 'primeng/api';
 import { SupabaseService } from '../service/supabase.service';
 import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insights.service';
@@ -23,10 +23,23 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
         CardModule,
         DropdownModule,
         ProgressSpinnerModule,
-        ChartModule,
+        TableModule,
         ToastModule
     ],
     providers: [MessageService],
+    styles: [`
+        .text-gray-600 {
+            color: #4b5563;
+        }
+
+        .text-red-600 {
+            color: #dc2626;
+        }
+
+        .text-green-600 {
+            color: #16a34a;
+        }
+    `],
     template: `
         <div class="card">
             <h1>Financial Insights & Analytics</h1>
@@ -36,6 +49,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                 <p-dropdown 
                     [options]="monthOptions" 
                     [(ngModel)]="selectedMonth"
+                    (onChange)="onMonthChange()"
                     optionLabel="label"
                     optionValue="value"
                     placeholder="Select Month">
@@ -43,7 +57,7 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                 <p-button 
                     icon="pi pi-refresh" 
                     label="Refresh" 
-                    (onClick)="loadInsights()"
+                    (onClick)="loadInsights(true)"
                     [loading]="loading">
                 </p-button>
             </div>
@@ -77,48 +91,97 @@ import { AiInsightsService, MonthlySpendingSummary } from '../service/ai-insight
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="card flex flex-col gap-4">
-                        <h3>Spending by Category</h3>
-                        <p-chart 
-                            type="pie" 
-                            [data]="pieChartData" 
-                            [options]="pieChartOptions"
-                            [style]="{'width': '100%', 'height': '300px'}">
-                        </p-chart>
-                    </div>
-
-                    <div class="card flex flex-col gap-4">
-                        <h3>Monthly Spending Trends</h3>
-                        <p-chart 
-                            type="line" 
-                            [data]="lineChartData" 
-                            [options]="lineChartOptions"
-                            [style]="{'width': '100%', 'height': '300px'}">
-                        </p-chart>
-                    </div>
-                </div>
-
                 <div class="card flex flex-col gap-4">
                     <h3>Category Breakdown</h3>
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b">
-                                <th class="text-left p-3">Category</th>
-                                <th class="text-right p-3">Amount</th>
-                                <th class="text-right p-3">Percentage</th>
-                                <th class="text-right p-3">Transactions</th>
+                    <p-table 
+                        [value]="monthlySummary.categoryBreakdown" 
+                        dataKey="category"
+                        [expandedRowKeys]="expandedRows"
+                        (onRowExpand)="onRowExpand($event)" 
+                        (onRowCollapse)="onRowCollapse($event)"
+                        [tableStyle]="{ 'min-width': '50rem' }">
+                        <ng-template #caption>
+                            <div class="flex flex-wrap justify-end gap-2">
+                                <p-button label="Expand All" icon="pi pi-plus" [text]="true" (onClick)="expandAll()" />
+                                <p-button label="Collapse All" icon="pi pi-minus" [text]="true" (onClick)="collapseAll()" />
+                            </div>
+                        </ng-template>
+                        <ng-template #header>
+                            <tr>
+                                <th style="width: 5rem"></th>
+                                <th>Category</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-right">Percentage</th>
+                                <th class="text-right">Transactions</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let category of monthlySummary.categoryBreakdown" class="border-b">
-                                <td class="p-3">{{ category.category }}</td>
-                                <td class="text-right p-3 font-medium">{{ category.amount | currency }}</td>
-                                <td class="text-right p-3">{{ category.percentage.toFixed(1) }}%</td>
-                                <td class="text-right p-3">{{ category.transactionCount }}</td>
+                        </ng-template>
+                        <ng-template #body let-category let-expanded="expanded">
+                            <tr>
+                                <td>
+                                    <p-button 
+                                        type="button" 
+                                        [pRowToggler]="category" 
+                                        [text]="true" 
+                                        severity="secondary" 
+                                        [rounded]="true" 
+                                        [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" />
+                                </td>
+                                <td class="font-medium">{{ category.category }}</td>
+                                <td class="text-right font-medium">{{ category.amount | currency }}</td>
+                                <td class="text-right">{{ category.percentage.toFixed(1) }}%</td>
+                                <td class="text-right">{{ category.transactionCount }}</td>
                             </tr>
-                        </tbody>
-                    </table>
+                        </ng-template>
+                        <ng-template #expandedrow let-category>
+                            <tr>
+                                <td colspan="5">
+                                    <div class="p-4">
+                                        <h5 class="mb-3">Transactions in {{ category.category }}</h5>
+                                        
+                                        <div *ngIf="loadingTransactions[category.category]" class="text-center py-4">
+                                            <p-progressSpinner [style]="{ width: '50px', height: '50px' }" />
+                                            <p class="mt-2">Loading transactions...</p>
+                                        </div>
+                                        
+                                        <p-table 
+                                            *ngIf="!loadingTransactions[category.category] && categoryTransactions[category.category]"
+                                            [value]="categoryTransactions[category.category]" 
+                                            dataKey="id">
+                                            <ng-template #header>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Description</th>
+                                                    <th>Merchant</th>
+                                                    <th>Matched Bill</th>
+                                                    <th class="text-right">Amount</th>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template #body let-transaction>
+                                                <tr>
+                                                    <td>{{ transaction.date | date:'MM/dd/yyyy' }}</td>
+                                                    <td>{{ transaction.name }}</td>
+                                                    <td class="text-gray-600">{{ transaction.merchantName }}</td>
+                                                    <td class="text-gray-600">{{ transaction.billName }}</td>
+                                                    <td class="text-right font-medium"
+                                                        [class.text-red-600]="transaction.amount < 0"
+                                                        [class.text-green-600]="transaction.amount > 0">
+                                                        {{ transaction.amount | currency }}
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template #emptymessage>
+                                                <tr>
+                                                    <td colspan="5" class="text-center py-4">
+                                                        No transactions found for this category.
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                        </p-table>
+                                    </div>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
                 </div>
 
                 <div class="card flex flex-col gap-4" *ngIf="monthlySummary.insights.length > 0">
@@ -153,12 +216,11 @@ export class FinancialInsightsComponent implements OnInit {
     monthOptions: any[] = [];
     monthlySummary: MonthlySpendingSummary | null = null;
     loading = false;
-
-    // Chart data
-    pieChartData: any;
-    pieChartOptions: any;
-    lineChartData: any;
-    lineChartOptions: any;
+    
+    // Category expansion tracking for p-table
+    expandedRows: { [key: string]: boolean } = {};
+    categoryTransactions: { [category: string]: any[] } = {};
+    loadingTransactions: { [category: string]: boolean } = {};
 
     constructor(
         private supabaseService: SupabaseService,
@@ -168,8 +230,7 @@ export class FinancialInsightsComponent implements OnInit {
 
     ngOnInit() {
         this.initializeMonthOptions();
-        this.initializeCharts();
-        // this.loadInsights();
+        this.loadInsights(); // Load on init to show cached data
     }
 
     private initializeMonthOptions() {
@@ -188,51 +249,46 @@ export class FinancialInsightsComponent implements OnInit {
         this.selectedMonth = options[0].value;
     }
 
-    private initializeCharts() {
-        // Pie chart options
-        this.pieChartOptions = {
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            },
-            responsive: true,
-            maintainAspectRatio: false
-        };
-
-        // Line chart options
-        this.lineChartOptions = {
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value: any) {
-                            return '$' + value.toFixed(0);
-                        }
-                    }
-                }
-            },
-            responsive: true,
-            maintainAspectRatio: false
-        };
+    onMonthChange() {
+        // Clear expanded categories and transaction data when month changes
+        this.expandedRows = {};
+        this.categoryTransactions = {};
+        this.loadingTransactions = {};
+        
+        // Load cached data when month changes (don't force refresh)
+        this.loadInsights(false);
     }
 
-    async loadInsights() {
+    async loadInsights(forceRefresh: boolean = false) {
         if (!this.selectedMonth) return;
 
         this.loading = true;
         try {
             const [year, month] = this.selectedMonth.split('-').map(Number);
+            
+            // If not forcing refresh, try to load from cache first
+            if (!forceRefresh) {
+                const cachedSummary = await this.loadFromCache(year, month);
+                if (cachedSummary) {
+                    this.monthlySummary = cachedSummary;
+                    this.loading = false;
+                    return;
+                }
+            }
+            
+            // No cache or force refresh - calculate fresh data
             const summary = await this.aiInsightsService.generateMonthlyInsights(year, month).toPromise();
             
             if (summary) {
                 this.monthlySummary = summary;
-                this.updateCharts();
+                // Save to cache
+                await this.saveToCache(year, month, summary);
+                
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Data Refreshed',
+                    detail: 'Financial insights have been updated'
+                });
             }
         } catch (error) {
             console.error('Error loading insights:', error);
@@ -246,53 +302,199 @@ export class FinancialInsightsComponent implements OnInit {
         }
     }
 
-    private updateCharts() {
-        if (!this.monthlySummary) return;
-
-        // Update pie chart
-        this.pieChartData = {
-            labels: this.monthlySummary.categoryBreakdown.map(c => c.category),
-            datasets: [{
-                data: this.monthlySummary.categoryBreakdown.map(c => c.amount),
-                backgroundColor: this.monthlySummary.categoryBreakdown.map(c => this.getCategoryColor(c.category)),
-                borderWidth: 2,
-                borderColor: '#ffffff'
-            }]
-        };
-
-        // Update line chart (last 6 months)
-        this.loadSpendingTrends();
-    }
-
-    private async loadSpendingTrends() {
+    private async loadFromCache(year: number, month: number): Promise<MonthlySpendingSummary | null> {
         try {
-            const trends = await this.aiInsightsService.getSpendingTrends(6).toPromise();
-            if (trends) {
-                this.lineChartData = {
-                    labels: trends.map((t: any) => t.month),
-                    datasets: [{
-                        label: 'Total Spending',
-                        data: trends.map((t: any) => t.totalSpent),
-                        borderColor: '#3B82F6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                };
-            }
+            const userId = await this.supabaseService.getCurrentUserId();
+            if (!userId) return null;
+
+            const { data, error } = await this.supabaseService.getClient()
+                .from('hb_monthly_financial_summaries')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('year', year)
+                .eq('month', month)
+                .single();
+
+            if (error || !data) return null;
+
+            // Convert cached data back to MonthlySpendingSummary format
+            const categoryBreakdown = data.category_breakdown || [];
+            return {
+                totalSpent: parseFloat(data.total_spent),
+                totalIncome: parseFloat(data.total_income),
+                netAmount: parseFloat(data.net_amount),
+                transactionCount: data.transaction_count,
+                categoryBreakdown: categoryBreakdown,
+                topCategories: categoryBreakdown.slice(0, 5).map((c: any) => c.category),
+                insights: data.insights || []
+            };
         } catch (error) {
-            console.error('Error loading spending trends:', error);
+            console.error('Error loading from cache:', error);
+            return null;
         }
     }
 
-    getCategoryColor(category: string): string {
-        const colors = [
-            '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6',
-            '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
-            '#14B8A6', '#64748B', '#F472B6', '#A78BFA', '#FBBF24'
-        ];
+    private async saveToCache(year: number, month: number, summary: MonthlySpendingSummary): Promise<void> {
+        try {
+            const userId = await this.supabaseService.getCurrentUserId();
+            if (!userId) return;
+
+            const cacheData = {
+                user_id: userId,
+                year: year,
+                month: month,
+                total_spent: summary.totalSpent,
+                total_income: summary.totalIncome,
+                net_amount: summary.netAmount,
+                transaction_count: summary.transactionCount,
+                category_breakdown: summary.categoryBreakdown,
+                insights: summary.insights,
+                updated_at: new Date().toISOString(),
+                updated_by: 'USER'
+            };
+
+            // Use upsert to insert or update
+            const { error } = await this.supabaseService.getClient()
+                .from('hb_monthly_financial_summaries')
+                .upsert(cacheData, {
+                    onConflict: 'user_id,year,month'
+                });
+
+            if (error) {
+                console.error('Error saving to cache:', error);
+            }
+        } catch (error) {
+            console.error('Error saving to cache:', error);
+        }
+    }
+
+    onRowExpand(event: any) {
+        const category = event.data.category;
+        // Load transactions for this category if not already loaded
+        if (!this.categoryTransactions[category]) {
+            this.loadCategoryTransactions(category);
+        }
+    }
+
+    onRowCollapse(event: any) {
+        // Optional: Clean up data when row is collapsed
+        // For now, we'll keep the data cached
+    }
+
+    expandAll() {
+        if (!this.monthlySummary) return;
         
-        const index = category.charCodeAt(0) % colors.length;
-        return colors[index];
+        this.expandedRows = {};
+        this.monthlySummary.categoryBreakdown.forEach((category) => {
+            this.expandedRows[category.category] = true;
+            // Load transactions for each category if not already loaded
+            if (!this.categoryTransactions[category.category]) {
+                this.loadCategoryTransactions(category.category);
+            }
+        });
+    }
+
+    collapseAll() {
+        this.expandedRows = {};
+    }
+
+    async loadCategoryTransactions(category: string) {
+        if (!this.selectedMonth) return;
+
+        this.loadingTransactions[category] = true;
+        
+        try {
+            const [year, month] = this.selectedMonth.split('-').map(Number);
+            const userId = await this.supabaseService.getCurrentUserId();
+            
+            console.log('Loading transactions for category:', category);
+            console.log('User ID:', userId);
+            console.log('Year/Month:', year, month);
+            
+            if (!userId) {
+                console.error('No user ID found');
+                return;
+            }
+
+            // Get start and end dates for the month
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0, 23, 59, 59);
+            
+            console.log('Date range:', startDate.toISOString(), 'to', endDate.toISOString());
+
+            // First, get the category ID from the category name
+            const { data: categoryData, error: categoryError } = await this.supabaseService.getClient()
+                .from('hb_transaction_categories')
+                .select('id')
+                .eq('name', category)
+                .single();
+
+            console.log('Category lookup result:', { categoryData, categoryError });
+
+            if (categoryError || !categoryData) {
+                console.error('Error finding category:', categoryError);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: `Failed to find category: ${category}. Error: ${categoryError?.message || 'Unknown'}`
+                });
+                return;
+            }
+
+            console.log('Found category ID:', categoryData.id);
+
+            // Then fetch transactions for this category
+            const { data: transactions, error } = await this.supabaseService.getClient()
+                .from('hb_transactions')
+                .select(`
+                    id,
+                    date,
+                    name,
+                    amount,
+                    merchant_name,
+                    bill:hb_bills(bill_name)
+                `)
+                .eq('user_id', userId)
+                .eq('category_id', categoryData.id)
+                .gte('date', startDate.toISOString())
+                .lte('date', endDate.toISOString())
+                .order('date', { ascending: false });
+
+            console.log('Transactions query result:', { 
+                count: transactions?.length || 0, 
+                error,
+                sample: transactions?.[0]
+            });
+
+            if (error) {
+                console.error('Error loading category transactions:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: `Failed to load transactions: ${error.message}`
+                });
+            } else {
+                this.categoryTransactions[category] = (transactions || []).map((t: any) => ({
+                    id: t.id,
+                    date: t.date,
+                    name: t.name,
+                    amount: t.amount,
+                    merchantName: t.merchant_name || '-',
+                    billName: t.bill?.bill_name || 'Not Matched'
+                }));
+                
+                console.log('Loaded transactions:', this.categoryTransactions[category].length);
+                console.log('Sample transaction:', this.categoryTransactions[category][0]);
+            }
+        } catch (error) {
+            console.error('Exception in loadCategoryTransactions:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: `An unexpected error occurred: ${error}`
+            });
+        } finally {
+            this.loadingTransactions[category] = false;
+        }
     }
 } 

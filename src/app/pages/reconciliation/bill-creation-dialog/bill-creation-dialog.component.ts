@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter, OnDestroy } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
@@ -17,6 +17,7 @@ export interface QuickBillForm {
   billName: string;
   amount: number;
   dueDate: Date;
+  status?: string;
   billType?: string;
   description?: string;
   priorityId?: string;
@@ -45,8 +46,14 @@ export interface QuickBillForm {
   templateUrl: './bill-creation-dialog.component.html',
   styleUrls: ['./bill-creation-dialog.component.scss']
 })
-export class BillCreationDialogComponent implements OnInit, OnDestroy {
+export class BillCreationDialogComponent implements OnInit, OnDestroy, OnChanges {
   @Input() visible: boolean = false;
+  @Input() initialData?: {
+    billName: string;
+    amount: number;
+    dueDate: Date;
+    description?: string;
+  };
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() billCreated = new EventEmitter<any>();
 
@@ -60,6 +67,10 @@ export class BillCreationDialogComponent implements OnInit, OnDestroy {
   billTypeOptions: any[] = [];
   paymentTypeOptions: any[] = [];
   tagOptions: any[] = [];
+  statusOptions: any[] = [
+    { label: 'Active', value: 'Active' },
+    { label: 'Inactive', value: 'Inactive' }
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -73,6 +84,17 @@ export class BillCreationDialogComponent implements OnInit, OnDestroy {
     this.loadMasterData();
   }
 
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['initialData'] && this.initialData && this.billForm) {
+      this.billForm.patchValue({
+        billName: this.initialData.billName,
+        amount: this.initialData.amount,
+        dueDate: this.initialData.dueDate,
+        description: this.initialData.description || ''
+      });
+    }
+  }
+
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
@@ -82,6 +104,7 @@ export class BillCreationDialogComponent implements OnInit, OnDestroy {
       billName: ['', [Validators.required, Validators.minLength(2)]],
       amount: [null, [Validators.required, Validators.min(0.01)]],
       dueDate: ['', Validators.required],
+      status: ['Active', Validators.required], // Default to 'Active'
       billType: ['other'], // Default to 'other'
       description: [''],
       priorityId: [''],
@@ -193,6 +216,7 @@ export class BillCreationDialogComponent implements OnInit, OnDestroy {
   closeDialog() {
     this.billForm.reset();
     this.billForm.patchValue({ 
+      status: 'Active',
       billType: 'other',
       isFixedBill: false,
       isIncludedInMonthlyPayment: false

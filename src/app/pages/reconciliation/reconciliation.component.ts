@@ -23,6 +23,8 @@ interface Bill {
         icon: string;
         name: string;
     };
+    matchCount?: number;
+    frequencyName?: string;
 }
 
 interface MatchedTransaction {
@@ -89,6 +91,7 @@ export class ReconciliationComponent {
     unreconciledCount: number = 3;
     billsCount: number = 3;
     matchedCount: number = 0;
+    excludedCount: number = 0;
     
     // Financial metrics
     totalSpent: number = 0;
@@ -100,15 +103,21 @@ export class ReconciliationComponent {
     transactions: Transaction[] = [];
     bills: Bill[] = [];
     matchedTransactions: MatchedTransaction[] = [];
+    excludedTransactions: Transaction[] = [];
     
     // Loading states
     loadingTransactions = false;
     loadingBills = false;
     loadingMatched = false;
+    loadingExcluded = false;
     
     // Selected transaction and bill data
     selectedTransaction: Transaction | null = null;
     selectedBill: Bill | null = null;
+    
+    // Bulk exclusion
+    selectedTransactionsForExclusion: Set<string> = new Set();
+    selectAllForExclusion: boolean = false;
 
     // Search functionality
     transactionSearchTerm: string = '';
@@ -132,6 +141,12 @@ export class ReconciliationComponent {
     
     // Bill creation dialog properties
     showBillCreationDialog: boolean = false;
+    billCreationInitialData?: {
+        billName: string;
+        amount: number;
+        dueDate: Date;
+        description?: string;
+    };
 
     constructor(
         private reconciliationService: ReconciliationService,
@@ -480,9 +495,14 @@ export class ReconciliationComponent {
     // Data loading methods
     async loadData() {
         if (this.selectedMonth) {
+            // Clear bulk exclusion selection when reloading data
+            this.selectedTransactionsForExclusion.clear();
+            this.selectAllForExclusion = false;
+            
             await this.loadUnreconciledTransactions();
             await this.loadUnmatchedBills();
             await this.loadMatchedTransactions();
+            await this.loadExcludedTransactions();
         }
     }
 
@@ -537,7 +557,9 @@ export class ReconciliationComponent {
                 category: {
                     icon: 'pi pi-file', // You can customize this based on bill type
                     name: 'Other'
-                }
+                },
+                matchCount: item.matchCount || 0,
+                frequencyName: item.frequencyName || 'Monthly'
             }));
             
             this.billsCount = this.bills.length;
@@ -840,10 +862,49 @@ export class ReconciliationComponent {
     }
 
     /**
+     * Open bill creation dialog pre-filled with transaction data
+     */
+    openBillCreationFromTransaction() {
+        const selectedIds = Array.from(this.selectedTransactionsForExclusion);
+        if (selectedIds.length !== 1) {
+            return; // Safety check
+        }
+        
+        // Find the selected transaction
+        const transaction = this.transactions.find(t => t.id === selectedIds[0]);
+        if (!transaction) {
+            return;
+        }
+        
+        // Parse amount - remove $, commas, USD, and convert to absolute value
+        const amountStr = transaction.amount.replace(/[$,USD\s]/g, '');
+        const amount = Math.abs(parseFloat(amountStr));
+        
+        // Parse date - assuming format is MM/DD/YYYY
+        const dateParts = transaction.date.split('/');
+        const transactionDate = dateParts.length === 3 
+            ? new Date(parseInt(dateParts[2]), parseInt(dateParts[0]) - 1, parseInt(dateParts[1]))
+            : new Date();
+        
+        // Set initial data
+        this.billCreationInitialData = {
+            billName: transaction.description,
+            amount: amount,
+            dueDate: transactionDate,
+            description: `Bill created from transaction: ${transaction.description}`
+        };
+        
+        this.showBillCreationDialog = true;
+    }
+
+    /**
      * Handle bill creation success
      */
     async onBillCreated(newBill: any) {
         console.log('Bill created successfully:', newBill);
+        
+        // Clear initial data
+        this.billCreationInitialData = undefined;
         
         // Reload the bills data to include the new bill
         await this.loadUnmatchedBills();
@@ -853,5 +914,204 @@ export class ReconciliationComponent {
         
         // Optionally select the newly created bill
         // this.selectedBill = newBill;
+    }
+
+    /**
+     * Get the match count badge text for a bill based on its frequency
+     */
+    getMatchCountBadgeText(bill: Bill): string {
+        const matchCount = bill.matchCount || 0;
+        const frequencyName = bill.frequencyName || 'Monthly';
+
+        if (matchCount === 0) {
+            return '';
+        }
+
+        switch (frequencyName) {
+            case 'AsNeeded':
+                return `Linked ${matchCount}x`;
+            
+            case 'Weekly':
+                return `Linked ${matchCount}/4`;
+            
+            case 'Monthly':
+                // Shouldn't show for Monthly since it's removed after 1 match
+                return `Linked ${matchCount}x`;
+            
+            case 'Yearly':
+                return `Linked ${matchCount}x`;
+            
+            default:
+                return `Linked ${matchCount}x`;
+        }
+    }
+
+    /**
+     * Check if bill should show match count badge
+     */
+    shouldShowMatchCountBadge(bill: Bill): boolean {
+        return (bill.matchCount || 0) > 0;
+    }
+
+    /**
+     * Exclude a transaction (mark as not a bill)
+     */
+    async onExcludeTransaction(transaction: Transaction) {
+        try {
+            await this.reconciliationService.excludeTransaction(transaction.id);
+            
+            // Clear selection if this transaction was selected
+            if (this.selectedTransaction?.id === transaction.id) {
+                this.selectedTransaction = null;
+            }
+
+            // Reload data to reflect the changes
+            await this.loadData();
+
+        } catch (error) {
+            console.error('Error excluding transaction:', error);
+            // You might want to show an error message to the user here
+        }
+    }
+
+    /**
+     * Undo exclusion (mark transaction as unreconciled again)
+     */
+    async onUndoExcludeTransaction(transaction: Transaction) {
+        try {
+            await this.reconciliationService.undoExcludeTransaction(transaction.id);
+            
+            // Reload data to reflect the changes
+            await this.loadData();
+
+        } catch (error) {
+            console.error('Error undoing exclusion:', error);
+            // You might want to show an error message to the user here
+        }
+    }
+
+    /**
+     * Toggle transaction selection for exclusion
+     */
+    toggleTransactionForExclusion(transactionId: string) {
+        if (this.selectedTransactionsForExclusion.has(transactionId)) {
+            this.selectedTransactionsForExclusion.delete(transactionId);
+        } else {
+            this.selectedTransactionsForExclusion.add(transactionId);
+        }
+        
+        // Update selectAll checkbox state
+        this.updateSelectAllState();
+    }
+
+    /**
+     * Check if transaction is selected for exclusion
+     */
+    isTransactionSelectedForExclusion(transactionId: string): boolean {
+        return this.selectedTransactionsForExclusion.has(transactionId);
+    }
+
+    /**
+     * Toggle select all transactions for exclusion
+     */
+    toggleSelectAllForExclusion() {
+        if (this.selectAllForExclusion) {
+            // Select all visible transactions
+            this.filteredTransactions.forEach((t: Transaction) => {
+                this.selectedTransactionsForExclusion.add(t.id);
+            });
+        } else {
+            // Deselect all
+            this.selectedTransactionsForExclusion.clear();
+        }
+    }
+
+    /**
+     * Update select all checkbox state
+     */
+    private updateSelectAllState() {
+        const visibleTransactions = this.filteredTransactions;
+        if (visibleTransactions.length === 0) {
+            this.selectAllForExclusion = false;
+            return;
+        }
+        
+        this.selectAllForExclusion = visibleTransactions.every((t: Transaction) => 
+            this.selectedTransactionsForExclusion.has(t.id)
+        );
+    }
+
+    /**
+     * Bulk exclude selected transactions
+     */
+    async onBulkExcludeTransactions() {
+        if (this.selectedTransactionsForExclusion.size === 0) {
+            return;
+        }
+        
+        try {
+            const transactionIds = Array.from(this.selectedTransactionsForExclusion);
+            await this.reconciliationService.bulkExcludeTransactions(transactionIds);
+            
+            // Clear selection
+            this.selectedTransactionsForExclusion.clear();
+            this.selectAllForExclusion = false;
+            
+            // Clear selected transaction if it was excluded
+            if (this.selectedTransaction && transactionIds.includes(this.selectedTransaction.id)) {
+                this.selectedTransaction = null;
+            }
+
+            // Reload data to reflect the changes
+            await this.loadData();
+
+        } catch (error) {
+            console.error('Error bulk excluding transactions:', error);
+            // You might want to show an error message to the user here
+        }
+    }
+
+    /**
+     * Get count of selected transactions for exclusion
+     */
+    getSelectedForExclusionCount(): number {
+        return this.selectedTransactionsForExclusion.size;
+    }
+
+    /**
+     * Load excluded transactions
+     */
+    async loadExcludedTransactions() {
+        if (!this.selectedMonth) return;
+        
+        try {
+            this.loadingExcluded = true;
+            const [year, month] = this.selectedMonth.split('-').map(Number);
+            const dbTransactions = await this.reconciliationService.getExcludedTransactions(year, month);
+            
+            // Transform database transactions to component format
+            this.excludedTransactions = dbTransactions.map(t => ({
+                id: t.id,
+                date: new Date(t.date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                }),
+                description: t.name || t.description || 'Unknown Transaction',
+                amount: `$${(t.amount || 0).toFixed(2)} USD`,
+                type: (t.amount || 0) >= 0 ? 'positive' : 'negative',
+                isRefund: false,
+                subtext: t.bank_source || undefined,
+                account: this.mapAccountIdToName(t.account_id)
+            }));
+            
+            this.excludedCount = this.excludedTransactions.length;
+        } catch (error) {
+            console.error('Error loading excluded transactions:', error);
+            this.excludedTransactions = [];
+            this.excludedCount = 0;
+        } finally {
+            this.loadingExcluded = false;
+        }
     }
 }

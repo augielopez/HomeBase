@@ -108,6 +108,7 @@
         <p-tablist>
             <p-tab value="0">Unmatched</p-tab>
             <p-tab value="1">Matched</p-tab>
+            <p-tab value="2">Excluded</p-tab>
         </p-tablist>
         <p-tabpanels>
             <p-tabpanel value="0">
@@ -133,6 +134,41 @@
                             </p-inputgroup>
                         </div>
                         
+                        <!-- Bulk Actions Bar -->
+                        <div class="bulk-actions-bar" *ngIf="filteredTransactions.length > 0">
+                            <div class="flex items-center gap-3">
+                                <p-checkbox 
+                                    [(ngModel)]="selectAllForExclusion"
+                                    (onChange)="toggleSelectAllForExclusion()"
+                                    [binary]="true"
+                                    inputId="selectAll">
+                                </p-checkbox>
+                                <label for="selectAll" class="cursor-pointer">Select All</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <!-- Create Bill button - shows when exactly 1 selected -->
+                                <p-button 
+                                    *ngIf="getSelectedForExclusionCount() === 1"
+                                    label="Create Bill from Transaction"
+                                    icon="pi pi-plus"
+                                    severity="success"
+                                    [outlined]="true"
+                                    size="small"
+                                    (onClick)="openBillCreationFromTransaction()">
+                                </p-button>
+                                <!-- Exclude button - shows when 1 or more selected -->
+                                <p-button 
+                                    *ngIf="getSelectedForExclusionCount() > 0"
+                                    [label]="'Exclude Selected (' + getSelectedForExclusionCount() + ')'"
+                                    icon="pi pi-times"
+                                    severity="danger"
+                                    [outlined]="true"
+                                    size="small"
+                                    (onClick)="onBulkExcludeTransactions()">
+                                </p-button>
+                            </div>
+                        </div>
+                        
                         <div class="transaction-list">
                             <div *ngIf="loadingTransactions" class="loading-message">
                                 Loading transactions...
@@ -153,9 +189,19 @@
                                          [class.refund]="transaction.isRefund">{{ transaction.description }}</div>
                                     <div *ngIf="transaction.subtext" class="transaction-subtext">{{ transaction.subtext }}</div>
                                 </div>
-                                <div class="transaction-amount"
-                                     [class.positive]="transaction.type === 'positive'"
-                                     [class.negative]="transaction.type === 'negative'">{{ transaction.amount }}</div>
+                                <div class="flex items-center gap-3">
+                                    <div class="transaction-amount"
+                                         [class.positive]="transaction.type === 'positive'"
+                                         [class.negative]="transaction.type === 'negative'">{{ transaction.amount }}</div>
+                                    <p-checkbox 
+                                        [ngModel]="isTransactionSelectedForExclusion(transaction.id)"
+                                        (onChange)="toggleTransactionForExclusion(transaction.id)"
+                                        [binary]="true"
+                                        pTooltip="Select for exclusion"
+                                        tooltipPosition="left"
+                                        (click)="$event.stopPropagation()">
+                                    </p-checkbox>
+                                </div>
                             </div>
                         </div>
                         
@@ -218,7 +264,15 @@
                                 </div>
                                 <div class="bill-content">
                                     <div class="bill-date">{{ bill.date }}</div>
-                                    <div class="bill-merchant">{{ bill.merchant }}</div>
+                                    <div class="bill-merchant">
+                                        {{ bill.merchant }}
+                                        <p-badge 
+                                            *ngIf="shouldShowMatchCountBadge(bill)"
+                                            [value]="getMatchCountBadgeText(bill)"
+                                            severity="info"
+                                            styleClass="ml-2">
+                                        </p-badge>
+                                    </div>
                                     <div class="bill-category">
                                         <i [class]="bill.category.icon + ' category-icon'"></i>
                                         <span>{{ bill.category.name }}</span>
@@ -269,11 +323,21 @@
                              responsiveLayout="scroll">
                    <ng-template #header>
                        <tr>
-                           <th style="width: 8rem">Date</th>
-                           <th style="width: 20rem">Transaction</th>
-                           <th style="width: 8rem">Transaction Amount</th>
-                           <th style="width: 20rem">Bill Name</th>
-                           <th style="width: 8rem">Bill Amount</th>
+                           <th pSortableColumn="transactionDate" style="width: 8rem">
+                               Date <p-sortIcon field="transactionDate"></p-sortIcon>
+                           </th>
+                           <th pSortableColumn="transactionDescription" style="width: 20rem">
+                               Transaction <p-sortIcon field="transactionDescription"></p-sortIcon>
+                           </th>
+                           <th pSortableColumn="transactionAmount" style="width: 8rem">
+                               Transaction Amount <p-sortIcon field="transactionAmount"></p-sortIcon>
+                           </th>
+                           <th pSortableColumn="billName" style="width: 20rem">
+                               Bill Name <p-sortIcon field="billName"></p-sortIcon>
+                           </th>
+                           <th pSortableColumn="billAmount" style="width: 8rem">
+                               Bill Amount <p-sortIcon field="billAmount"></p-sortIcon>
+                           </th>
                        </tr>
                    </ng-template>
                         <ng-template #body let-matched>
@@ -291,6 +355,66 @@
                             </tr>
                         </ng-template>
                     </p-table>
+                </div>
+            </p-tabpanel>
+            
+            <p-tabpanel value="2">
+                <div class="excluded-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="panel-header">
+                            <h3 class="panel-title-with-badge">
+                                <span>Excluded Transactions</span>
+                                <p-badge [value]="excludedCount" />
+                            </h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <p-inputgroup>
+                                <input pInputText placeholder="Search" />
+                                <p-inputgroup-addon>
+                                    <p-button icon="pi pi-search" severity="secondary" variant="text" />
+                                </p-inputgroup-addon>
+                            </p-inputgroup>
+                        </div>
+                    </div>
+                    
+                    <div *ngIf="loadingExcluded" class="loading-message">
+                        Loading excluded transactions...
+                    </div>
+                    
+                    <div class="excluded-list">
+                        <div *ngFor="let transaction of excludedTransactions" 
+                             class="excluded-item p-4 border border-gray-200 rounded-lg mb-3 flex justify-between items-center">
+                            <div class="excluded-transaction-content flex-1">
+                                <div class="flex items-center gap-4">
+                                    <div class="transaction-date font-medium text-gray-700">{{ transaction.date }}</div>
+                                    <div class="flex flex-col">
+                                        <div class="transaction-description font-medium">{{ transaction.description }}</div>
+                                        <div *ngIf="transaction.subtext" class="transaction-subtext text-sm text-gray-500">{{ transaction.subtext }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="transaction-amount font-medium text-lg"
+                                     [class.text-green-600]="transaction.type === 'positive'"
+                                     [class.text-red-600]="transaction.type === 'negative'">{{ transaction.amount }}</div>
+                                <p-button 
+                                    label="Undo" 
+                                    icon="pi pi-undo"
+                                    severity="secondary"
+                                    [outlined]="true"
+                                    size="small"
+                                    pTooltip="Move back to unmatched"
+                                    tooltipPosition="left"
+                                    (onClick)="onUndoExcludeTransaction(transaction)">
+                                </p-button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div *ngIf="!loadingExcluded && excludedTransactions.length === 0" class="text-center text-gray-500 py-8">
+                        <i class="pi pi-check-circle text-4xl mb-3"></i>
+                        <p>No excluded transactions for this month</p>
+                    </div>
                 </div>
             </p-tabpanel>
         </p-tabpanels>
@@ -420,5 +544,6 @@
 <!-- Bill Creation Dialog -->
 <app-bill-creation-dialog 
     [(visible)]="showBillCreationDialog"
+    [initialData]="billCreationInitialData"
     (billCreated)="onBillCreated($event)">
 </app-bill-creation-dialog>

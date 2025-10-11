@@ -69,6 +69,26 @@
                     </small>
                 </div>
 
+                <!-- Status -->
+                <div class="field">
+                    <label class="block mb-2 font-medium">
+                        Status <span class="text-red-500">*</span>
+                    </label>
+                    <p-dropdown 
+                        [options]="statusOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="status"
+                        placeholder="Select status"
+                        class="w-full"
+                        [class.p-invalid]="hasFieldError('status')" />
+                    <small 
+                        class="text-red-500 mt-1 block" 
+                        *ngIf="hasFieldError('status')">
+                        {{ getFieldError('status') }}
+                    </small>
+                </div>
+
                 <!-- Priority -->
                 <div class="field">
                     <label class="block mb-2 font-medium">

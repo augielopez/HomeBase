@@ -253,6 +253,7 @@
                     </th>
 
                     <th>Recon Status</th>
+                    <th>Matched Bill</th>
                     <th>Action</th>
                 </tr>
             </ng-template>
@@ -277,10 +278,16 @@
                         </span>
                     </td>
                     <td>
-                        <span *ngIf="transaction.category?.name" class="text-sm">
-                            {{ transaction.category.name }}
-                        </span>
-                        <span *ngIf="!transaction.category?.name" class="text-sm">-</span>
+                        <p-dropdown 
+                            [options]="categoryOptions"
+                            [(ngModel)]="transaction.category_id"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select Category"
+                            (onChange)="onCategoryChange(transaction, $event)"
+                            [style]="{'width': '100%', 'min-width': '150px'}"
+                            appendTo="body">
+                        </p-dropdown>
                     </td>
                     <td class="p-0">
                         <ng-container *ngIf="getBankLogo(transaction.bank_source); else institutionNameText">
@@ -336,6 +343,14 @@
                         </p-tag>
                     </td>
                     <td>
+                        <span class="text-sm" 
+                              [class.text-gray-500]="!transaction.bill_id"
+                              [class.text-blue-600]="transaction.bill_id && transaction.bill_id !== EXCLUDED_TRANSACTION_ID"
+                              [class.text-gray-400]="transaction.bill_id === EXCLUDED_TRANSACTION_ID">
+                            {{ getMatchedBillName(transaction) }}
+                        </span>
+                    </td>
+                    <td>
                         <p-button 
                             icon="pi pi-link" 
                             size="small"
@@ -351,7 +366,7 @@
             
             <ng-template pTemplate="emptymessage">
                 <tr>
-                    <td colspan="9" class="text-center py-8">
+                    <td colspan="10" class="text-center py-8">
                         <div *ngIf="loading" class="flex justify-center">
                             <p-progressSpinner></p-progressSpinner>
                         </div>
@@ -495,3 +510,33 @@
 </app-bill-creation-dialog>
 
 <p-toast></p-toast>
+
+<!-- Bulk Category Update Confirmation Toast -->
+<p-toast position="top-center" key="bulk-category-update" [showTransformOptions]="'translateY(100%)'">
+    <ng-template let-message pTemplate="message">
+        <div class="flex flex-col gap-3 w-full">
+            <div class="flex items-center gap-2">
+                <i class="pi pi-info-circle text-xl"></i>
+                <div class="flex-1">
+                    <h4 class="font-semibold">{{message.summary}}</h4>
+                    <p>{{message.detail}}</p>
+                </div>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <p-button 
+                    label="Apply to All" 
+                    severity="success"
+                    size="small"
+                    (onClick)="applyBulkCategoryUpdate(message.data.similarTransactions, message.data.newCategoryId); messageService.clear('bulk-category-update')">
+                </p-button>
+                <p-button 
+                    label="Skip" 
+                    severity="secondary"
+                    [outlined]="true"
+                    size="small"
+                    (onClick)="messageService.clear('bulk-category-update')">
+                </p-button>
+            </div>
+        </div>
+    </ng-template>
+</p-toast>
