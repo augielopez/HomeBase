@@ -185,6 +185,11 @@ export class AppMenu {
                         label: 'Job Tailoring Assistant',
                         icon: 'pi pi-fw pi-cog',
                         routerLink: ['/dashboard/pages/resume/tailoring']
+                    },
+                    {
+                        label: 'Resume Card Style',
+                        icon: 'pi pi-fw pi-id-card',
+                        routerLink: ['/dashboard/pages/resume/card-style']
                     }
                 ]
             }

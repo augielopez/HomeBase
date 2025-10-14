@@ -5,6 +5,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextarea } from 'primeng/inputtextarea';
+import { InputSwitchModule } from 'primeng/inputswitch';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SplitterModule } from 'primeng/splitter';
@@ -27,6 +28,7 @@ import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse, JobB
     ButtonModule,
     CardModule,
     InputTextarea,
+    InputSwitchModule,
     MessageModule,
     ProgressSpinnerModule,
     SplitterModule,
@@ -46,6 +48,8 @@ export class ResumeTailoringComponent implements OnInit {
   tailoredResume: TailoredResume | null = null;
   tailoringAnalysis = '';
   recommendations: string[] = [];
+  debugInfo: { method: 'mock' | 'openai'; timestamp: string } | null = null;
+  useMockMode = false;
   
   loading = false;
   tailoring = false;
@@ -65,7 +69,7 @@ export class ResumeTailoringComponent implements OnInit {
   async loadMasterResume() {
     this.loading = true;
     try {
-      this.masterResume = await this.resumeService.getMasterResume();
+      this.masterResume = await this.resumeService.getMasterResumeForTailoring();
     } catch (error) {
       console.error('Error loading master resume:', error);
       this.messageService.add({
@@ -88,28 +92,27 @@ export class ResumeTailoringComponent implements OnInit {
       return;
     }
 
-    if (!this.masterResume) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Warning',
-        detail: 'Master resume data not available'
-      });
-      return;
-    }
-
     this.tailoring = true;
     try {
+      // Reload master resume with latest exclusions and mappings
+      this.masterResume = await this.resumeService.getMasterResumeForTailoring();
+      
+      if (!this.masterResume) {
+        throw new Error('Master resume data not available');
+      }
+
       const request: TailoringRequest = {
         jobDescription: this.jobDescription,
         masterResume: this.masterResume
       };
 
-      const response = await this.resumeService.tailorResume(request);
+      const response = await this.resumeService.tailorResume(request, this.useMockMode);
       
       this.jobBreakdown = response.jobBreakdown;
       this.tailoredResume = response.tailoredResume;
       this.tailoringAnalysis = response.analysis || '';
       this.recommendations = response.recommendations || [];
+      this.debugInfo = response._debug || null;
 
       this.messageService.add({
         severity: 'success',
@@ -139,12 +142,12 @@ export class ResumeTailoringComponent implements OnInit {
   private generateMarkdownResume(resume: TailoredResume): string {
     let markdown = `# ${resume.contact.name}\n\n`;
     
-    // Contact Info
-    markdown += `**Email:** ${resume.contact.email}\n`;
-    if (resume.contact.phone) markdown += `**Phone:** ${resume.contact.phone}\n`;
-    if (resume.contact.location) markdown += `**Location:** ${resume.contact.location}\n`;
-    if (resume.contact.linkedin) markdown += `**LinkedIn:** ${resume.contact.linkedin}\n`;
-    if (resume.contact.github) markdown += `**GitHub:** ${resume.contact.github}\n`;
+    // Contact Info with line breaks (two spaces at end for markdown)
+    markdown += `**Email:** ${resume.contact.email}  \n`;
+    if (resume.contact.phone) markdown += `**Phone:** ${resume.contact.phone}  \n`;
+    if (resume.contact.location) markdown += `**Location:** ${resume.contact.location}  \n`;
+    if (resume.contact.linkedin) markdown += `**LinkedIn:** ${resume.contact.linkedin}  \n`;
+    if (resume.contact.github) markdown += `**GitHub:** ${resume.contact.github}  \n`;
     markdown += '\n';
     
     // Summary
@@ -168,7 +171,7 @@ export class ResumeTailoringComponent implements OnInit {
     if (resume.experience.length > 0) {
       markdown += `## Experience\n\n`;
       resume.experience.forEach(exp => {
-        markdown += `### ${exp.role} at ${exp.company}\n`;
+        markdown += `#### ${exp.role} at ${exp.company}\n`;
         if (exp.start_date || exp.end_date) {
           const start = exp.start_date ? new Date(exp.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : 'Present';
           const end = exp.end_date ? new Date(exp.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : 'Present';
@@ -192,8 +195,14 @@ export class ResumeTailoringComponent implements OnInit {
     if (resume.education.length > 0) {
       markdown += `## Education\n\n`;
       resume.education.forEach(edu => {
-        markdown += `### ${edu.degree}\n`;
-        markdown += `${edu.school}\n`;
+        markdown += `#### ${edu.degree}  \n`;
+        markdown += `${edu.school}  \n`;
+        if (edu.minor) {
+          markdown += `Minor/Emphasis: ${edu.minor}  \n`;
+        }
+        if (edu.notes) {
+          markdown += `${edu.notes}  \n`;
+        }
         if (edu.start_date || edu.end_date) {
           const start = edu.start_date ? new Date(edu.start_date).getFullYear().toString() : '';
           const end = edu.end_date ? new Date(edu.end_date).getFullYear().toString() : 'Present';
@@ -220,7 +229,7 @@ export class ResumeTailoringComponent implements OnInit {
     if (resume.projects.length > 0) {
       markdown += `## Projects\n\n`;
       resume.projects.forEach(project => {
-        markdown += `### ${project.title}\n`;
+        markdown += `#### ${project.title}\n`;
         if (project.description) {
           markdown += `${project.description}\n`;
         }
@@ -235,7 +244,7 @@ export class ResumeTailoringComponent implements OnInit {
     if (resume.volunteer.length > 0) {
       markdown += `## Volunteer Work\n\n`;
       resume.volunteer.forEach(vol => {
-        markdown += `### ${vol.role}\n`;
+        markdown += `#### ${vol.role}\n`;
         if (vol.description) {
           markdown += `${vol.description}\n`;
         }
@@ -266,6 +275,7 @@ export class ResumeTailoringComponent implements OnInit {
     this.tailoredResume = null;
     this.tailoringAnalysis = '';
     this.recommendations = [];
+    this.debugInfo = null;
     this.showMarkdownPreview = false;
     this.markdownPreviewHtml = '';
   }
@@ -275,6 +285,16 @@ export class ResumeTailoringComponent implements OnInit {
     if (this.showMarkdownPreview && this.tailoredResume) {
       this.generateMarkdownPreview();
     }
+  }
+
+  onMockModeChange() {
+    const mode = this.useMockMode ? 'Mock Algorithm' : 'OpenAI GPT-4';
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Mode Changed',
+      detail: `Switched to ${mode}`,
+      life: 3000
+    });
   }
 
   private async generateMarkdownPreview() {
@@ -314,6 +334,32 @@ export class ResumeTailoringComponent implements OnInit {
       categorized.get(category)!.push(skill);
     });
     
+    // Map AI categories to display categories
+    const categoryMapping: { [key: string]: string } = {
+      'Languages': 'Languages & Frameworks',
+      'Frontend': 'Languages & Frameworks', 
+      'Backend': 'Languages & Frameworks',
+      'Cloud': 'Cloud & DevOps',
+      'DevOps': 'Cloud & DevOps',
+      'Database': 'Databases & ORM',
+      'Databases': 'Databases & ORM',
+      'Testing': 'Testing & Monitoring',
+      'Tools': 'Practices & Methodologies',
+      'Methodology': 'Practices & Methodologies',
+      'Soft Skills': 'Practices & Methodologies',
+      'Low-Code': 'Practices & Methodologies'
+    };
+    
+    // Group by mapped categories
+    const mappedCategorized = new Map<string, any[]>();
+    categorized.forEach((skills, category) => {
+      const mappedCategory = categoryMapping[category] || category;
+      if (!mappedCategorized.has(mappedCategory)) {
+        mappedCategorized.set(mappedCategory, []);
+      }
+      mappedCategorized.get(mappedCategory)!.push(...skills);
+    });
+    
     // Return in preferred category order
     const categoryOrder = [
       'Languages & Frameworks',
@@ -327,10 +373,10 @@ export class ResumeTailoringComponent implements OnInit {
     ];
     
     return categoryOrder
-      .filter(cat => categorized.has(cat))
+      .filter(cat => mappedCategorized.has(cat))
       .map(cat => ({
         name: cat,
-        skills: categorized.get(cat)!
+        skills: mappedCategorized.get(cat)!
       }));
   }
 

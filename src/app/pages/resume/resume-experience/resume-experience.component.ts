@@ -4,14 +4,17 @@ import { FormsModule } from '@angular/forms';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
 import { ChipsModule } from 'primeng/chips';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { DividerModule } from 'primeng/divider';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
@@ -30,14 +33,17 @@ import { ResumeExperience, ResumeExperienceForm, ResumeResponsibilityForm, Resum
     AutoCompleteModule,
     ButtonModule,
     CardModule,
+    CheckboxModule,
     ChipsModule,
     ConfirmDialogModule,
     DialogModule,
+    DividerModule,
     DropdownModule,
     InputTextModule,
     MessageModule,
     ProgressSpinnerModule,
     TableModule,
+    TagModule,
     TextareaModule,
     ToastModule,
     TooltipModule,
@@ -68,6 +74,18 @@ export class ResumeExperienceComponent implements OnInit {
   allTags: string[] = [];
   filteredTags: string[] = [];
   
+  // Job settings dialog
+  showJobSettingsDialog = false;
+  selectedJobForSettings: ResumeExperience | null = null;
+  isJobExcluded = false;
+  adjustDates = false;
+  adjustedStartDate = '';
+  adjustedEndDate = '';
+  displayTagsInResume = true; // Default to true (show tags)
+  responsibilityMappings = new Map<string, string>(); // responsibility_id -> target_experience_id
+  availableTargetJobs: Array<{ id: string; displayLabel: string }> = [];
+  savingSettings = false;
+  
   // Available images from assets/images folder
   availableImages = [
     { label: 'None', value: '' },
@@ -75,7 +93,10 @@ export class ResumeExperienceComponent implements OnInit {
     { label: 'HealthNet', value: 'assets/images/healthnet.png' },
     { label: 'Hyland', value: 'assets/images/hyland.png' },
     { label: 'Orion', value: 'assets/images/orion.png' },
-    { label: 'Envolve', value: 'assets/images/envolve.png' }
+    { label: 'Envolve', value: 'assets/images/envolve.png' },
+    { label: 'Informa', value: 'assets/images/informa.png' },
+    { label: 'DeVry', value: 'assets/images/devry.png' },
+    { label: 'BestBuy', value: 'assets/images/bestbuy.png' },
   ];
 
   constructor(
@@ -325,5 +346,217 @@ export class ResumeExperienceComponent implements OnInit {
       // Sort by start_date descending (most recent first)
       return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
     });
+  }
+
+  // Job Settings Methods
+  async openJobSettings(experience: ResumeExperience) {
+    this.selectedJobForSettings = experience;
+    this.isJobExcluded = experience.is_excluded || false;
+    this.adjustDates = experience.adjust_dates || false;
+    this.adjustedStartDate = experience.adjusted_start_date || experience.start_date || '';
+    this.adjustedEndDate = experience.adjusted_end_date || experience.end_date || '';
+    this.displayTagsInResume = experience.display_tags_in_resume !== undefined ? experience.display_tags_in_resume : true;
+    this.responsibilityMappings = new Map();
+    
+    // Load existing mappings
+    if (experience.id) {
+      await this.loadResponsibilityMappings(experience.id);
+    }
+    
+    // Get available target jobs (exclude current job and other excluded jobs)
+    this.availableTargetJobs = this.experiences
+      .filter(exp => exp.id !== experience.id && !exp.is_excluded)
+      .map(exp => ({
+        id: exp.id!,
+        displayLabel: `${exp.role} at ${exp.company} (${this.formatDateRange(exp.start_date || '', exp.end_date || '')})`
+      }));
+    
+    this.showJobSettingsDialog = true;
+  }
+
+  async loadResponsibilityMappings(experienceId: string) {
+    try {
+      const mappings = await this.resumeService.getResponsibilityMappings(experienceId);
+      this.responsibilityMappings = new Map(
+        mappings.map(m => [m.responsibility_id, m.target_experience_id])
+      );
+    } catch (error) {
+      console.error('Error loading responsibility mappings:', error);
+    }
+  }
+
+  getMappingForResponsibility(responsibilityId: string): string | undefined {
+    return this.responsibilityMappings.get(responsibilityId);
+  }
+
+  onMappingChange(responsibilityId: string, targetExperienceId: string) {
+    if (targetExperienceId) {
+      this.responsibilityMappings.set(responsibilityId, targetExperienceId);
+    } else {
+      this.responsibilityMappings.delete(responsibilityId);
+    }
+  }
+
+  autoDistributeMappings() {
+    if (!this.selectedJobForSettings?.responsibilities || this.selectedJobForSettings.responsibilities.length === 0) return;
+    
+    const sourceJob = this.selectedJobForSettings;
+    const sourceStart = sourceJob.start_date ? new Date(sourceJob.start_date) : null;
+    const sourceEnd = sourceJob.end_date ? new Date(sourceJob.end_date) : new Date();
+    
+    // For each responsibility, find the best target job
+    for (const resp of sourceJob.responsibilities!) {
+      if (!resp.id) continue;
+      
+      // Find jobs with overlapping dates
+      const overlappingJobs = this.experiences
+        .filter(exp => {
+          if (exp.id === sourceJob.id || exp.is_excluded) return false;
+          
+          const expStart = exp.start_date ? new Date(exp.start_date) : null;
+          const expEnd = exp.end_date ? new Date(exp.end_date) : new Date();
+          
+          if (!sourceStart || !expStart) return false;
+          
+          // Check for date overlap
+          return (sourceStart <= expEnd && sourceEnd >= expStart);
+        })
+        .map(exp => {
+          // Calculate overlap score
+          const expStart = new Date(exp.start_date!);
+          const expEnd = exp.end_date ? new Date(exp.end_date) : new Date();
+          
+          const overlapStart = sourceStart! > expStart ? sourceStart! : expStart;
+          const overlapEnd = sourceEnd < expEnd ? sourceEnd : expEnd;
+          const overlapDays = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24);
+          
+          // Calculate role similarity (simple check for common words)
+          const sourceWords = new Set(sourceJob.role.toLowerCase().split(' '));
+          const expWords = new Set(exp.role.toLowerCase().split(' '));
+          const commonWords = [...sourceWords].filter(w => expWords.has(w)).length;
+          
+          return {
+            experience: exp,
+            score: overlapDays + (commonWords * 30) // Weight common words heavily
+          };
+        })
+        .sort((a, b) => b.score - a.score);
+      
+      // Assign to the best matching job
+      if (overlappingJobs.length > 0) {
+        this.responsibilityMappings.set(resp.id, overlappingJobs[0].experience.id!);
+      } else {
+        // If no overlap, assign to most recent job
+        const mostRecent = this.availableTargetJobs[0];
+        if (mostRecent) {
+          this.responsibilityMappings.set(resp.id, mostRecent.id);
+        }
+      }
+    }
+    
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Auto-Distribution Complete',
+      detail: 'Responsibilities have been automatically assigned based on date overlap and role similarity'
+    });
+  }
+
+  async saveJobSettings() {
+    if (!this.selectedJobForSettings?.id) return;
+    
+    this.savingSettings = true;
+    try {
+      // Update exclusion status
+      await this.resumeService.updateExperienceExclusion(
+        this.selectedJobForSettings.id,
+        this.isJobExcluded
+      );
+      
+      // Update display tags setting (only if NOT excluded)
+      if (!this.isJobExcluded) {
+        await this.resumeService.updateExperienceDisplayTags(
+          this.selectedJobForSettings.id,
+          this.displayTagsInResume
+        );
+      }
+      
+      // Update date adjustments (only if NOT excluded AND checkbox is checked)
+      if (!this.isJobExcluded && this.adjustDates) {
+        await this.resumeService.updateExperienceDateAdjustments(
+          this.selectedJobForSettings.id,
+          true,
+          this.adjustedStartDate || undefined,
+          this.adjustedEndDate || undefined
+        );
+      } else {
+        // If job is excluded or adjust dates is unchecked, clear any date adjustments
+        await this.resumeService.updateExperienceDateAdjustments(
+          this.selectedJobForSettings.id,
+          false,
+          undefined,
+          undefined
+        );
+      }
+      
+      // Save responsibility mappings (only if excluded)
+      if (this.isJobExcluded) {
+        const mappings = Array.from(this.responsibilityMappings.entries()).map(([responsibility_id, target_experience_id]) => ({
+          responsibility_id,
+          target_experience_id
+        }));
+        
+        await this.resumeService.saveResponsibilityMappings(
+          this.selectedJobForSettings.id,
+          mappings
+        );
+      }
+      
+      // Update local experience object
+      const exp = this.experiences.find(e => e.id === this.selectedJobForSettings?.id);
+      if (exp) {
+        exp.is_excluded = this.isJobExcluded;
+        if (!this.isJobExcluded) {
+          exp.display_tags_in_resume = this.displayTagsInResume;
+          if (this.adjustDates) {
+            exp.adjust_dates = true;
+            exp.adjusted_start_date = this.adjustedStartDate || undefined;
+            exp.adjusted_end_date = this.adjustedEndDate || undefined;
+          } else {
+            exp.adjust_dates = false;
+            exp.adjusted_start_date = undefined;
+            exp.adjusted_end_date = undefined;
+          }
+        }
+      }
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Settings Saved',
+        detail: 'Job settings saved successfully'
+      });
+      
+      this.closeJobSettings();
+    } catch (error) {
+      console.error('Error saving job settings:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to save job settings'
+      });
+    } finally {
+      this.savingSettings = false;
+    }
+  }
+
+  closeJobSettings() {
+    this.showJobSettingsDialog = false;
+    this.selectedJobForSettings = null;
+    this.isJobExcluded = false;
+    this.adjustDates = false;
+    this.adjustedStartDate = '';
+    this.adjustedEndDate = '';
+    this.displayTagsInResume = true;
+    this.responsibilityMappings = new Map();
+    this.availableTargetJobs = [];
   }
 }

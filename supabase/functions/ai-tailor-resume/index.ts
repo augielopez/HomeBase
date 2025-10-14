@@ -17,6 +17,7 @@ interface TailoringRequest {
     projects: any[];
     volunteer: any[];
   };
+  useMockMode?: boolean;
 }
 
 interface TailoringResponse {
@@ -31,6 +32,10 @@ interface TailoringResponse {
   tailoredResume: any;
   analysis: string;
   recommendations: string[];
+  _debug?: {
+    method: 'mock' | 'openai';
+    timestamp: string;
+  };
 }
 
 serve(async (req) => {
@@ -43,8 +48,8 @@ serve(async (req) => {
     console.log('AI Tailor Resume function called')
     
     // Parse request body
-    const { jobDescription, masterResume }: TailoringRequest = await req.json()
-    console.log('Request parsed, jobDescription length:', jobDescription?.length, 'masterResume exists:', !!masterResume)
+    const { jobDescription, masterResume, useMockMode }: TailoringRequest = await req.json()
+    console.log('Request parsed, jobDescription length:', jobDescription?.length, 'masterResume exists:', !!masterResume, 'useMockMode:', useMockMode)
 
     if (!jobDescription || !masterResume) {
       console.error('Missing required fields')
@@ -57,6 +62,29 @@ serve(async (req) => {
       )
     }
 
+    // If user explicitly requests mock mode, use it
+    if (useMockMode) {
+      console.log('User requested mock mode, generating mock response...')
+      try {
+        const mockResponse = generateMockTailoredResume(jobDescription, masterResume)
+        mockResponse._debug = {
+          method: 'mock',
+          timestamp: new Date().toISOString()
+        }
+        console.log('Mock response generated successfully')
+        return new Response(
+          JSON.stringify(mockResponse),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      } catch (mockError) {
+        console.error('Error generating mock response:', mockError)
+        throw mockError
+      }
+    }
+
     // Create AI prompt for resume tailoring
     const aiPrompt = createTailoringPrompt(jobDescription, masterResume)
     console.log('AI prompt created, length:', aiPrompt.length)
@@ -66,10 +94,14 @@ serve(async (req) => {
     console.log('OpenAI API key exists:', !!openaiApiKey)
     
     if (!openaiApiKey) {
-      // Return mock response for development
-      console.log('Generating mock response...')
+      // Return mock response for development if no API key
+      console.log('No API key found, generating mock response...')
       try {
         const mockResponse = generateMockTailoredResume(jobDescription, masterResume)
+        mockResponse._debug = {
+          method: 'mock',
+          timestamp: new Date().toISOString()
+        }
         console.log('Mock response generated successfully')
         return new Response(
           JSON.stringify(mockResponse),
@@ -85,6 +117,7 @@ serve(async (req) => {
     }
 
     // Make request to OpenAI
+    console.log('Calling OpenAI API...')
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -92,7 +125,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -103,20 +136,37 @@ serve(async (req) => {
             content: aiPrompt
           }
         ],
-        max_tokens: 2000,
+        max_tokens: 4000,
         temperature: 0.7,
       }),
     })
 
+    console.log('OpenAI response status:', openaiResponse.status)
+    
     if (!openaiResponse.ok) {
-      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+      const errorBody = await openaiResponse.text()
+      console.error('OpenAI API error body:', errorBody)
+      throw new Error(`OpenAI API error: ${openaiResponse.status} - ${openaiResponse.statusText} - ${errorBody}`)
     }
 
     const openaiData = await openaiResponse.json()
+    console.log('OpenAI response received, choices:', openaiData.choices?.length)
+    
+    if (!openaiData.choices || !openaiData.choices[0]) {
+      throw new Error('OpenAI response missing choices array')
+    }
+    
     const aiResponse = openaiData.choices[0].message.content
+    console.log('AI response content length:', aiResponse?.length)
+    console.log('AI response preview (first 1000 chars):', aiResponse?.substring(0, 1000))
+    console.log('AI response preview (last 1000 chars):', aiResponse?.substring(Math.max(0, aiResponse.length - 1000)))
 
     // Parse AI response and structure the tailored resume
     const tailoredResume = parseAIResponse(aiResponse, masterResume)
+    tailoredResume._debug = {
+      method: 'openai',
+      timestamp: new Date().toISOString()
+    }
 
     return new Response(
       JSON.stringify(tailoredResume),
@@ -174,28 +224,106 @@ ${jobDescription}
 Master Resume JSON:
 ${JSON.stringify(masterResume, null, 2)}
 
-Please provide your response in the following JSON format:
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any text before or after the JSON object.
+
+Your response must follow this EXACT structure with ALL fields populated:
+
 {
   "jobBreakdown": {
-    "benefits": [ /* list of benefits extracted from job description */ ],
-    "payRange": "/* salary range or compensation details */",
-    "fitRating": /* number from 1-5 rating how well the candidate fits */,
-    "requiredSkills": [ /* list of required technical and soft skills */ ],
-    "responsibilities": [ /* key responsibilities from job description */ ],
-    "matchSummary": "/* 2-3 sentence summary of how candidate aligns with job */"
+    "benefits": ["Health Insurance", "401k", "Remote Work", "PTO"],
+    "payRange": "$75,000 - $120,000 per year",
+    "fitRating": 4,
+    "requiredSkills": ["Angular", "TypeScript", "REST APIs", "Azure", "CI/CD"],
+    "responsibilities": ["Design and develop applications", "Work with cross-functional teams", "Maintain code quality"],
+    "matchSummary": "Strong match with 8+ years of full-stack development experience including Angular, TypeScript, and cloud platforms."
   },
   "tailoredResume": {
-    "contact": { /* contact info */ },
-    "summary": "/* tailored professional summary */",
-    "skills": [ /* relevant skills with tags */ ],
-    "experience": [ /* relevant experience with tailored responsibilities */ ],
-    "education": [ /* education */ ],
-    "projects": [ /* relevant projects */ ],
-    "volunteer": [ /* relevant volunteer work */ ]
+    "contact": {
+      "name": "Full Name",
+      "email": "email@example.com",
+      "phone": "123-456-7890",
+      "location": "City, State",
+      "linkedin": "linkedin.com/in/profile",
+      "github": "github.com/username"
+    },
+    "summary": "Senior Software Engineer with 9+ years of experience in full-stack development...",
+    "skills": [
+      {
+        "id": "skill-uuid-1",
+        "name": "Angular",
+        "category": "Frontend",
+        "is_featured": true,
+        "display_order": 1,
+        "tags": ["Frontend", "Framework", "TypeScript"]
+      },
+      {
+        "id": "skill-uuid-2",
+        "name": "TypeScript",
+        "category": "Languages",
+        "is_featured": true,
+        "display_order": 2,
+        "tags": ["Language", "JavaScript", "Frontend"]
+      }
+    ],
+    "experience": [
+      {
+        "id": "exp-uuid-1",
+        "role": "Senior Software Engineer",
+        "company": "Company Name",
+        "start_date": "2023-06-01",
+        "end_date": null,
+        "responsibilities": [
+          {
+            "id": "resp-uuid-1",
+            "description": "Designed and deployed enterprise applications ensuring HIPAA compliance",
+            "tags": ["Compliance", "Security", "Enterprise"]
+          },
+          {
+            "id": "resp-uuid-2",
+            "description": "Implemented CI/CD pipelines using Azure DevOps and Jenkins",
+            "tags": ["DevOps", "CI/CD", "Azure"]
+          }
+        ]
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-uuid-1",
+        "degree": "Bachelor of Science",
+        "field_of_study": "Computer Science",
+        "institution": "University Name",
+        "start_date": "2010-09-01",
+        "end_date": "2014-05-01",
+        "minor": "Database Management",
+        "notes": "Summa Cum Laude"
+      }
+    ],
+    "projects": [
+      {
+        "id": "proj-uuid-1",
+        "name": "Project Name",
+        "description": "Description of the project and technologies used",
+        "technologies": "Angular, .NET Core, PostgreSQL",
+        "tags": ["Frontend", "Backend", "Database"]
+      }
+    ],
+    "certifications": [],
+    "volunteer": []
   },
-  "analysis": "/* analysis of how the resume was tailored */",
-  "recommendations": [ /* list of recommendations for improvement */ ]
+  "analysis": "The resume has been tailored to emphasize Angular development, cloud experience, and enterprise application development which align with the job requirements.",
+  "recommendations": [
+    "Emphasize your experience with Outsystems or low-code platforms if available",
+    "Highlight specific examples of working in Agile/Scrum environments",
+    "Include quantifiable metrics for application performance improvements"
+  ]
 }
+
+REMEMBER: 
+- Respond with ONLY the JSON object, no additional text
+- Include ALL fields even if some are empty arrays
+- Ensure skills array has at least 10-15 items organized by category
+- Each experience must have at least 3-4 responsibility bullet points
+- Use the actual data from the master resume, don't make up fake UUIDs or data
 `
 }
 
@@ -369,7 +497,7 @@ function generateMockTailoredResume(jobDescription: string, masterResume: any): 
       benefits: benefits,
       payRange: payRange,
       fitRating: fitRating,
-      requiredSkills: keywords.slice(0, 10),
+      requiredSkills: extractRequiredSkills(jobDescription || ''),
       responsibilities: extractResponsibilities(jobDescription || ''),
       matchSummary: matchSummary
     },
@@ -412,6 +540,93 @@ function extractKeywords(text: string): string[] {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15)
     .map(([word]) => word)
+}
+
+function extractRequiredSkills(text: string): string[] {
+  const textLower = text.toLowerCase()
+  const foundSkills = new Set<string>()
+  
+  // Define comprehensive skill patterns
+  const skillPatterns = {
+    // Programming Languages
+    languages: ['javascript', 'typescript', 'python', 'java', 'c#', 'csharp', 'c\\+\\+', 'ruby', 'php', 'go', 'golang', 'rust', 'swift', 'kotlin', 'scala', 'r\\b', 'perl', 'sql', 'pl/sql', 'pl\\\\sql', 't-sql'],
+    
+    // Frontend Technologies
+    frontend: ['react', 'angular', 'vue\\.js', 'vue', 'next\\.js', 'nextjs', 'svelte', 'html5?', 'css3?', 'sass', 'scss', 'less', 'tailwind', 'bootstrap', 'material[-\\s]?ui', 'webpack', 'vite', 'parcel', 'jquery', 'redux', 'mobx', 'rxjs', 'primeng', 'primefaces'],
+    
+    // Backend & Frameworks
+    backend: ['node\\.js', 'nodejs', 'express\\.?js', 'nestjs', 'django', 'flask', 'fastapi', 'spring', 'spring[-\\s]?boot', '\\.net', 'asp\\.net', 'entity[-\\s]?framework', 'rails', 'laravel', 'symfony', 'hibernate'],
+    
+    // Databases
+    databases: ['sql[-\\s]?server', 'mysql', 'postgresql', 'postgres', 'mongodb', 'redis', 'elasticsearch', 'cassandra', 'dynamodb', 'oracle', 'sqlite', 'mariadb', 'couchdb', 'neo4j'],
+    
+    // Cloud & Infrastructure
+    cloud: ['aws', 'azure', 'gcp', 'google[-\\s]?cloud', 'docker', 'kubernetes', 'k8s', 'terraform', 'ansible', 'jenkins', 'ci/cd', 'devops', 'microservices', 'serverless', 'lambda', 'fargate', 'ecs', 'ec2', 's3'],
+    
+    // Version Control & Tools
+    tools: ['git', 'github', 'gitlab', 'bitbucket', 'jira', 'confluence', 'slack', 'trello', 'npm', 'yarn', 'maven', 'gradle', 'webpack', 'vscode', 'visual[-\\s]?studio'],
+    
+    // Methodologies & Practices
+    methodologies: ['agile', 'scrum', 'kanban', 'waterfall', 'tdd', 'bdd', 'ci/cd', 'continuous[-\\s]?integration', 'continuous[-\\s]?deployment', 'solid', 'dry', 'rest', 'restful', 'graphql', 'soap', 'grpc', 'microservices', 'monolith', 'mvc', 'mvvm'],
+    
+    // Testing
+    testing: ['jest', 'mocha', 'jasmine', 'karma', 'cypress', 'selenium', 'junit', 'nunit', 'pytest', 'rspec', 'cucumber', 'unit[-\\s]?test', 'integration[-\\s]?test', 'e2e', 'test[-\\s]?automation'],
+    
+    // Security & Compliance
+    security: ['oauth', 'oauth2', 'jwt', 'saml', 'ssl', 'tls', 'https', 'rbac', 'hipaa', 'gdpr', 'soc[-\\s]?2', 'pci[-\\s]?dss', 'encryption', 'authentication', 'authorization'],
+    
+    // Monitoring & Logging
+    monitoring: ['splunk', 'datadog', 'new[-\\s]?relic', 'prometheus', 'grafana', 'elk', 'elasticsearch', 'logstash', 'kibana', 'sentry', 'cloudwatch'],
+    
+    // Message Queues & Event Streaming
+    messaging: ['rabbitmq', 'kafka', 'activemq', 'redis', 'pub/sub', 'event[-\\s]?driven', 'message[-\\s]?queue'],
+    
+    // Soft Skills & Competencies
+    softSkills: ['leadership', 'communication', 'collaboration', 'problem[-\\s]?solving', 'analytical', 'mentoring', 'team[-\\s]?player', 'self[-\\s]?motivated', 'detail[-\\s]?oriented', 'critical[-\\s]?thinking']
+  }
+  
+  // Check for each pattern in the text
+  Object.values(skillPatterns).flat().forEach(pattern => {
+    const regex = new RegExp(`\\b${pattern}\\b`, 'gi')
+    const matches = textLower.match(regex)
+    if (matches) {
+      // Normalize the skill name (capitalize properly)
+      const normalizedSkill = matches[0]
+        .replace(/\./g, '')
+        .replace(/[-\s]+/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+        .replace(/\bJs\b/g, 'JS')
+        .replace(/\bCss\b/g, 'CSS')
+        .replace(/\bHtml\b/g, 'HTML')
+        .replace(/\bSql\b/g, 'SQL')
+        .replace(/\bApi\b/g, 'API')
+        .replace(/\bRest\b/g, 'REST')
+        .replace(/\bGraphql\b/g, 'GraphQL')
+        .replace(/\bOauth\b/g, 'OAuth')
+        .replace(/\bJwt\b/g, 'JWT')
+        .replace(/\bUi\b/g, 'UI')
+        .replace(/\bAws\b/g, 'AWS')
+        .replace(/\bGcp\b/g, 'GCP')
+        .replace(/\bCi Cd\b/g, 'CI/CD')
+        .replace(/\bTdd\b/g, 'TDD')
+        .replace(/\bBdd\b/g, 'BDD')
+        .replace(/\bE2e\b/g, 'E2E')
+        .replace(/\bRbac\b/g, 'RBAC')
+        .replace(/\bHipaa\b/g, 'HIPAA')
+        .replace(/\bGdpr\b/g, 'GDPR')
+        .replace(/\bSsl\b/g, 'SSL')
+        .replace(/\bTls\b/g, 'TLS')
+        .replace(/\bHttps\b/g, 'HTTPS')
+        .replace(/\bElk\b/g, 'ELK')
+        .replace(/\bK8s\b/g, 'K8s')
+      
+      foundSkills.add(normalizedSkill)
+    }
+  })
+  
+  return Array.from(foundSkills).slice(0, 20)
 }
 
 function getSkillRelationships(): Record<string, string[]> {
@@ -566,16 +781,106 @@ function extractResponsibilities(text: string): string[] {
 
 function parseAIResponse(aiResponse: string, masterResume: any): TailoringResponse {
   try {
-    // Try to extract JSON from the AI response
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      return parsed
+    console.log('Parsing AI response, length:', aiResponse?.length)
+    
+    let parsed: any = null
+    
+    // First try to parse the entire response as JSON
+    try {
+      parsed = JSON.parse(aiResponse)
+      console.log('Successfully parsed AI response as direct JSON')
+    } catch (directParseError) {
+      console.log('Direct JSON parse failed, trying to extract JSON from text')
     }
+    
+    // Try to extract JSON from markdown code blocks
+    if (!parsed) {
+      const codeBlockMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/)
+      if (codeBlockMatch) {
+        parsed = JSON.parse(codeBlockMatch[1])
+        console.log('Successfully extracted JSON from code block')
+      }
+    }
+    
+    // Try to extract any JSON object from the response
+    if (!parsed) {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0])
+        console.log('Successfully extracted JSON from response text')
+      }
+    }
+    
+    if (!parsed) {
+      console.error('No valid JSON found in AI response')
+      throw new Error('No valid JSON found')
+    }
+    
+    // Validate the parsed response structure
+    console.log('Validating parsed response structure...')
+    console.log('Parsed keys:', Object.keys(parsed))
+    console.log('Has jobBreakdown:', !!parsed.jobBreakdown)
+    console.log('Has tailoredResume:', !!parsed.tailoredResume)
+    
+    if (parsed.tailoredResume) {
+      console.log('tailoredResume keys:', Object.keys(parsed.tailoredResume))
+      console.log('tailoredResume.skills length:', parsed.tailoredResume.skills?.length || 0)
+      console.log('tailoredResume.experience length:', parsed.tailoredResume.experience?.length || 0)
+      console.log('tailoredResume.education length:', parsed.tailoredResume.education?.length || 0)
+      console.log('tailoredResume.summary exists:', !!parsed.tailoredResume.summary)
+    }
+    
+    if (parsed.jobBreakdown) {
+      console.log('jobBreakdown keys:', Object.keys(parsed.jobBreakdown))
+      console.log('jobBreakdown.requiredSkills length:', parsed.jobBreakdown.requiredSkills?.length || 0)
+      console.log('jobBreakdown.fitRating:', parsed.jobBreakdown.fitRating)
+    }
+    
+    // Validate required fields exist
+    if (!parsed.jobBreakdown || !parsed.tailoredResume) {
+      console.error('Missing required fields in parsed response')
+      console.error('Full parsed object:', JSON.stringify(parsed, null, 2).substring(0, 1000))
+      throw new Error('Missing required fields: jobBreakdown or tailoredResume')
+    }
+    
+    // Ensure all required nested fields exist with defaults
+    const validatedResponse: TailoringResponse = {
+      jobBreakdown: {
+        benefits: parsed.jobBreakdown.benefits || [],
+        payRange: parsed.jobBreakdown.payRange || 'Not specified',
+        fitRating: parsed.jobBreakdown.fitRating || 3,
+        requiredSkills: parsed.jobBreakdown.requiredSkills || [],
+        responsibilities: parsed.jobBreakdown.responsibilities || [],
+        matchSummary: parsed.jobBreakdown.matchSummary || 'Analysis pending'
+      },
+      tailoredResume: {
+        contact: parsed.tailoredResume.contact || masterResume.contact || {},
+        summary: parsed.tailoredResume.summary || 'Professional summary',
+        skills: parsed.tailoredResume.skills || [],
+        experience: parsed.tailoredResume.experience || [],
+        education: parsed.tailoredResume.education || [],
+        certifications: parsed.tailoredResume.certifications || [],
+        projects: parsed.tailoredResume.projects || [],
+        volunteer: parsed.tailoredResume.volunteer || []
+      },
+      analysis: parsed.analysis || 'Resume tailored successfully',
+      recommendations: parsed.recommendations || []
+    }
+    
+    console.log('Validation complete - returning validated response')
+    console.log('Final skills count:', validatedResponse.tailoredResume.skills.length)
+    console.log('Final experience count:', validatedResponse.tailoredResume.experience.length)
+    
+    return validatedResponse
+    
   } catch (error) {
     console.error('Failed to parse AI response as JSON:', error)
+    console.error('Error message:', error.message)
+    console.error('AI response preview (first 500 chars):', aiResponse?.substring(0, 500))
+    console.error('AI response preview (last 500 chars):', aiResponse?.substring(Math.max(0, aiResponse.length - 500)))
   }
 
   // Fallback to mock response if parsing fails
+  console.log('Falling back to mock response due to parsing failure')
   return generateMockTailoredResume('', masterResume)
 }

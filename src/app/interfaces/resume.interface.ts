@@ -48,6 +48,11 @@ export interface ResumeExperience {
   start_date?: string;
   end_date?: string;
   image_url?: string;
+  is_excluded?: boolean;
+  adjust_dates?: boolean;
+  adjusted_start_date?: string;
+  adjusted_end_date?: string;
+  display_tags_in_resume?: boolean;
   responsibilities?: ResumeResponsibility[];
   managers?: ResumeManager[];
   created_at?: string;
@@ -69,6 +74,16 @@ export interface ResumeManager {
   manager_name: string;
   start_date?: string;
   end_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ResponsibilityMapping {
+  id?: string;
+  user_id?: string;
+  source_experience_id: string;
+  target_experience_id: string;
+  responsibility_id: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -261,16 +276,19 @@ export interface TailoringResponse {
   tailoredResume: TailoredResume;
   analysis?: string;
   recommendations?: string[];
+  _debug?: {
+    method: 'mock' | 'openai';
+    timestamp: string;
+  };
 }
 
 // Skill category constants
 export const SKILL_CATEGORIES = [
   'Languages & Frameworks',
-  'Cloud & DevOps',
-  'Containerization & Microservices',
+  'Libraries & Tools',
   'Databases & ORM',
-  'Security & Compliance',
-  'Testing & Monitoring',
+  'Cloud, DevOps & Platforms',
+  'ETL & Messaging',
   'Practices & Methodologies'
 ] as const;
 

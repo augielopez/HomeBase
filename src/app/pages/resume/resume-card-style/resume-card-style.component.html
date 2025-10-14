@@ -1,0 +1,128 @@
+<div class="baseball-card-container">
+  <div *ngIf="loading" class="flex justify-content-center p-4">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+
+  <div *ngIf="!loading && !masterResume" class="p-4">
+    <p-message severity="warn" text="No resume data found. Please add your information in the other resume sections."></p-message>
+  </div>
+
+  <div *ngIf="!loading && masterResume" class="baseball-card">
+    <!-- Print Button (hidden on print) -->
+    <div class="no-print mb-3 text-right">
+      <p-button 
+        label="Print Card" 
+        icon="pi pi-print" 
+        (click)="printCard()"
+        severity="secondary"
+      ></p-button>
+    </div>
+
+    <!-- Card Header with Photo -->
+    <div class="card-header">
+      <div class="header-left">
+        <div class="player-number">{{ totalYears }}</div>
+        <div class="player-info">
+          <h1 class="player-name">{{ masterResume.contact?.name || 'Your Name' }}</h1>
+          <div class="position-badge">
+            <span class="position-letter">{{ getPrimaryRole() }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="player-photo">
+        <div class="photo-placeholder">
+          <i class="pi pi-user"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Details -->
+    <div class="">
+      <div class="detail-row">
+        <strong>LOCATION:</strong> {{ masterResume.contact?.location || 'N/A' }}
+        <strong class="ml-4">EMAIL:</strong> {{ masterResume.contact?.email || 'N/A' }}
+      </div>
+      <div class="detail-row">
+        <strong>PHONE:</strong> {{ masterResume.contact?.phone || 'N/A' }}
+        <strong class="ml-4">LINKEDIN:</strong> {{ masterResume.contact?.linkedin ? formatLinkedIn(masterResume.contact?.linkedin || '') : 'N/A' }}
+      </div>
+      <div class="detail-row">
+        <strong>COMPANIES WORKED:</strong> {{ totalCompanies }}
+        <strong class="ml-4">CERTIFICATIONS:</strong> {{ masterResume.certifications?.length || 0 }}
+        <strong class="ml-4">EDUCATION:</strong> {{ masterResume.education?.length || 0 }}
+      </div>
+    </div>
+
+    <!-- Career Statistics Table -->
+    <div class="stats-section">
+      <h3 class="stats-title">COMPLETE CAREER RECORD (YEARS SHOWN AS 'YY)</h3>
+      
+      <div class="stats-table-wrapper">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>YR</th>
+              <th>COMPANY</th>
+              <th>ROLE</th>
+              <th>MOS</th>
+              <th>PROJ</th>
+              <th>TECH</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let stat of careerStats">
+              <td class="year-col">'{{ stat.year }}</td>
+              <td class="company-col">{{ stat.company }}</td>
+              <td class="role-col">{{ stat.role }}</td>
+              <td class="number-col">{{ stat.duration }}</td>
+              <td class="number-col">{{ stat.projects }}</td>
+              <td class="number-col">{{ stat.techCount }}</td>
+            </tr>
+            <tr class="total-row">
+              <td colspan="2"><strong>CAREER TOTALS</strong></td>
+              <td class="number-col"><strong>{{ totalCompanies }} ORGS</strong></td>
+              <td class="number-col"><strong>{{ Math.round(totalMonths) }} MOS</strong></td>
+              <td class="number-col"><strong>{{ totalProjects }}</strong></td>
+              <td class="number-col"><strong>{{ totalTechnologies }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Narrative / Professional Summary -->
+    <div class="narrative-section">
+      <p *ngIf="masterResume.contact?.professional_summary">
+        {{ masterResume.contact.professional_summary }}
+      </p>
+      <p *ngIf="!masterResume.contact?.professional_summary" class="text-muted">
+        <em>Add your professional summary in the Contact Information section to see it here.</em>
+      </p>
+    </div>
+
+    <!-- Top Skills (like logos at bottom) -->
+    <div class="skills-section">
+      <div class="skills-header">TOP SKILLS & TECHNOLOGIES</div>
+      <div class="skills-list">
+        <p-tag 
+          *ngFor="let skill of topSkills" 
+          [value]="skill" 
+          severity="info"
+          class="skill-tag"
+        ></p-tag>
+        <span *ngIf="topSkills.length === 0" class="text-muted">
+          <em>Add skills in the Skills section to see them here.</em>
+        </span>
+      </div>
+    </div>
+
+    <!-- Footer / Copyright -->
+    <div class="card-footer">
+      <div class="footer-logo">RESUME</div>
+      <div class="footer-text">
+        {{ currentYear }} Professional Resume Card • All Rights Reserved
+      </div>
+    </div>
+  </div>
+</div>
+

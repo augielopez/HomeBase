@@ -15,7 +15,8 @@ import {
   TailoringResponse,
   ResumeTag,
   ResumeExperienceInput,
-  ResumeManager
+  ResumeManager,
+  ResponsibilityMapping
 } from '../../interfaces/resume.interface';
 
 @Injectable({
@@ -501,6 +502,161 @@ export class ResumeService {
     }
   }
 
+  // Job Exclusion and Responsibility Mapping
+  async updateExperienceExclusion(experienceId: string, isExcluded: boolean): Promise<void> {
+    const { error } = await this.supabase.getClient()
+      .from('resume_experience')
+      .update({ is_excluded: isExcluded })
+      .eq('id', experienceId);
+    
+    if (error) throw error;
+  }
+
+  async updateExperienceDisplayTags(experienceId: string, displayTags: boolean): Promise<void> {
+    const { error } = await this.supabase.getClient()
+      .from('resume_experience')
+      .update({ display_tags_in_resume: displayTags })
+      .eq('id', experienceId);
+    
+    if (error) throw error;
+  }
+
+  async updateExperienceDateAdjustments(
+    experienceId: string, 
+    adjustDates: boolean, 
+    adjustedStartDate?: string, 
+    adjustedEndDate?: string
+  ): Promise<void> {
+    const { error } = await this.supabase.getClient()
+      .from('resume_experience')
+      .update({ 
+        adjust_dates: adjustDates,
+        adjusted_start_date: adjustedStartDate || null,
+        adjusted_end_date: adjustedEndDate || null
+      })
+      .eq('id', experienceId);
+    
+    if (error) throw error;
+  }
+
+  async getResponsibilityMappings(experienceId: string): Promise<ResponsibilityMapping[]> {
+    const { data, error } = await this.supabase.getClient()
+      .from('resume_responsibility_mappings')
+      .select('*')
+      .eq('source_experience_id', experienceId);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  async saveResponsibilityMappings(experienceId: string, mappings: Array<{ responsibility_id: string; target_experience_id: string }>): Promise<void> {
+    // Get current user ID
+    const { data: { user } } = await this.supabase.getClient().auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Delete existing mappings for this experience
+    await this.supabase.getClient()
+      .from('resume_responsibility_mappings')
+      .delete()
+      .eq('source_experience_id', experienceId);
+    
+    // Insert new mappings
+    if (mappings && mappings.length > 0) {
+      const mappingsToInsert = mappings.map(mapping => ({
+        user_id: user.id,
+        source_experience_id: experienceId,
+        target_experience_id: mapping.target_experience_id,
+        responsibility_id: mapping.responsibility_id
+      }));
+      
+      const { error } = await this.supabase.getClient()
+        .from('resume_responsibility_mappings')
+        .insert(mappingsToInsert);
+      
+      if (error) throw error;
+    }
+  }
+
+  /**
+   * Get master resume with exclusions and responsibility mappings applied
+   * This is used for resume tailoring and generation
+   */
+  async getMasterResumeForTailoring(): Promise<MasterResume> {
+    // Get all data
+    const [contact, skills, allExperience, education, certifications, projects, volunteer] = await Promise.all([
+      this.getContact(),
+      this.getSkills(),
+      this.getExperience(),
+      this.getEducation(),
+      this.getCertifications(),
+      this.getProjects(),
+      this.getVolunteerWork()
+    ]);
+
+    // Separate excluded and non-excluded experiences
+    const excludedExperiences = allExperience.filter(exp => exp.is_excluded === true);
+    const includedExperiences = allExperience.filter(exp => exp.is_excluded !== true);
+
+    // For each excluded experience, get its mappings and redistribute responsibilities
+    for (const excludedExp of excludedExperiences) {
+      if (!excludedExp.id) continue;
+
+      const mappings = await this.getResponsibilityMappings(excludedExp.id);
+      
+      // Apply each mapping
+      for (const mapping of mappings) {
+        const targetExp = includedExperiences.find(exp => exp.id === mapping.target_experience_id);
+        const responsibility = excludedExp.responsibilities?.find(resp => resp.id === mapping.responsibility_id);
+        
+        if (targetExp && responsibility) {
+          // Add the responsibility to the target experience
+          if (!targetExp.responsibilities) {
+            targetExp.responsibilities = [];
+          }
+          targetExp.responsibilities.push(responsibility);
+        }
+      }
+    }
+
+    // Apply date adjustments and tag display settings to included experiences
+    const adjustedExperiences = includedExperiences.map(exp => {
+      let processedExp = { ...exp };
+      
+      // Apply date adjustments if enabled
+      if (exp.adjust_dates === true) {
+        processedExp.start_date = exp.adjusted_start_date || exp.start_date;
+        processedExp.end_date = exp.adjusted_end_date || exp.end_date;
+      }
+      
+      // Strip tags from responsibilities if display_tags_in_resume is false
+      if (exp.display_tags_in_resume === false && processedExp.responsibilities) {
+        processedExp.responsibilities = processedExp.responsibilities.map(resp => ({
+          ...resp,
+          tags: [] // Remove tags when display_tags_in_resume is false
+        }));
+      }
+      
+      return processedExp;
+    });
+
+    return {
+      contact: contact || {
+        name: '',
+        email: '',
+        phone: '',
+        location: '',
+        linkedin: '',
+        github: ''
+      },
+      skills,
+      experience: adjustedExperiences, // Include non-excluded experiences with adjusted dates and tag settings
+      education,
+      certifications,
+      projects,
+      volunteer
+    };
+  }
+
   // Education
   async getEducation(): Promise<ResumeEducation[]> {
     const { data, error } = await this.supabase.getClient()
@@ -764,7 +920,14 @@ export class ResumeService {
   }
 
   // Job Tailoring Assistant
-  async tailorResume(request: TailoringRequest): Promise<TailoringResponse> {
+  async tailorResume(request: TailoringRequest, useMockMode: boolean = false): Promise<TailoringResponse> {
+    // If mock mode is enabled, generate response locally without API call
+    if (useMockMode) {
+      console.log('Using local mock mode - no API call');
+      return this.generateMockTailoredResume(request.jobDescription, request.masterResume);
+    }
+
+    // Otherwise, call the Edge Function (AI mode)
     const { data: { session } } = await this.supabase.getClient().auth.getSession();
     
     if (!session) {
@@ -783,6 +946,209 @@ export class ResumeService {
     }
 
     return response.data;
+  }
+
+  private generateMockTailoredResume(jobDescription: string, masterResume: any): TailoringResponse {
+    // Extract keywords from job description
+    const keywords = this.extractKeywords(jobDescription);
+    
+    // Extract benefits and pay
+    const benefits = this.extractBenefits(jobDescription);
+    const payRange = this.extractPayRange(jobDescription);
+    
+    // Filter relevant skills
+    const skills = masterResume.skills || [];
+    const relevantSkills = skills.filter((skill: any) => 
+      keywords.some(keyword => 
+        skill?.name?.toLowerCase().includes(keyword.toLowerCase()) ||
+        (Array.isArray(skill?.tags) && skill.tags.some((tag: any) => 
+          typeof tag === 'string' && tag.toLowerCase().includes(keyword.toLowerCase())
+        ))
+      )
+    ).slice(0, 15);
+    
+    // Filter relevant experience
+    const experience = masterResume.experience || [];
+    const relevantExperience = experience.map((exp: any) => {
+      const responsibilities = exp.responsibilities || [];
+      const matchedResponsibilities = responsibilities.filter((resp: any) =>
+        keywords.some(keyword =>
+          resp?.description?.toLowerCase().includes(keyword.toLowerCase()) ||
+          (Array.isArray(resp?.tags) && resp.tags.some((tag: string) => 
+            typeof tag === 'string' && tag.toLowerCase().includes(keyword.toLowerCase())
+          ))
+        )
+      );
+      
+      return {
+        ...exp,
+        responsibilities: matchedResponsibilities.length >= 3 
+          ? matchedResponsibilities 
+          : responsibilities.slice(0, Math.max(3, responsibilities.length))
+      };
+    }).filter((exp: any) => exp.responsibilities.length > 0);
+    
+    // Calculate fit rating
+    const totalSkills = skills.length;
+    const matchedSkills = relevantSkills.length;
+    const totalExperience = experience.length;
+    const matchedExperience = relevantExperience.length;
+    
+    let fitRating = 3;
+    if (totalSkills > 0 || totalExperience > 0) {
+      const skillMatch = totalSkills > 0 ? matchedSkills / totalSkills : 0.5;
+      const expMatch = totalExperience > 0 ? matchedExperience / totalExperience : 0.5;
+      const averageMatch = (skillMatch * 0.6) + (expMatch * 0.4);
+      
+      if (averageMatch >= 0.7) fitRating = 5;
+      else if (averageMatch >= 0.55) fitRating = 4;
+      else if (averageMatch >= 0.35) fitRating = 3;
+      else if (averageMatch >= 0.2) fitRating = 2;
+      else fitRating = 1;
+    }
+    
+    const summary = masterResume.contact?.professional_summary 
+      || 'Experienced professional with a proven track record of delivering results and driving innovation.';
+    
+    const requiredSkills = this.extractRequiredSkills(jobDescription);
+    const responsibilities = this.extractResponsibilities(jobDescription);
+    
+    return {
+      jobBreakdown: {
+        benefits,
+        payRange,
+        fitRating,
+        requiredSkills,
+        responsibilities,
+        matchSummary: fitRating >= 4
+          ? `Strong match with ${matchedSkills} relevant skills and ${matchedExperience} relevant experience areas.`
+          : `Moderate match with ${matchedSkills} skills and ${matchedExperience} experience areas that align with the job requirements.`
+      },
+      tailoredResume: {
+        contact: masterResume.contact || {},
+        summary,
+        skills: relevantSkills,
+        experience: relevantExperience,
+        education: masterResume.education || [],
+        certifications: masterResume.certifications || [],
+        projects: masterResume.projects || [],
+        volunteer: masterResume.volunteer || []
+      },
+      analysis: keywords.length > 0 
+        ? `Based on the job description, I've identified key requirements including ${keywords.slice(0, 5).join(', ')}. The tailored resume emphasizes relevant experience and skills that match these requirements.`
+        : 'Resume has been structured and formatted.',
+      recommendations: [
+        'Consider adding quantifiable achievements to strengthen your impact',
+        'Highlight specific examples of projects or initiatives you led',
+        'Ensure technical skills align with the job requirements',
+        'Add relevant certifications if available'
+      ],
+      _debug: {
+        method: 'mock',
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
+
+  private extractKeywords(text: string): string[] {
+    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'];
+    const words = text.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 3 && !commonWords.includes(word));
+    
+    const wordCounts = words.reduce((acc, word) => {
+      acc[word] = (acc[word] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(wordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([word]) => word);
+  }
+
+  private extractBenefits(text: string): string[] {
+    const benefits: string[] = [];
+    const benefitKeywords = [
+      'health insurance', 'dental', 'vision', '401k', 'retirement',
+      'pto', 'paid time off', 'vacation', 'sick leave',
+      'remote', 'work from home', 'flexible', 'hybrid',
+      'bonus', 'stock options', 'equity'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    benefitKeywords.forEach(keyword => {
+      if (lowerText.includes(keyword)) {
+        const formatted = keyword.split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        if (!benefits.includes(formatted)) {
+          benefits.push(formatted);
+        }
+      }
+    });
+    
+    return benefits.length > 0 ? benefits : ['Benefits package available'];
+  }
+
+  private extractPayRange(text: string): string {
+    const salaryPatterns = [
+      /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:\/\s*(?:yr\.?|year)|per year|annually)?\s*(?:to|-)\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:\/\s*(?:yr\.?|year)|per year|annually)?/i,
+      /\$\s*(\d+)k\s*(?:to|-)\s*\$?\s*(\d+)k/i,
+      /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:\/\s*(?:yr\.?|year)|per year|annually)/i,
+      /\$\s*(\d+)k/i
+    ];
+    
+    for (const pattern of salaryPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        if (match[2]) {
+          const min = match[1].replace(/\.00$/, '');
+          const max = match[2].replace(/\.00$/, '');
+          return `$${min} - $${max} per year`;
+        } else {
+          const value = match[1].replace(/\.00$/, '');
+          return `$${value} per year`;
+        }
+      }
+    }
+    
+    return 'Compensation not specified';
+  }
+
+  private extractRequiredSkills(text: string): string[] {
+    const skills: string[] = [];
+    const skillPatterns = [
+      'javascript', 'typescript', 'python', 'java', 'c#', 'angular', 'react', 'vue',
+      'node', 'express', 'django', 'spring', 'aws', 'azure', 'gcp', 'docker',
+      'kubernetes', 'sql', 'mongodb', 'postgresql', 'git', 'agile', 'scrum'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    skillPatterns.forEach(skill => {
+      if (lowerText.includes(skill)) {
+        const formatted = skill.charAt(0).toUpperCase() + skill.slice(1);
+        skills.push(formatted);
+      }
+    });
+    
+    return skills.slice(0, 10);
+  }
+
+  private extractResponsibilities(text: string): string[] {
+    const responsibilities: string[] = [];
+    const bulletPattern = /(?:^|\n)\s*(?:[-•*]|\d+\.)\s*([^\n]+)/g;
+    const matches = text.matchAll(bulletPattern);
+    
+    for (const match of matches) {
+      const resp = match[1].trim();
+      if (resp.length > 20 && resp.length < 200) {
+        responsibilities.push(resp);
+      }
+    }
+    
+    return responsibilities.slice(0, 8);
   }
 
   // Tag Management

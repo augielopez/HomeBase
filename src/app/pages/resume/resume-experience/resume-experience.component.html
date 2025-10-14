@@ -41,22 +41,35 @@
                       <small class="text-500">{{ formatDateRange(experience.start_date || '', experience.end_date || '') }}</small>
                       </div>
                     </div>
-                    <div class="flex gap-2">
+                    <p-buttongroup>
                       <p-button 
                         icon="pi pi-pencil"
                         size="small"
                         severity="secondary"
                         (click)="openEditExperienceDialog(experience)"
-                        [text]="true"
+                        [outlined]="true"
+                        pTooltip="Edit"
+                        tooltipPosition="top"
+                      ></p-button>
+                      <p-button 
+                        icon="pi pi-cog"
+                        size="small"
+                        severity="secondary"
+                        (click)="openJobSettings(experience)"
+                        [outlined]="true"
+                        pTooltip="Settings"
+                        tooltipPosition="top"
                       ></p-button>
                       <p-button 
                         icon="pi pi-trash"
                         size="small"
                         severity="danger"
                         (click)="confirmDelete(experience)"
-                        [text]="true"
+                        [outlined]="true"
+                        pTooltip="Delete"
+                        tooltipPosition="top"
                       ></p-button>
-                    </div>
+                    </p-buttongroup>
                   </div>
                 </ng-template>
 
@@ -457,6 +470,180 @@
         (click)="saveExperience()"
         [disabled]="!experienceForm.role?.trim() || !experienceForm.company?.trim() || saving"
         [loading]="saving"
+        severity="primary"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- Job Settings Dialog -->
+<p-dialog 
+  [(visible)]="showJobSettingsDialog" 
+  [header]="selectedJobForSettings?.role + ' at ' + selectedJobForSettings?.company + ' - Job Settings'"
+  [modal]="true" 
+  [closable]="true"
+  [style]="{width: '70vw'}"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div *ngIf="selectedJobForSettings" class="p-fluid">
+    <!-- Date Adjustment Checkbox (only shown if job is NOT excluded) -->
+    <div *ngIf="!isJobExcluded" class="mb-4">
+      <div class="flex align-items-center">
+        <p-checkbox 
+          [(ngModel)]="adjustDates" 
+          [binary]="true"
+          inputId="adjustDates"
+        ></p-checkbox>
+        <label for="adjustDates" class="ml-2 cursor-pointer">
+          Adjust start and end dates
+        </label>
+      </div>
+      <small class="text-600 ml-4">
+        Modify the dates shown on generated resumes (e.g., to prevent overlapping employment). Original dates remain unchanged.
+      </small>
+      
+      <!-- Date Inputs (shown when adjustDates is checked) -->
+      <div *ngIf="adjustDates" class="grid mt-3 ml-4">
+        <div class="col-12 md:col-6">
+          <label for="adjustedStartDate" class="block mb-2">Adjusted Start Date</label>
+          <input 
+            pInputText 
+            type="date"
+            id="adjustedStartDate"
+            [(ngModel)]="adjustedStartDate"
+            class="w-full"
+          />
+          <small class="text-500">Original: {{ selectedJobForSettings.start_date || 'N/A' }}</small>
+        </div>
+        <div class="col-12 md:col-6">
+          <label for="adjustedEndDate" class="block mb-2">Adjusted End Date</label>
+          <input 
+            pInputText 
+            type="date"
+            id="adjustedEndDate"
+            [(ngModel)]="adjustedEndDate"
+            class="w-full"
+          />
+          <small class="text-500">Original: {{ selectedJobForSettings.end_date || 'Present' }}</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Display Tags Checkbox (only shown if job is NOT excluded) -->
+    <div *ngIf="!isJobExcluded" class="mb-4">
+      <div class="flex align-items-center">
+        <p-checkbox 
+          [(ngModel)]="displayTagsInResume" 
+          [binary]="true"
+          inputId="displayTags"
+        ></p-checkbox>
+        <label for="displayTags" class="ml-2 cursor-pointer">
+          Display tags in resume
+        </label>
+      </div>
+      <small class="text-600 ml-4">
+        When enabled, responsibility tags will be shown in parentheses after each bullet point in generated resumes (e.g., "Developed applications (Angular, TypeScript, REST API)").
+      </small>
+    </div>
+
+    <!-- Exclusion Checkbox -->
+    <div class="mb-4">
+      <div class="flex align-items-center">
+        <p-checkbox 
+          [(ngModel)]="isJobExcluded" 
+          [binary]="true"
+          inputId="excludeJob"
+        ></p-checkbox>
+        <label for="excludeJob" class="ml-2 cursor-pointer">
+          Exclude this job from resume generation
+        </label>
+      </div>
+      <small class="text-600 ml-4">
+        When excluded, this job won't appear on generated resumes, but you can reassign its responsibilities to other jobs.
+      </small>
+    </div>
+
+    <!-- Responsibility Mapping Table (only shown if job is excluded) -->
+    <div *ngIf="isJobExcluded && selectedJobForSettings.responsibilities && selectedJobForSettings.responsibilities.length > 0">
+      <p-divider></p-divider>
+      
+      <div class="flex justify-content-between align-items-center mb-3">
+        <h5 class="m-0">Responsibility Reassignments</h5>
+        <p-button 
+          label="Auto-Distribute" 
+          icon="pi pi-bolt"
+          (click)="autoDistributeMappings()"
+          severity="info"
+          size="small"
+          [outlined]="true"
+        ></p-button>
+      </div>
+      
+      <p-table 
+        [value]="selectedJobForSettings.responsibilities"
+        styleClass="p-datatable-sm p-datatable-striped"
+        [tableStyle]="{'min-width': '100%'}"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 60%">Responsibility</th>
+            <th style="width: 40%">Assign To Job</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-resp let-rowIndex="rowIndex">
+          <tr>
+            <td>
+              <div class="text-sm">{{ resp.description }}</div>
+              <div *ngIf="resp.tags && resp.tags.length > 0" class="mt-1">
+                <p-tag 
+                  *ngFor="let tag of resp.tags" 
+                  [value]="tag" 
+                  severity="info"
+                  styleClass="mr-1 text-xs"
+                ></p-tag>
+              </div>
+            </td>
+            <td>
+              <p-dropdown 
+                [ngModel]="getMappingForResponsibility(resp.id!)"
+                [options]="availableTargetJobs"
+                optionLabel="displayLabel"
+                optionValue="id"
+                placeholder="Select job"
+                [appendTo]="'body'"
+                [style]="{'width': '100%'}"
+                (onChange)="onMappingChange(resp.id!, $event.value)"
+              ></p-dropdown>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+      
+      <div *ngIf="!selectedJobForSettings.responsibilities || selectedJobForSettings.responsibilities.length === 0" class="text-center p-4 text-600">
+        This job has no responsibilities to reassign.
+      </div>
+    </div>
+
+    <div *ngIf="isJobExcluded && (!selectedJobForSettings.responsibilities || selectedJobForSettings.responsibilities.length === 0)" class="mt-3">
+      <p-message severity="info" text="This job has no responsibilities to reassign."></p-message>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-end gap-2">
+      <p-button 
+        label="Cancel"
+        icon="pi pi-times"
+        (click)="closeJobSettings()"
+        severity="secondary"
+        [text]="true"
+      ></p-button>
+      <p-button 
+        label="Save Settings"
+        icon="pi pi-check"
+        (click)="saveJobSettings()"
+        [loading]="savingSettings"
         severity="primary"
       ></p-button>
     </div>
