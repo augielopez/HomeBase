@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, SecurityContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextarea } from 'primeng/inputtextarea';
@@ -8,10 +9,14 @@ import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SplitterModule } from 'primeng/splitter';
 import { ToastModule } from 'primeng/toast';
+import { TagModule } from 'primeng/tag';
+import { ChipModule } from 'primeng/chip';
+import { DividerModule } from 'primeng/divider';
 import { MessageService } from 'primeng/api';
+import { marked } from 'marked';
 
 import { ResumeService } from '../../resume-services/resume.service';
-import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse } from '../../../interfaces/resume.interface';
+import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse, JobBreakdown } from '../../../interfaces/resume.interface';
 
 @Component({
   selector: 'app-resume-tailoring',
@@ -25,7 +30,10 @@ import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse } fro
     MessageModule,
     ProgressSpinnerModule,
     SplitterModule,
-    ToastModule
+    ToastModule,
+    TagModule,
+    ChipModule,
+    DividerModule
   ],
   providers: [MessageService],
   templateUrl: './resume-tailoring.component.html',
@@ -34,16 +42,20 @@ import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse } fro
 export class ResumeTailoringComponent implements OnInit {
   jobDescription = '';
   masterResume: MasterResume | null = null;
+  jobBreakdown: JobBreakdown | null = null;
   tailoredResume: TailoredResume | null = null;
   tailoringAnalysis = '';
   recommendations: string[] = [];
   
   loading = false;
   tailoring = false;
+  showMarkdownPreview = false;
+  markdownPreviewHtml: SafeHtml = '';
 
   constructor(
     private resumeService: ResumeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private sanitizer: DomSanitizer
   ) {}
 
   async ngOnInit() {
@@ -94,6 +106,7 @@ export class ResumeTailoringComponent implements OnInit {
 
       const response = await this.resumeService.tailorResume(request);
       
+      this.jobBreakdown = response.jobBreakdown;
       this.tailoredResume = response.tailoredResume;
       this.tailoringAnalysis = response.analysis || '';
       this.recommendations = response.recommendations || [];
@@ -139,17 +152,16 @@ export class ResumeTailoringComponent implements OnInit {
       markdown += `## Summary\n\n${resume.summary}\n\n`;
     }
     
-    // Skills
+    // Skills by Category
     if (resume.skills.length > 0) {
-      markdown += `## Skills\n\n`;
-      resume.skills.forEach(skill => {
-        markdown += `- **${skill.name}**`;
-        if (skill.tags && skill.tags.length > 0) {
-          markdown += ` (${skill.tags.join(', ')})`;
-        }
-        markdown += '\n';
+      markdown += `## Technical Skills\n\n`;
+      
+      const categories = this.getSkillCategories(resume.skills);
+      categories.forEach(category => {
+        markdown += `**${category.name}:** `;
+        markdown += category.skills.map(s => s.name).join(', ');
+        markdown += '\n\n';
       });
-      markdown += '\n';
     }
     
     // Experience
@@ -250,8 +262,79 @@ export class ResumeTailoringComponent implements OnInit {
   }
 
   clearResults() {
+    this.jobBreakdown = null;
     this.tailoredResume = null;
     this.tailoringAnalysis = '';
     this.recommendations = [];
+    this.showMarkdownPreview = false;
+    this.markdownPreviewHtml = '';
+  }
+
+  toggleMarkdownPreview() {
+    this.showMarkdownPreview = !this.showMarkdownPreview;
+    if (this.showMarkdownPreview && this.tailoredResume) {
+      this.generateMarkdownPreview();
+    }
+  }
+
+  private async generateMarkdownPreview() {
+    if (!this.tailoredResume) return;
+    
+    const markdown = this.generateMarkdownResume(this.tailoredResume);
+    const html = await marked(markdown);
+    this.markdownPreviewHtml = this.sanitizer.sanitize(SecurityContext.HTML, html) || '';
+  }
+
+  getStarArray(rating: number): boolean[] {
+    return Array(5).fill(false).map((_, index) => index < rating);
+  }
+
+  getFitRatingColor(rating: number): string {
+    if (rating >= 4) return 'success';
+    if (rating === 3) return 'warning';
+    return 'danger';
+  }
+
+  getFitRatingLabel(rating: number): string {
+    if (rating === 5) return 'Excellent Fit';
+    if (rating === 4) return 'Strong Fit';
+    if (rating === 3) return 'Moderate Fit';
+    if (rating === 2) return 'Developing Fit';
+    return 'Limited Fit';
+  }
+
+  getSkillCategories(skills: any[]): { name: string, skills: any[] }[] {
+    const categorized = new Map<string, any[]>();
+    
+    skills.forEach(skill => {
+      const category = skill.category || 'Other';
+      if (!categorized.has(category)) {
+        categorized.set(category, []);
+      }
+      categorized.get(category)!.push(skill);
+    });
+    
+    // Return in preferred category order
+    const categoryOrder = [
+      'Languages & Frameworks',
+      'Cloud & DevOps',
+      'Containerization & Microservices',
+      'Databases & ORM',
+      'Security & Compliance',
+      'Testing & Monitoring',
+      'Practices & Methodologies',
+      'Other'
+    ];
+    
+    return categoryOrder
+      .filter(cat => categorized.has(cat))
+      .map(cat => ({
+        name: cat,
+        skills: categorized.get(cat)!
+      }));
+  }
+
+  getSkillNames(skills: any[]): string {
+    return skills.map(s => s.name).join(', ');
   }
 }

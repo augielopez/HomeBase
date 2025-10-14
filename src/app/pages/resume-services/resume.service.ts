@@ -14,7 +14,8 @@ import {
   TailoringRequest,
   TailoringResponse,
   ResumeTag,
-  ResumeExperienceInput
+  ResumeExperienceInput,
+  ResumeManager
 } from '../../interfaces/resume.interface';
 
 @Injectable({
@@ -61,7 +62,10 @@ export class ResumeService {
         resume_skill_tags_junction (
           resume_tags (*)
         )
-      `);
+      `)
+      .order('is_featured', { ascending: false })
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true });
     
     if (error) throw error;
     
@@ -71,10 +75,15 @@ export class ResumeService {
     }));
   }
 
-  async createSkill(skill: ResumeSkill | { name: string; tags: string[] }): Promise<ResumeSkill> {
+  async createSkill(skill: ResumeSkill | { name: string; category?: string; is_featured?: boolean; display_order?: number; tags: string[] }): Promise<ResumeSkill> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_skills')
-      .insert({ name: skill.name })
+      .insert({ 
+        name: skill.name,
+        category: (skill as any).category || null,
+        is_featured: (skill as any).is_featured || false,
+        display_order: (skill as any).display_order || 0
+      })
       .select()
       .single();
     
@@ -260,14 +269,19 @@ export class ResumeService {
     
     return {
       ...data,
-      tags: data.resume_volunteer_tags_junction?.map((junction: any) => junction.resume_tags) || []
+      tags: data.resume_volunteer_tags_junction?.map((junction: any) => junction.resume_tags.name) || []
     };
   }
 
-  async updateSkill(id: string, skill: ResumeSkill | { name: string; tags: string[] }): Promise<ResumeSkill> {
+  async updateSkill(id: string, skill: ResumeSkill | { name: string; category?: string; is_featured?: boolean; display_order?: number; tags: string[] }): Promise<ResumeSkill> {
     const { data, error } = await this.supabase.getClient()
       .from('resume_skills')
-      .update({ name: skill.name })
+      .update({ 
+        name: skill.name,
+        category: (skill as any).category || null,
+        is_featured: (skill as any).is_featured !== undefined ? (skill as any).is_featured : false,
+        display_order: (skill as any).display_order !== undefined ? (skill as any).display_order : 0
+      })
       .eq('id', id)
       .select()
       .single();
@@ -300,11 +314,23 @@ export class ResumeService {
       .select(`
         *,
         resume_responsibilities(
-          *,
-          resume_responsibility_tags(tag)
+          id,
+          description,
+          experience_id,
+          created_at,
+          resume_responsibility_tags_junction(
+            resume_tags(*)
+          )
+        ),
+        resume_managers(
+          id,
+          manager_name,
+          start_date,
+          end_date,
+          created_at
         )
       `)
-      .order('start_date', { ascending: false });
+      .order('start_date', { ascending: false, nullsFirst: false });
     
     if (error) throw error;
     
@@ -312,8 +338,9 @@ export class ResumeService {
       ...exp,
       responsibilities: exp.resume_responsibilities?.map((resp: any) => ({
         ...resp,
-        tags: resp.resume_responsibility_tags?.map((tag: any) => tag.tag) || []
-      })) || []
+        tags: resp.resume_responsibility_tags_junction?.map((junction: any) => junction.resume_tags.name) || []
+      })) || [],
+      managers: exp.resume_managers || []
     }));
   }
 
@@ -323,8 +350,9 @@ export class ResumeService {
       .insert({
         role: experience.role,
         company: experience.company,
-        start_date: experience.start_date,
-        end_date: experience.end_date
+        start_date: experience.start_date && experience.start_date.trim() !== '' ? experience.start_date : null,
+        end_date: experience.end_date && experience.end_date.trim() !== '' ? experience.end_date : null,
+        image_url: experience.image_url || null
       })
       .select()
       .single();
@@ -336,7 +364,16 @@ export class ResumeService {
       await this.updateExperienceResponsibilities(data.id, experience.responsibilities);
     }
     
-    return { ...data, responsibilities: experience.responsibilities || [] };
+    // Insert managers if provided
+    if (experience.managers && experience.managers.length > 0) {
+      await this.updateExperienceManagers(data.id, experience.managers);
+    }
+    
+    return { 
+      ...data, 
+      responsibilities: experience.responsibilities || [],
+      managers: experience.managers || []
+    };
   }
 
   async updateExperience(id: string, experience: ResumeExperienceInput): Promise<ResumeExperience> {
@@ -345,8 +382,9 @@ export class ResumeService {
       .update({
         role: experience.role,
         company: experience.company,
-        start_date: experience.start_date,
-        end_date: experience.end_date
+        start_date: experience.start_date && experience.start_date.trim() !== '' ? experience.start_date : null,
+        end_date: experience.end_date && experience.end_date.trim() !== '' ? experience.end_date : null,
+        image_url: experience.image_url || null
       })
       .eq('id', id)
       .select()
@@ -359,7 +397,16 @@ export class ResumeService {
       await this.updateExperienceResponsibilities(id, experience.responsibilities);
     }
     
-    return { ...data, responsibilities: experience.responsibilities || [] };
+    // Update managers if provided
+    if (experience.managers) {
+      await this.updateExperienceManagers(id, experience.managers);
+    }
+    
+    return { 
+      ...data, 
+      responsibilities: experience.responsibilities || [],
+      managers: experience.managers || []
+    };
   }
 
   async deleteExperience(id: string): Promise<void> {
@@ -372,34 +419,85 @@ export class ResumeService {
   }
 
   private async updateExperienceResponsibilities(experienceId: string, responsibilities: any[]): Promise<void> {
-    // Delete existing responsibilities
+    // Delete existing responsibilities (cascade will delete tags)
     await this.supabase.getClient()
       .from('resume_responsibilities')
       .delete()
       .eq('experience_id', experienceId);
     
-    // Insert new responsibilities
-    for (const resp of responsibilities) {
-      const { data: respData, error: respError } = await this.supabase.getClient()
-        .from('resume_responsibilities')
-        .insert({ experience_id: experienceId, description: resp.description })
-        .select()
-        .single();
-      
-      if (respError) throw respError;
-      
-      // Insert tags for this responsibility
-      if (resp.tags && resp.tags.length > 0) {
-        const tagInserts = resp.tags.map((tag: string) => ({ 
-          responsibility_id: respData.id, 
-          tag 
-        }));
-        const { error: tagError } = await this.supabase.getClient()
-          .from('resume_responsibility_tags')
-          .insert(tagInserts);
+    // Insert new responsibilities with tags
+    if (responsibilities && responsibilities.length > 0) {
+      for (const resp of responsibilities) {
+        // Insert responsibility
+        const { data: respData, error: respError } = await this.supabase.getClient()
+          .from('resume_responsibilities')
+          .insert({
+            experience_id: experienceId,
+            description: resp.description
+          })
+          .select()
+          .single();
         
-        if (tagError) throw tagError;
+        if (respError) throw respError;
+        
+        // Insert tags for this responsibility
+        if (resp.tags && resp.tags.length > 0) {
+          const tagIds = [];
+          for (const tag of resp.tags) {
+            let tagObj: ResumeTag;
+            if (typeof tag === 'string') {
+              tagObj = await this.masterService.createOrGetTag(tag);
+            } else {
+              tagObj = tag;
+            }
+            tagIds.push(tagObj.id);
+          }
+          
+          // Bulk insert all tag relationships for this responsibility
+          const junctionInserts = tagIds.map(tagId => ({
+            responsibility_id: respData.id,
+            tag_id: tagId
+          }));
+          
+          const { error: tagError } = await this.supabase.getClient()
+            .from('resume_responsibility_tags_junction')
+            .insert(junctionInserts);
+          
+          if (tagError) {
+            console.error('Error inserting responsibility tags:', tagError);
+            throw tagError;
+          }
+        }
       }
+    }
+  }
+
+  private async updateExperienceManagers(experienceId: string, managers: any[]): Promise<void> {
+    // Get current user ID
+    const { data: { user } } = await this.supabase.getClient().auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    
+    // Delete existing managers
+    await this.supabase.getClient()
+      .from('resume_managers')
+      .delete()
+      .eq('experience_id', experienceId);
+    
+    // Insert new managers
+    if (managers && managers.length > 0) {
+      const managersToInsert = managers.map(manager => ({
+        user_id: user.id,
+        experience_id: experienceId,
+        manager_name: manager.manager_name,
+        start_date: manager.start_date && manager.start_date.trim() !== '' ? manager.start_date : null,
+        end_date: manager.end_date && manager.end_date.trim() !== '' ? manager.end_date : null
+      }));
+      
+      const { error } = await this.supabase.getClient()
+        .from('resume_managers')
+        .insert(managersToInsert);
+      
+      if (error) throw error;
     }
   }
 
@@ -495,14 +593,16 @@ export class ResumeService {
       .from('resume_projects')
       .select(`
         *,
-        resume_project_tags(tag)
+        resume_project_tags_junction(
+          resume_tags(*)
+        )
       `);
     
     if (error) throw error;
     
     return projects.map((project: any) => ({
       ...project,
-      tags: project.resume_project_tags?.map((tag: any) => tag.tag) || []
+      tags: project.resume_project_tags_junction?.map((junction: any) => junction.resume_tags.name) || []
     }));
   }
 
@@ -560,14 +660,16 @@ export class ResumeService {
       .from('resume_volunteer')
       .select(`
         *,
-        resume_volunteer_tags(tag)
+        resume_volunteer_tags_junction(
+          resume_tags(*)
+        )
       `);
     
     if (error) throw error;
     
     return volunteer.map((vol: any) => ({
       ...vol,
-      tags: vol.resume_volunteer_tags?.map((tag: any) => tag.tag) || []
+      tags: vol.resume_volunteer_tags_junction?.map((junction: any) => junction.resume_tags.name) || []
     }));
   }
 
@@ -649,6 +751,18 @@ export class ResumeService {
     };
   }
 
+  // Tags
+  async getAllTags(): Promise<string[]> {
+    const { data, error } = await this.supabase.getClient()
+      .from('resume_tags')
+      .select('name')
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    
+    return data ? data.map(tag => tag.name) : [];
+  }
+
   // Job Tailoring Assistant
   async tailorResume(request: TailoringRequest): Promise<TailoringResponse> {
     const { data: { session } } = await this.supabase.getClient().auth.getSession();
@@ -669,5 +783,10 @@ export class ResumeService {
     }
 
     return response.data;
+  }
+
+  // Tag Management
+  async createTag(tagName: string): Promise<ResumeTag> {
+    return await this.masterService.createOrGetTag(tagName);
   }
 }

@@ -1,33 +1,9 @@
 .upcoming-bills-section {
-  .loading-state {
-    .summary-card {
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .bill-item {
-      margin-bottom: 1rem;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-  }
-
-  .no-bills-state {
-    background: var(--surface-50);
-    border: 2px dashed var(--surface-300);
-    border-radius: 12px;
-  }
-
-  .summary-cards {
-    .summary-card {
-      transition: all 0.3s ease;
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      }
-    }
-  }
+  .loading-state .summary-card { border-radius: 8px; overflow: hidden; }
+  .loading-state .bill-item { margin-bottom: 1rem; border-radius: 8px; overflow: hidden; }
+  .no-bills-state { background: var(--surface-50); border: 2px dashed var(--surface-300); border-radius: 12px; }
+  .summary-cards .summary-card { transition: all 0.3s ease; }
+  .summary-cards .summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
 
   .bills-list {
     .bill-item {

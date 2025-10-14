@@ -1,18 +1,7 @@
 .recent-transactions-section {
-  .loading-state {
-    .filters-loading,
-    .table-row {
-      margin-bottom: 0.5rem;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-  }
-
-  .no-transactions-state {
-    background: var(--surface-50);
-    border: 2px dashed var(--surface-300);
-    border-radius: 12px;
-  }
+  .loading-state .filters-loading,
+  .loading-state .table-row { margin-bottom: 0.5rem; border-radius: 8px; overflow: hidden; }
+  .no-transactions-state { background: var(--surface-50); border: 2px dashed var(--surface-300); border-radius: 12px; }
 
   .filters-section {
     background: var(--surface-card);

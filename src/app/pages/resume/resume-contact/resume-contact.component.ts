@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputTextarea } from 'primeng/inputtextarea';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToastModule } from 'primeng/toast';
@@ -21,6 +22,7 @@ import { ResumeContact, ResumeContactForm } from '../../../interfaces/resume.int
     ButtonModule,
     CardModule,
     InputTextModule,
+    InputTextarea,
     MessageModule,
     ProgressSpinnerModule,
     ToastModule
@@ -36,7 +38,8 @@ export class ResumeContactComponent implements OnInit {
     phone: '',
     location: '',
     linkedin: '',
-    github: ''
+    github: '',
+    professional_summary: ''
   };
   
   loading = false;
@@ -62,7 +65,8 @@ export class ResumeContactComponent implements OnInit {
           phone: contactData.phone || '',
           location: contactData.location || '',
           linkedin: contactData.linkedin || '',
-          github: contactData.github || ''
+          github: contactData.github || '',
+          professional_summary: contactData.professional_summary || ''
         };
       }
     } catch (error) {

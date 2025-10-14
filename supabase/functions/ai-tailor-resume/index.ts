@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
 interface TailoringRequest {
@@ -20,6 +20,14 @@ interface TailoringRequest {
 }
 
 interface TailoringResponse {
+  jobBreakdown: {
+    benefits: string[];
+    payRange: string;
+    fitRating: number;
+    requiredSkills: string[];
+    responsibilities: string[];
+    matchSummary: string;
+  };
   tailoredResume: any;
   analysis: string;
   recommendations: string[];
@@ -28,25 +36,18 @@ interface TailoringResponse {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { status: 200, headers: corsHeaders })
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
+    console.log('AI Tailor Resume function called')
+    
     // Parse request body
     const { jobDescription, masterResume }: TailoringRequest = await req.json()
+    console.log('Request parsed, jobDescription length:', jobDescription?.length, 'masterResume exists:', !!masterResume)
 
     if (!jobDescription || !masterResume) {
+      console.error('Missing required fields')
       return new Response(
         JSON.stringify({ error: 'Job description and master resume are required' }),
         { 
@@ -58,20 +59,29 @@ serve(async (req) => {
 
     // Create AI prompt for resume tailoring
     const aiPrompt = createTailoringPrompt(jobDescription, masterResume)
+    console.log('AI prompt created, length:', aiPrompt.length)
 
     // Call OpenAI API (you'll need to add your OpenAI API key to Supabase secrets)
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+    console.log('OpenAI API key exists:', !!openaiApiKey)
     
     if (!openaiApiKey) {
       // Return mock response for development
-      const mockResponse = generateMockTailoredResume(jobDescription, masterResume)
-      return new Response(
-        JSON.stringify(mockResponse),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      console.log('Generating mock response...')
+      try {
+        const mockResponse = generateMockTailoredResume(jobDescription, masterResume)
+        console.log('Mock response generated successfully')
+        return new Response(
+          JSON.stringify(mockResponse),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      } catch (mockError) {
+        console.error('Error generating mock response:', mockError)
+        throw mockError
+      }
     }
 
     // Make request to OpenAI
@@ -118,9 +128,14 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in AI tailor resume function:', error)
+    console.error('Error stack:', error.stack)
     
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message,
+        type: error.constructor.name 
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -133,12 +148,25 @@ function createTailoringPrompt(jobDescription: string, masterResume: any): strin
   return `
 You are the Job Tailoring Assistant.
 
-Step 1: Analyze the job description below. Extract required skills, tools, and role responsibilities.
-Step 2: Search the Master Resume JSON (provided from the database API) for matching responsibilities and skills by tag.
-Step 3: Select the most relevant achievements that align with the job description.
-Step 4: Rewrite selected bullets to mirror the job description's language while staying true to the candidate's real experience.
-Step 5: Assemble a tailored resume (prefer 2 pages, fall back to 1 page).
-Step 6: Output in JSON format with these sections: contact, summary, skills, experience, education, certifications, projects, volunteer.
+Step 1 — Analyze the Job Description: Extract required skills, tools, compensation details, benefits, and role responsibilities from the job description text. Categorize extracted items into core technical skills, soft/leadership skills, responsibilities or impact areas, and job offering details such as pay and benefits.
+
+Step 2 — Generate Job Breakdown: Before tailoring the resume, provide a breakdown of the job that includes the extracted benefits, pay range, required skills, and responsibilities. Compare these details with the candidate's master resume data and calculate a star rating (1–5) representing how well the candidate aligns with the job requirements.
+
+Step 3 — Search the Master Resume JSON: Search for matching responsibilities, projects, and skills in the master resume by tag, skill name or synonym, and context match with job responsibilities or industry keywords.
+
+Step 4 — Select and Expand Relevant Achievements: Select the most relevant achievements and responsibilities that align with the target job. Each experience entry MUST have at least 3-4 bullet points. If the master resume does not have enough bullets for an experience, generate additional bullets that are consistent with the role, company, and time period, tailored to match the job description's focus areas. Ensure all bullets are action-oriented and quantifiable when possible.
+
+Step 5 — Build Comprehensive Skill List: Extract explicit skills mentioned in the job description. For each extracted skill, identify related and complementary skills from the master resume (e.g., if Angular is mentioned, include TypeScript, RxJS, HTML, CSS, etc.). Recognize transferable skills (Angular/React are interchangeable, AWS/Azure/GCP are cloud equivalents). Organize skills by category: Frontend, Backend, Cloud/DevOps, Databases, Tools, Soft Skills. Ensure each category contains at least 3-4 representative skills to demonstrate breadth. Prioritize skills with most relevant tags and recent usage. Include 15-20 total skills even if job description lacks technical detail.
+
+Step 6 — Rewrite and Align Language: Rewrite the selected and approved bullets to mirror the tone and phrasing of the job description while maintaining truthfulness to the candidate's experience. Optimize for ATS keyword matching and enhance with impact metrics if present or inferable.
+
+Step 7 — Tailor the Professional Summary: Use the professional summary from the master resume's contact information. Adapt the language and emphasis to align with the target job's key requirements and industry terminology. Maintain the candidate's voice and core qualifications while emphasizing the most relevant aspects for this specific role. If no summary is provided in the master resume, create a professional summary consisting of three to four sentences highlighting overall experience, technical expertise, domain strengths, and alignment with the target role's focus.
+
+Step 8 — Assemble the Tailored Resume: Compile into a cohesive document with a target length of two pages, falling back to one if needed. Follow the structure: summary, skills, experience, projects, education. Prioritize recency and relevance and remove empty sections.
+
+Step 9 — Output in JSON Format: Structure the final output as { contact, summary, skills, experience, projects, education } with consistent keys and formats.
+
+Step 10 — Validation & Review Check (optional): Compare total resume length, number of bullets, and skill coverage to ensure completeness. Offer a review prompt for optional inclusion of generated bullets, confirm accuracy of job-to-resume alignment, and log matches and expansions for transparency.
 
 Job Description:
 ${jobDescription}
@@ -148,13 +176,20 @@ ${JSON.stringify(masterResume, null, 2)}
 
 Please provide your response in the following JSON format:
 {
+  "jobBreakdown": {
+    "benefits": [ /* list of benefits extracted from job description */ ],
+    "payRange": "/* salary range or compensation details */",
+    "fitRating": /* number from 1-5 rating how well the candidate fits */,
+    "requiredSkills": [ /* list of required technical and soft skills */ ],
+    "responsibilities": [ /* key responsibilities from job description */ ],
+    "matchSummary": "/* 2-3 sentence summary of how candidate aligns with job */"
+  },
   "tailoredResume": {
     "contact": { /* contact info */ },
     "summary": "/* tailored professional summary */",
     "skills": [ /* relevant skills with tags */ ],
     "experience": [ /* relevant experience with tailored responsibilities */ ],
     "education": [ /* education */ ],
-    "certifications": [ /* relevant certifications */ ],
     "projects": [ /* relevant projects */ ],
     "volunteer": [ /* relevant volunteer work */ ]
   },
@@ -165,40 +200,192 @@ Please provide your response in the following JSON format:
 }
 
 function generateMockTailoredResume(jobDescription: string, masterResume: any): TailoringResponse {
-  // Extract keywords from job description for mock tailoring
-  const keywords = extractKeywords(jobDescription)
+  console.log('generateMockTailoredResume called')
   
-  // Filter and prioritize skills based on keywords
-  const relevantSkills = masterResume.skills.filter(skill => 
+  // Extract keywords from job description for mock tailoring
+  const keywords = extractKeywords(jobDescription || '')
+  console.log('Keywords extracted:', keywords.length)
+  
+  // Extract benefits and pay from job description
+  const benefits = extractBenefits(jobDescription || '')
+  const payRange = extractPayRange(jobDescription || '')
+  
+  // Enhanced skill matching with relationships and category breadth
+  const skills = masterResume.skills || []
+  const skillRelationships = getSkillRelationships()
+  const skillCategories = getSkillCategories()
+  
+  // Find directly matched skills
+  const directMatches = skills.filter((skill: any) => 
     keywords.some(keyword => 
-      skill.name.toLowerCase().includes(keyword.toLowerCase()) ||
-      skill.tags?.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
+      skill?.name?.toLowerCase().includes(keyword.toLowerCase()) ||
+      (Array.isArray(skill?.tags) && skill.tags.some((tag: any) => 
+        typeof tag === 'string' && tag.toLowerCase().includes(keyword.toLowerCase())
+      ))
     )
   )
-
-  // Filter experience based on relevance
-  const relevantExperience = masterResume.experience.map(exp => ({
-    ...exp,
-    responsibilities: exp.responsibilities?.filter(resp =>
-      keywords.some(keyword =>
-        resp.description.toLowerCase().includes(keyword.toLowerCase()) ||
-        resp.tags?.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
+  console.log('Direct skill matches:', directMatches.length)
+  
+  // Find related/complementary skills
+  const relatedSkills = new Set<any>()
+  keywords.forEach(keyword => {
+    const keywordLower = keyword.toLowerCase()
+    const relatedTerms = skillRelationships[keywordLower] || []
+    
+    skills.forEach((skill: any) => {
+      const skillNameLower = skill?.name?.toLowerCase() || ''
+      const skillTags = Array.isArray(skill?.tags) ? skill.tags : []
+      
+      // Check if skill name or tags match related terms
+      const matchesRelated = relatedTerms.some(term => 
+        skillNameLower.includes(term) || 
+        skillTags.some((tag: any) => {
+          const tagName = typeof tag === 'string' ? tag : tag?.name || ''
+          return tagName.toLowerCase().includes(term)
+        })
       )
-    ) || []
-  })).filter(exp => exp.responsibilities.length > 0)
+      
+      if (matchesRelated && !directMatches.includes(skill)) {
+        relatedSkills.add(skill)
+      }
+    })
+  })
+  console.log('Related/complementary skills:', relatedSkills.size)
+  
+  // Ensure category breadth - minimum 3 skills per category
+  const categorizedSkills = new Map<string, any[]>()
+  Object.entries(skillCategories).forEach(([category, categoryTerms]) => {
+    const categorySkills = skills.filter((skill: any) => {
+      const skillNameLower = skill?.name?.toLowerCase() || ''
+      const skillTags = Array.isArray(skill?.tags) ? skill.tags : []
+      
+      return categoryTerms.some(term => {
+        const termLower = term.toLowerCase()
+        return skillNameLower.includes(termLower) || 
+          skillTags.some((tag: any) => {
+            const tagName = typeof tag === 'string' ? tag : tag?.name || ''
+            return tagName.toLowerCase().includes(termLower)
+          })
+      })
+    })
+    if (categorySkills.length > 0) {
+      categorizedSkills.set(category, categorySkills.slice(0, 4))
+    }
+  })
+  console.log('Categories with skills:', categorizedSkills.size)
+  
+  // Combine all skills: direct matches + related + category balance
+  const allRelevantSkills = new Set([
+    ...directMatches,
+    ...Array.from(relatedSkills),
+    ...Array.from(categorizedSkills.values()).flat()
+  ])
+  
+  // Separate featured skills from other skills
+  const featuredSkills = skills.filter((skill: any) => skill.is_featured === true)
+  const nonFeaturedSkills = [
+    ...directMatches,
+    ...Array.from(allRelevantSkills).filter(s => !directMatches.includes(s) && !featuredSkills.includes(s))
+  ]
+  
+  // Always include featured skills first (sorted by display_order), then fill with matched skills up to 20 total
+  const relevantSkills = [
+    ...featuredSkills.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)),
+    ...nonFeaturedSkills
+  ].slice(0, 20)
+  
+  console.log('Featured skills included:', featuredSkills.length, 'Other skills:', nonFeaturedSkills.length)
+  console.log('Total relevant skills after enhancement:', relevantSkills.length)
 
-  // Generate tailored summary
-  const topKeywords = keywords.slice(0, 3)
-  const summary = `Experienced professional with expertise in ${topKeywords.join(', ')}. Proven track record of delivering results and driving innovation in dynamic environments.`
+  // Safely filter experience - ensure minimum 3-4 bullets per experience
+  const experience = masterResume.experience || []
+  const relevantExperience = experience.map((exp: any) => {
+    // Filter for relevant responsibilities
+    const allResponsibilities = exp.responsibilities || []
+    const matchedResponsibilities = allResponsibilities.filter((resp: any) =>
+      keywords.some(keyword =>
+        resp?.description?.toLowerCase().includes(keyword.toLowerCase()) ||
+        (Array.isArray(resp?.tags) && resp.tags.some((tag: string) => 
+          typeof tag === 'string' && tag.toLowerCase().includes(keyword.toLowerCase())
+        ))
+      )
+    )
+    
+    // Ensure minimum 3 bullets - if matched < 3, take all available
+    const finalResponsibilities = matchedResponsibilities.length >= 3 
+      ? matchedResponsibilities 
+      : allResponsibilities.slice(0, Math.max(3, allResponsibilities.length))
+    
+    return {
+      ...exp,
+      responsibilities: finalResponsibilities
+    }
+  }).filter((exp: any) => exp.responsibilities.length > 0)
+  console.log('Relevant experience filtered:', relevantExperience.length)
+
+  // Calculate fit rating accounting for transferable skills
+  const totalSkills = skills.length
+  const directSkillMatches = directMatches.length
+  const transferableSkillMatches = relatedSkills.size
+  const totalMatchedSkills = directSkillMatches + (transferableSkillMatches * 0.75) // Transferable skills count 75%
+  const totalExperience = experience.length
+  const matchedExperience = relevantExperience.length
+  
+  let fitRating = 3 // default to middle rating
+  if (totalSkills > 0 || totalExperience > 0) {
+    // Calculate skill match percentage based on job requirements
+    const estimatedRequiredSkills = Math.max(keywords.length * 2, 10)
+    const skillMatchPercentage = Math.min(totalMatchedSkills / estimatedRequiredSkills, 1)
+    
+    // Calculate experience match percentage
+    const experienceMatchPercentage = totalExperience > 0 ? matchedExperience / totalExperience : 0.5
+    
+    // Weight skills 60%, experience 40%
+    const averageMatch = (skillMatchPercentage * 0.6) + (experienceMatchPercentage * 0.4)
+    
+    if (averageMatch >= 0.7) fitRating = 5
+    else if (averageMatch >= 0.55) fitRating = 4
+    else if (averageMatch >= 0.35) fitRating = 3
+    else if (averageMatch >= 0.2) fitRating = 2
+    else fitRating = 1
+  }
+  
+  console.log('Fit rating calculated:', fitRating, 'Direct:', directSkillMatches, 'Transferable:', transferableSkillMatches)
+
+  // Use the master resume's professional summary (will be tailored by AI prompt in real implementation)
+  // For mock, just use the provided summary or a default if none exists
+  const summary = masterResume.contact?.professional_summary 
+    || 'Experienced professional with a proven track record of delivering results and driving innovation in dynamic environments.'
+
+  // Generate match summary
+  const matchSummary = fitRating >= 4
+    ? `Strong match: You have ${directSkillMatches} direct skill matches and ${transferableSkillMatches} complementary skills. Your ${matchedExperience} relevant experience areas align well with the job requirements.`
+    : fitRating === 3
+    ? `Moderate match: You have ${directSkillMatches} direct and ${transferableSkillMatches} transferable skills with ${matchedExperience} relevant experience areas. Your diverse skill set provides a solid foundation for this role.`
+    : `Developing match: You have ${directSkillMatches + transferableSkillMatches} relevant skills and ${matchedExperience} experience areas. Emphasize transferable experience and complementary technical abilities.`
 
   return {
+    jobBreakdown: {
+      benefits: benefits,
+      payRange: payRange,
+      fitRating: fitRating,
+      requiredSkills: keywords.slice(0, 10),
+      responsibilities: extractResponsibilities(jobDescription || ''),
+      matchSummary: matchSummary
+    },
     tailoredResume: {
-      ...masterResume,
+      contact: masterResume.contact || {},
       summary,
       skills: relevantSkills,
-      experience: relevantExperience
+      experience: relevantExperience,
+      education: masterResume.education || [],
+      certifications: masterResume.certifications || [],
+      projects: masterResume.projects || [],
+      volunteer: masterResume.volunteer || []
     },
-    analysis: `Based on the job description, I've identified key requirements including ${keywords.slice(0, 5).join(', ')}. The tailored resume emphasizes relevant experience and skills that match these requirements.`,
+    analysis: keywords.length > 0 
+      ? `Based on the job description, I've identified key requirements including ${keywords.slice(0, 5).join(', ')}. The tailored resume emphasizes relevant experience and skills that match these requirements.`
+      : 'Resume has been structured and formatted. Add more details to the job description for better tailoring.',
     recommendations: [
       'Emphasize leadership experience',
       'Highlight relevant technical skills',
@@ -211,7 +398,7 @@ function generateMockTailoredResume(jobDescription: string, masterResume: any): 
 function extractKeywords(text: string): string[] {
   const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those']
   
-  return text.toLowerCase()
+  const wordCounts = text.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
     .filter(word => word.length > 3 && !commonWords.includes(word))
@@ -220,9 +407,161 @@ function extractKeywords(text: string): string[] {
       acc[word] = count + 1
       return acc
     }, {} as Record<string, number>)
+  
+  return Object.entries(wordCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15)
     .map(([word]) => word)
+}
+
+function getSkillRelationships(): Record<string, string[]> {
+  return {
+    // Frontend Frameworks
+    'angular': ['typescript', 'rxjs', 'html', 'css', 'javascript', 'webpack', 'jasmine', 'karma', 'ngrx', 'primeng'],
+    'react': ['typescript', 'javascript', 'jsx', 'html', 'css', 'redux', 'jest', 'webpack', 'hooks', 'next'],
+    'vue': ['typescript', 'javascript', 'html', 'css', 'vuex', 'webpack', 'nuxt'],
+    
+    // Backend
+    'node': ['javascript', 'typescript', 'express', 'npm', 'rest', 'api', 'nestjs'],
+    'dotnet': ['c#', 'csharp', 'asp.net', 'entity framework', 'sql server', 'azure'],
+    'java': ['spring', 'maven', 'gradle', 'junit', 'sql', 'hibernate'],
+    'python': ['django', 'flask', 'fastapi', 'pandas', 'pytest', 'sqlalchemy'],
+    
+    // Cloud
+    'aws': ['ec2', 's3', 'lambda', 'cloudformation', 'terraform', 'docker', 'kubernetes', 'cloud'],
+    'azure': ['azure functions', 'azure devops', 'arm templates', 'terraform', 'docker', 'cloud'],
+    'gcp': ['cloud functions', 'cloud run', 'terraform', 'docker', 'kubernetes', 'cloud'],
+    
+    // DevOps
+    'docker': ['kubernetes', 'containers', 'ci/cd', 'jenkins', 'gitlab', 'devops'],
+    'kubernetes': ['docker', 'helm', 'containers', 'devops', 'k8s'],
+    'terraform': ['infrastructure as code', 'aws', 'azure', 'gcp', 'devops', 'iac'],
+    'ci/cd': ['jenkins', 'gitlab', 'github actions', 'azure devops', 'docker', 'devops'],
+    
+    // Databases
+    'sql': ['postgresql', 'mysql', 'sql server', 'database design', 'queries', 'tsql'],
+    'nosql': ['mongodb', 'dynamodb', 'redis', 'document database', 'cosmosdb'],
+    'postgresql': ['sql', 'database', 'queries', 'plpgsql'],
+    'mongodb': ['nosql', 'database', 'document database', 'queries'],
+    
+    // Testing
+    'testing': ['unit testing', 'integration testing', 'jest', 'jasmine', 'karma', 'selenium', 'qa'],
+    'automated testing': ['ci/cd', 'jenkins', 'gitlab', 'jest', 'selenium', 'testing'],
+    'jest': ['testing', 'unit testing', 'javascript', 'typescript', 'react'],
+    'jasmine': ['testing', 'unit testing', 'javascript', 'typescript', 'angular', 'karma'],
+    
+    // Outsystems (for the specific job)
+    'outsystems': ['low-code', 'rapid development', 'web applications', 'api integration', 'sql', 'javascript', 'web development'],
+    
+    // Production/Software Engineering
+    'production': ['deployment', 'monitoring', 'ci/cd', 'devops', 'cloud', 'docker'],
+    'software': ['programming', 'development', 'coding', 'engineering', 'architecture']
+  };
+}
+
+function getSkillCategories(): Record<string, string[]> {
+  return {
+    'Frontend': ['angular', 'react', 'vue', 'typescript', 'javascript', 'html', 'css', 'sass', 'webpack', 'rxjs', 'redux', 'primeng', 'bootstrap'],
+    'Backend': ['node', 'dotnet', 'c#', 'csharp', 'java', 'python', 'express', 'spring', 'api', 'rest', 'graphql', 'nestjs', 'asp.net'],
+    'Cloud': ['aws', 'azure', 'gcp', 'lambda', 'ec2', 's3', 'cloud functions', 'serverless', 'cloud'],
+    'DevOps': ['docker', 'kubernetes', 'terraform', 'ci/cd', 'jenkins', 'gitlab', 'github actions', 'devops', 'deployment'],
+    'Databases': ['sql', 'postgresql', 'mysql', 'mongodb', 'redis', 'dynamodb', 'sql server', 'database', 'supabase'],
+    'Tools': ['git', 'jira', 'visual studio', 'vscode', 'postman', 'swagger', 'npm', 'github'],
+    'Testing': ['unit testing', 'integration testing', 'jest', 'jasmine', 'selenium', 'cypress', 'testing', 'qa', 'karma'],
+    'Soft Skills': ['leadership', 'communication', 'problem solving', 'agile', 'scrum', 'mentoring', 'coaching', 'collaboration']
+  };
+}
+
+function extractBenefits(text: string): string[] {
+  const benefits: string[] = []
+  const benefitKeywords = [
+    'health insurance', 'dental', 'vision', '401k', 'retirement',
+    'pto', 'paid time off', 'vacation', 'sick leave', 'parental leave',
+    'remote', 'work from home', 'flexible', 'hybrid',
+    'stock options', 'equity', 'bonus', 'profit sharing',
+    'tuition', 'education', 'professional development', 'training',
+    'gym', 'wellness', 'mental health', 'life insurance'
+  ]
+  
+  const lowerText = text.toLowerCase()
+  benefitKeywords.forEach(keyword => {
+    if (lowerText.includes(keyword)) {
+      // Capitalize first letter of each word
+      const formattedBenefit = keyword.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+      if (!benefits.includes(formattedBenefit)) {
+        benefits.push(formattedBenefit)
+      }
+    }
+  })
+  
+  return benefits.length > 0 ? benefits : ['Benefits package available']
+}
+
+function extractPayRange(text: string): string {
+  // Look for salary patterns like $100k, $100,000, 100k-120k, $75,000.00 /Yr. - $120,000.00 /Yr., etc.
+  const salaryPatterns = [
+    // Range with full numbers and various year formats: $75,000.00 /Yr. - $120,000.00 /Yr.
+    /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:\/\s*(?:yr\.?|year)|per year|annually)?\s*(?:to|-)\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:\/\s*(?:yr\.?|year)|per year|annually)?/i,
+    // Range with k notation: $100k - $120k
+    /\$\s*(\d+)k\s*(?:to|-)\s*\$?\s*(\d+)k/i,
+    // Single value with year notation: $100,000 /Yr or $100,000 per year
+    /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:\/\s*(?:yr\.?|year)|per year|annually)/i,
+    // Single value with k notation: $100k
+    /\$\s*(\d+)k/i
+  ]
+  
+  for (const pattern of salaryPatterns) {
+    const match = text.match(pattern)
+    if (match) {
+      if (match[2]) {
+        // Range found - clean up the values
+        const min = match[1].replace(/\.00$/, '')
+        const max = match[2].replace(/\.00$/, '')
+        return `$${min} - $${max} per year`
+      } else {
+        // Single value found
+        const value = match[1].replace(/\.00$/, '')
+        return `$${value} per year`
+      }
+    }
+  }
+  
+  return 'Compensation not specified'
+}
+
+function extractResponsibilities(text: string): string[] {
+  const responsibilities: string[] = []
+  
+  // Look for bullet points or numbered lists
+  const bulletPattern = /(?:^|\n)\s*(?:[-•*]|\d+\.)\s*([^\n]+)/g
+  const matches = text.matchAll(bulletPattern)
+  
+  for (const match of matches) {
+    const resp = match[1].trim()
+    if (resp.length > 20 && resp.length < 200) {
+      responsibilities.push(resp)
+    }
+  }
+  
+  // If no bullets found, extract sentences that might be responsibilities
+  if (responsibilities.length === 0) {
+    const sentences = text.split(/[.!?]+/)
+    const responsibilityKeywords = ['responsible', 'manage', 'develop', 'lead', 'design', 'implement', 'maintain', 'collaborate', 'work with']
+    
+    sentences.forEach(sentence => {
+      const cleaned = sentence.trim()
+      if (cleaned.length > 30 && cleaned.length < 200) {
+        const lowerSentence = cleaned.toLowerCase()
+        if (responsibilityKeywords.some(keyword => lowerSentence.includes(keyword))) {
+          responsibilities.push(cleaned)
+        }
+      }
+    })
+  }
+  
+  return responsibilities.slice(0, 8) // Limit to top 8 responsibilities
 }
 
 function parseAIResponse(aiResponse: string, masterResume: any): TailoringResponse {

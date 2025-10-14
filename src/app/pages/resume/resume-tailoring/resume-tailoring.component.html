@@ -11,7 +11,7 @@
           <p-splitter [style]="{ height: '600px' }">
             <!-- Input Panel -->
             <ng-template pTemplate>
-              <div class="p-4">
+              <div class="p-4" style="height: 100%; overflow-y: auto;">
                 <h3 class="mb-4">Job Description Input</h3>
                 
                 <div class="field">
@@ -57,7 +57,7 @@
 
             <!-- Results Panel -->
             <ng-template pTemplate>
-              <div class="p-4">
+              <div class="p-4" style="height: 100%; overflow-y: auto;">
                 <div *ngIf="!tailoredResume" class="text-center p-4">
                   <i class="pi pi-file-edit text-4xl text-blue-500 mb-3"></i>
                   <h4 class="text-600">No Tailored Resume Yet</h4>
@@ -67,13 +67,97 @@
                 <div *ngIf="tailoredResume">
                   <div class="flex justify-content-between align-items-center mb-4">
                     <h3 class="m-0">Tailored Resume</h3>
-                    <p-button 
-                      label="Export Markdown"
-                      icon="pi pi-download"
-                      (click)="exportToMarkdown()"
-                      severity="secondary"
-                      size="small"
-                    ></p-button>
+                    <div class="flex gap-2">
+                      <p-button 
+                        [label]="showMarkdownPreview ? 'Hide Preview' : 'Show Preview'"
+                        [icon]="showMarkdownPreview ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                        (click)="toggleMarkdownPreview()"
+                        severity="info"
+                        size="small"
+                        [outlined]="!showMarkdownPreview"
+                      ></p-button>
+                      <p-button 
+                        label="Export Markdown"
+                        icon="pi pi-download"
+                        (click)="exportToMarkdown()"
+                        severity="secondary"
+                        size="small"
+                      ></p-button>
+                    </div>
+                  </div>
+
+                  <!-- Markdown Preview -->
+                  <div *ngIf="showMarkdownPreview" class="mb-4">
+                    <p-card header="Markdown Preview">
+                      <ng-template pTemplate="content">
+                        <div class="markdown-preview" [innerHTML]="markdownPreviewHtml"></div>
+                      </ng-template>
+                    </p-card>
+                  </div>
+
+                  <!-- Job Breakdown -->
+                  <div *ngIf="jobBreakdown" class="mb-4">
+                    <p-card header="Job Analysis">
+                      <ng-template pTemplate="content">
+                        <!-- Fit Rating -->
+                        <div class="mb-4 text-center p-3 border-round" [ngClass]="'bg-' + getFitRatingColor(jobBreakdown.fitRating) + '-50'">
+                          <h3 class="m-0 mb-2">{{ getFitRatingLabel(jobBreakdown.fitRating) }}</h3>
+                          <div class="flex justify-content-center gap-1 mb-2">
+                            <i *ngFor="let filled of getStarArray(jobBreakdown.fitRating)" 
+                               [class]="filled ? 'pi pi-star-fill text-yellow-500 text-2xl' : 'pi pi-star text-yellow-500 text-2xl'">
+                            </i>
+                          </div>
+                          <p class="m-0 text-sm">{{ jobBreakdown.matchSummary }}</p>
+                        </div>
+
+                        <p-divider></p-divider>
+
+                        <!-- Compensation -->
+                        <div class="mb-4">
+                          <h4 class="mb-2"><i class="pi pi-dollar mr-2"></i>Compensation</h4>
+                          <p-tag [value]="jobBreakdown.payRange" [severity]="'success'" styleClass="text-base"></p-tag>
+                        </div>
+
+                        <p-divider></p-divider>
+
+                        <!-- Benefits -->
+                        <div class="mb-4" *ngIf="jobBreakdown.benefits.length > 0">
+                          <h4 class="mb-2"><i class="pi pi-gift mr-2"></i>Benefits</h4>
+                          <div class="flex flex-wrap gap-2">
+                            <p-chip *ngFor="let benefit of jobBreakdown.benefits" 
+                                    [label]="benefit" 
+                                    styleClass="text-sm">
+                            </p-chip>
+                          </div>
+                        </div>
+
+                        <p-divider></p-divider>
+
+                        <!-- Required Skills -->
+                        <div class="mb-4" *ngIf="jobBreakdown.requiredSkills.length > 0">
+                          <h4 class="mb-2"><i class="pi pi-code mr-2"></i>Required Skills</h4>
+                          <div class="flex flex-wrap gap-2">
+                            <p-tag *ngFor="let skill of jobBreakdown.requiredSkills" 
+                                   [value]="skill" 
+                                   [severity]="'info'"
+                                   styleClass="text-sm">
+                            </p-tag>
+                          </div>
+                        </div>
+
+                        <p-divider></p-divider>
+
+                        <!-- Key Responsibilities -->
+                        <div *ngIf="jobBreakdown.responsibilities.length > 0">
+                          <h4 class="mb-2"><i class="pi pi-list mr-2"></i>Key Responsibilities</h4>
+                          <ul class="text-sm pl-4">
+                            <li *ngFor="let resp of jobBreakdown.responsibilities" class="mb-1">
+                              {{ resp }}
+                            </li>
+                          </ul>
+                        </div>
+                      </ng-template>
+                    </p-card>
                   </div>
 
                   <!-- Analysis -->
@@ -123,13 +207,15 @@
                           <p class="text-sm">{{ tailoredResume.summary }}</p>
                         </div>
 
-                        <!-- Skills -->
+                        <!-- Skills by Category -->
                         <div *ngIf="tailoredResume.skills.length > 0" class="mb-4">
-                          <h3 class="text-lg font-semibold mb-2">Skills</h3>
-                          <div class="flex flex-wrap gap-1">
-                            <span *ngFor="let skill of tailoredResume.skills" class="skill-tag">
-                              {{ skill.name }}
-                            </span>
+                          <h3 class="text-lg font-semibold mb-3">Technical Skills</h3>
+                          
+                          <div *ngFor="let category of getSkillCategories(tailoredResume.skills)" class="mb-2">
+                            <p class="text-sm m-0">
+                              <span class="font-semibold">{{ category.name }}:</span> 
+                              {{ getSkillNames(category.skills) }}
+                            </p>
                           </div>
                         </div>
 

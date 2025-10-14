@@ -25,23 +25,76 @@
 
           <div *ngIf="skills.length > 0">
             <p-table 
+              #dt
               [value]="skills" 
-              [paginator]="false" 
-              [showCurrentPageReport]="false"
+              [paginator]="true"
+              [rows]="10"
+              [rowsPerPageOptions]="[10, 25, 50]"
+              [showCurrentPageReport]="true"
+              currentPageReportTemplate="Showing {first} to {last} of {totalRecords} skills"
               styleClass="p-datatable-sm"
               [tableStyle]="{'min-width': '50rem'}"
+              [globalFilterFields]="['name']"
             >
               <ng-template pTemplate="header">
                 <tr>
-                  <th style="width: 30%">Skill Name</th>
-                  <th style="width: 50%">Tags</th>
-                  <th style="width: 20%">Actions</th>
+                  <th style="width: 25%" pSortableColumn="name">
+                    <div class="flex align-items-center gap-2">
+                      Skill Name
+                      <p-sortIcon field="name"></p-sortIcon>
+                    </div>
+                  </th>
+                  <th style="width: 20%" pSortableColumn="category">
+                    <div class="flex align-items-center gap-2">
+                      Category
+                      <p-sortIcon field="category"></p-sortIcon>
+                    </div>
+                  </th>
+                  <th style="width: 35%">
+                    <div class="flex align-items-center gap-2">
+                      Tags
+                    </div>
+                  </th>
+                  <th style="width: 10%" class="text-center">Featured</th>
+                  <th style="width: 10%">Actions</th>
+                </tr>
+                <tr>
+                  <th>
+                    <span class="p-input-icon-left w-full">
+                      <input 
+                        pInputText 
+                        type="text" 
+                        (input)="dt.filterGlobal($any($event.target).value, 'contains')" 
+                        placeholder="Search skills..."
+                        class="w-full"
+                      />
+                    </span>
+                  </th>
+                  <th></th>
+                  <th>
+                    <p-multiSelect 
+                      [options]="availableTags"
+                      [(ngModel)]="selectedTagFilters"
+                      (onChange)="onTagFilterChange()"
+                      placeholder="Select tags to filter"
+                      [maxSelectedLabels]="2"
+                      selectedItemsLabel="{0} tags selected"
+                      [style]="{'width': '100%'}"
+                      [showClear]="true"
+                      appendTo="body"
+                    ></p-multiSelect>
+                  </th>
+                  <th></th>
+                  <th></th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-skill>
                 <tr>
                   <td>
                     <span class="font-medium">{{ skill.name }}</span>
+                  </td>
+                  <td>
+                    <span class="text-600 text-sm">{{ skill.category || '-' }}</span>
                   </td>
                   <td>
                     <div *ngIf="skill.tags && skill.tags.length > 0; else noTags">
@@ -57,6 +110,13 @@
                     <ng-template #noTags>
                       <span class="text-600 text-sm">No tags</span>
                     </ng-template>
+                  </td>
+                  <td class="text-center">
+                    <i *ngIf="skill.is_featured" 
+                       class="pi pi-star-fill text-yellow-500" 
+                       pTooltip="Featured Skill"
+                       tooltipPosition="top">
+                    </i>
                   </td>
                   <td>
                     <div class="flex gap-2">
@@ -118,29 +178,88 @@
     </div>
 
     <div class="field">
+      <label for="category" class="font-medium">Category *</label>
+      <p-dropdown 
+        id="category"
+        name="category"
+        [(ngModel)]="skillForm.category"
+        [options]="skillCategories"
+        placeholder="Select category"
+        [required]="true"
+        class="w-full"
+        [disabled]="saving"
+        appendTo="body"
+      ></p-dropdown>
+      <small class="text-600 block mt-1">Choose the category that best fits this skill</small>
+    </div>
+
+    <div class="field-checkbox mb-3">
+      <p-checkbox 
+        [(ngModel)]="skillForm.is_featured" 
+        [binary]="true" 
+        inputId="isFeatured"
+        name="isFeatured"
+        [disabled]="saving">
+      </p-checkbox>
+      <label for="isFeatured" class="ml-2">
+        <i class="pi pi-star-fill text-yellow-500 mr-1"></i>
+        Featured Skill (always appears in tailored resumes)
+      </label>
+    </div>
+
+    <div class="field">
+      <label for="displayOrder" class="font-medium">Display Order</label>
+      <input 
+        pInputText 
+        id="displayOrder"
+        name="displayOrder"
+        type="number"
+        [(ngModel)]="skillForm.display_order"
+        placeholder="0"
+        class="w-full"
+        [disabled]="saving">
+      <small class="text-600 block mt-1">Lower numbers appear first (default: 0)</small>
+    </div>
+
+    <div class="field">
       <label for="skillTags" class="font-medium">Tags</label>
       <div class="tag-input-container">
-        <p-autocomplete 
-          #tagInput
-          [(ngModel)]="currentTag"
-          [suggestions]="filteredTagSuggestions"
-          (completeMethod)="searchTags($event)"
-          (onSelect)="addTag($event)"
-          (onKeyDown)="onTagKeyDown($event)"
-          placeholder="Type to search existing tags or press Enter to add new"
-          class="w-full"
-          [disabled]="saving"
-          [minLength]="1"
-          [dropdown]="true"
-          [forceSelection]="false"
-        ></p-autocomplete>
+        <div class="flex gap-2 w-full">
+          <p-autocomplete 
+            #tagInput
+            [(ngModel)]="currentTag"
+            [suggestions]="filteredTagSuggestions"
+            (completeMethod)="searchTags($event)"
+            (onSelect)="addTag($event)"
+            (onKeyDown)="onTagKeyDown($event)"
+            placeholder="Type to search existing tags or press Enter to add"
+            class="flex-1"
+            [disabled]="saving"
+            [minLength]="1"
+            [dropdown]="true"
+            [forceSelection]="false"
+            appendTo="body"
+          ></p-autocomplete>
+          <p-button 
+            icon="pi pi-plus"
+            size="small"
+            severity="success"
+            [outlined]="true"
+            (click)="openAddTagDialog()"
+            [disabled]="saving"
+            pTooltip="Create a new tag"
+            tooltipPosition="top"
+          ></p-button>
+        </div>
         <div *ngIf="skillForm.tags && skillForm.tags.length > 0" class="mt-2">
           <div class="flex flex-wrap gap-1">
             <p-tag 
-              *ngFor="let tag of skillForm.tags" 
+              *ngFor="let tag of skillForm.tags; let i = index" 
               [value]="tag"
               severity="info"
-              styleClass="text-xs"
+              styleClass="text-xs cursor-pointer"
+              (click)="removeTag(i)"
+              pTooltip="Click to remove"
             ></p-tag>
           </div>
         </div>
@@ -166,6 +285,52 @@
         [disabled]="!skillForm.name.trim() || saving"
         [loading]="saving"
         severity="primary"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- Add Tag Dialog -->
+<p-dialog 
+  header="Create New Tag"
+  [(visible)]="showAddTagDialog"
+  [modal]="true"
+  [style]="{ width: '400px' }"
+  [closable]="!savingTag"
+>
+  <div class="field">
+    <label for="newTagName" class="font-medium">Tag Name *</label>
+    <input 
+      pInputText 
+      id="newTagName"
+      name="newTagName"
+      [(ngModel)]="newTagName"
+      class="w-full"
+      placeholder="Enter tag name (e.g., Frontend, Backend)"
+      [disabled]="savingTag"
+      (keydown.enter)="saveNewTag()"
+      autofocus
+    />
+    <small class="text-600 block mt-2">This tag will be available for all resume items</small>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-end gap-2">
+      <p-button 
+        label="Cancel"
+        icon="pi pi-times"
+        (click)="showAddTagDialog = false; newTagName = ''"
+        [disabled]="savingTag"
+        severity="secondary"
+        [text]="true"
+      ></p-button>
+      <p-button 
+        label="Create"
+        icon="pi pi-check"
+        (click)="saveNewTag()"
+        [disabled]="!newTagName.trim() || savingTag"
+        [loading]="savingTag"
+        severity="success"
       ></p-button>
     </div>
   </ng-template>

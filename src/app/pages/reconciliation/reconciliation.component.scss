@@ -1,44 +1,8 @@
-.bank-reconciliation-container {
-    padding: 24px;
-    min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* Header Section */
-.header-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--surface-border, #e5e7eb);
-}
-
-.header-left h1.page-title {
-    font-size: 28px;
-    font-weight: bold;
-    color: var(--primary-color, #1e3a8a);
-    margin: 0;
-}
-
-.header-right {
-    display: flex;
-    align-items: center;
-}
-
-.month-selector {
-    display: flex;
-    align-items: center;
-}
-
-
-/* Summary Section */
-.summary-section {
-    padding: 24px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    margin-bottom: 24px;
-}
+.bank-reconciliation-container { padding: 24px; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--surface-border, #e5e7eb); }
+.header-left h1.page-title { font-size: 28px; font-weight: bold; color: var(--primary-color, #1e3a8a); margin: 0; }
+.header-right, .month-selector { display: flex; align-items: center; }
+.summary-section { padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 24px; }
 
 .summary-row {
     display: flex;
@@ -54,32 +18,11 @@
     justify-content: flex-end;
 }
 
-.currently-reconciling .label {
-    font-size: 14px;
-    color: #6b7280;
-    margin-bottom: 8px;
-}
-
-.financial-overview {
-    display: flex;
-    gap: 32px;
-}
-
-.metric {
-    text-align: left;
-}
-
-.metric-label {
-    font-size: 14px;
-    color: var(--text-color-secondary, #6b7280);
-    margin-bottom: 4px;
-}
-
-.metric-value {
-    font-size: 20px;
-    font-weight: bold;
-    color: var(--text-color, #111827);
-}
+.currently-reconciling .label { font-size: 14px; color: #6b7280; margin-bottom: 8px; }
+.financial-overview { display: flex; gap: 32px; }
+.metric { text-align: left; }
+.metric-label { font-size: 14px; color: var(--text-color-secondary, #6b7280); margin-bottom: 4px; }
+.metric-value { font-size: 20px; font-weight: bold; color: var(--text-color, #111827); }
 
 .selection-summary {
     display: flex;
@@ -124,43 +67,13 @@
     gap: 8px;
 }
 
-/* Main Content */
-.main-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-}
-
-.panel {
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-}
-
-.panel-header {
-    margin-bottom: 16px;
-}
-
-.panel-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--primary-color, #1e3a8a);
-    margin: 0;
-}
-
-.panel-title-with-badge {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--primary-color, #1e3a8a);
-    margin: 0;
-}
-
-.search-container {
-    margin-bottom: 16px;
-}
+.main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.panel { border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); padding: 20px; }
+.panel-header { margin-bottom: 16px; }
+.panel-title,
+.panel-title-with-badge { font-size: 18px; font-weight: 600; color: var(--primary-color, #1e3a8a); margin: 0; }
+.panel-title-with-badge { display: flex; align-items: center; gap: 12px; }
+.search-container { margin-bottom: 16px; }
 
 .bulk-actions-bar {
     display: flex;
@@ -222,12 +135,7 @@
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Transaction List */
-.transaction-list, .bill-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
+.transaction-list, .bill-list { display: flex; flex-direction: column; gap: 12px; }
 
 .transaction-item, .bill-item {
     display: flex;
@@ -322,13 +230,8 @@
     color: #dc2626;
 }
 
-.matched-content {
-    padding: 20px;
-    text-align: center;
-    color: #6b7280;
-}
+.matched-content { padding: 20px; text-align: center; color: #6b7280; }
 
-/* Responsive Design */
 @media (max-width: 768px) {
     .main-content {
         grid-template-columns: 1fr;

@@ -105,6 +105,25 @@
             </div>
 
             <div class="col-12">
+              <div class="field">
+                <label for="professional_summary" class="font-medium">Professional Summary</label>
+                <textarea 
+                  pInputTextarea 
+                  id="professional_summary" 
+                  name="professional_summary"
+                  [(ngModel)]="contact.professional_summary"
+                  [rows]="5"
+                  [autoResize]="true"
+                  class="w-full"
+                  placeholder="Enter your professional summary. This will be tailored to match each job description you apply for."
+                ></textarea>
+                <small class="text-color-secondary">
+                  Write 3-4 sentences highlighting your experience, expertise, and career goals. The AI will adapt this to match specific job requirements.
+                </small>
+              </div>
+            </div>
+
+            <div class="col-12">
               <div class="flex justify-content-end gap-2">
                 <p-button 
                   label="Save Contact Information"

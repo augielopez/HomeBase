@@ -1,15 +1,18 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { TableModule } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
@@ -17,7 +20,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { ResumeService } from '../../resume-services/resume.service';
 import { ResumeTagAutocompleteService } from '../../resume-services/resume-tag-autocomplete.service';
-import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interface';
+import { ResumeSkill, ResumeSkillForm, SKILL_CATEGORIES } from '../../../interfaces/resume.interface';
 
 @Component({
   selector: 'app-resume-skills',
@@ -28,10 +31,13 @@ import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interfa
     AutoCompleteModule,
     ButtonModule,
     CardModule,
+    CheckboxModule,
     ConfirmDialogModule,
     DialogModule,
+    DropdownModule,
     InputTextModule,
     MessageModule,
+    MultiSelectModule,
     ProgressSpinnerModule,
     TableModule,
     TagModule,
@@ -43,11 +49,18 @@ import { ResumeSkill, ResumeSkillForm } from '../../../interfaces/resume.interfa
   styleUrl: './resume-skills.component.scss'
 })
 export class ResumeSkillsComponent implements OnInit {
+  @ViewChild('dt') table!: Table;
+  
   skills: ResumeSkill[] = [];
   skillForm: ResumeSkillForm = {
     name: '',
+    category: '',
+    is_featured: false,
+    display_order: 0,
     tags: []
   };
+  
+  skillCategories = SKILL_CATEGORIES.map(cat => ({ label: cat, value: cat }));
   
   loading = false;
   saving = false;
@@ -58,6 +71,15 @@ export class ResumeSkillsComponent implements OnInit {
   tagSuggestions: string[] = [];
   filteredTagSuggestions: string[] = [];
   currentTag: string = '';
+  
+  // Add tag dialog properties
+  showAddTagDialog = false;
+  newTagName = '';
+  savingTag = false;
+  
+  // Tag filter properties
+  availableTags: string[] = [];
+  selectedTagFilters: string[] = [];
 
   constructor(
     private resumeService: ResumeService,
@@ -132,6 +154,7 @@ export class ResumeSkillsComponent implements OnInit {
     this.loading = true;
     try {
       this.skills = await this.resumeService.getSkills();
+      this.extractAvailableTags();
     } catch (error) {
       console.error('Error loading skills:', error);
       this.messageService.add({
@@ -144,10 +167,28 @@ export class ResumeSkillsComponent implements OnInit {
     }
   }
 
+  extractAvailableTags() {
+    // Extract all unique tags from all skills
+    const tagsSet = new Set<string>();
+    
+    this.skills.forEach(skill => {
+      if (skill.tags && skill.tags.length > 0) {
+        const tagNames = this.getTagNames(skill.tags);
+        tagNames.forEach(tag => tagsSet.add(tag));
+      }
+    });
+    
+    // Convert to sorted array
+    this.availableTags = Array.from(tagsSet).sort();
+  }
+
   openNewSkillDialog() {
     this.editingSkill = null;
     this.skillForm = {
       name: '',
+      category: '',
+      is_featured: false,
+      display_order: 0,
       tags: []
     };
     this.currentTag = '';
@@ -159,6 +200,9 @@ export class ResumeSkillsComponent implements OnInit {
     this.editingSkill = skill;
     this.skillForm = {
       name: skill.name,
+      category: skill.category || '',
+      is_featured: skill.is_featured || false,
+      display_order: skill.display_order || 0,
       tags: (skill.tags || []).map(tag => typeof tag === 'string' ? tag : tag.name)
     };
     this.currentTag = '';
@@ -199,6 +243,9 @@ export class ResumeSkillsComponent implements OnInit {
         }
       }
       
+      // Refresh available tags for the filter
+      this.extractAvailableTags();
+      
       this.messageService.add({
         severity: 'success',
         summary: 'Success',
@@ -233,6 +280,10 @@ export class ResumeSkillsComponent implements OnInit {
     try {
       await this.resumeService.deleteSkill(skill.id!);
       this.skills = this.skills.filter(s => s.id !== skill.id);
+      
+      // Refresh available tags for the filter
+      this.extractAvailableTags();
+      
       this.messageService.add({
         severity: 'success',
         summary: 'Success',
@@ -253,7 +304,102 @@ export class ResumeSkillsComponent implements OnInit {
     this.editingSkill = null;
     this.skillForm = {
       name: '',
+      category: '',
+      is_featured: false,
+      display_order: 0,
       tags: []
     };
+  }
+
+  openAddTagDialog() {
+    this.newTagName = '';
+    this.showAddTagDialog = true;
+  }
+
+  async saveNewTag() {
+    if (!this.newTagName.trim()) {
+      return;
+    }
+
+    const tagName = this.newTagName.trim();
+    
+    this.savingTag = true;
+    try {
+      // Save tag to database
+      await this.resumeService.createTag(tagName);
+      
+      // Add to current skill's tags if not already there
+      if (!this.skillForm.tags.includes(tagName)) {
+        this.skillForm.tags.push(tagName);
+      }
+      
+      // Add to cache for autocomplete
+      this.tagAutocompleteService.addTagToCache(tagName);
+      
+      // Reload tag suggestions
+      await this.loadTagSuggestions();
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: `Tag "${tagName}" created successfully`
+      });
+      
+      this.showAddTagDialog = false;
+      this.newTagName = '';
+    } catch (error: any) {
+      console.error('Error creating tag:', error);
+      
+      // Check if it's a duplicate tag error
+      if (error?.message?.includes('already exists') || error?.code === '23505') {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Tag Already Exists',
+          detail: `The tag "${tagName}" already exists. It has been added to your skill.`
+        });
+        
+        // Add to current skill's tags anyway
+        if (!this.skillForm.tags.includes(tagName)) {
+          this.skillForm.tags.push(tagName);
+        }
+        
+        this.showAddTagDialog = false;
+        this.newTagName = '';
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to create tag'
+        });
+      }
+    } finally {
+      this.savingTag = false;
+    }
+  }
+
+  removeTag(index: number) {
+    this.skillForm.tags.splice(index, 1);
+  }
+
+  onTagFilterChange() {
+    if (!this.table) return;
+    
+    if (!this.selectedTagFilters || this.selectedTagFilters.length === 0) {
+      // Clear filter
+      this.table.filteredValue = null;
+      return;
+    }
+    
+    // Filter skills that have at least one tag matching any of the selected tags
+    this.table.filteredValue = this.skills.filter(skill => {
+      if (!skill.tags || skill.tags.length === 0) {
+        return false;
+      }
+      
+      const tagNames = this.getTagNames(skill.tags);
+      return tagNames.some(tag => 
+        this.selectedTagFilters.includes(tag)
+      );
+    });
   }
 }

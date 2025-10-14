@@ -40,6 +40,8 @@ export class ResumeEducationComponent implements OnInit {
   educationForm: ResumeEducationForm = {
     degree: '',
     school: '',
+    minor: '',
+    notes: '',
     start_date: '',
     end_date: ''
   };
@@ -80,6 +82,8 @@ export class ResumeEducationComponent implements OnInit {
     this.educationForm = {
       degree: '',
       school: '',
+      minor: '',
+      notes: '',
       start_date: '',
       end_date: ''
     };
@@ -91,6 +95,8 @@ export class ResumeEducationComponent implements OnInit {
     this.educationForm = {
       degree: education.degree,
       school: education.school,
+      minor: education.minor || '',
+      notes: education.notes || '',
       start_date: education.start_date || '',
       end_date: education.end_date || ''
     };
@@ -178,6 +184,8 @@ export class ResumeEducationComponent implements OnInit {
     this.educationForm = {
       degree: '',
       school: '',
+      minor: '',
+      notes: '',
       start_date: '',
       end_date: ''
     };

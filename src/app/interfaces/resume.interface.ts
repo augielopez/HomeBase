@@ -17,6 +17,7 @@ export interface ResumeContact {
   location?: string;
   linkedin?: string;
   github?: string;
+  professional_summary?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -24,6 +25,9 @@ export interface ResumeContact {
 export interface ResumeSkill {
   id?: string;
   name: string;
+  category?: string;
+  is_featured?: boolean;
+  display_order?: number;
   tags?: ResumeTag[]; // Changed from string[] to ResumeTag[]
   created_at?: string;
   updated_at?: string;
@@ -43,7 +47,9 @@ export interface ResumeExperience {
   company: string;
   start_date?: string;
   end_date?: string;
+  image_url?: string;
   responsibilities?: ResumeResponsibility[];
+  managers?: ResumeManager[];
   created_at?: string;
   updated_at?: string;
 }
@@ -52,7 +58,17 @@ export interface ResumeResponsibility {
   id?: string;
   experience_id: string;
   description: string;
-  tags?: ResumeTag[]; // Changed from string[] to ResumeTag[]
+  tags?: ResumeTag[] | string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ResumeManager {
+  id?: string;
+  experience_id: string;
+  manager_name: string;
+  start_date?: string;
+  end_date?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -69,6 +85,8 @@ export interface ResumeEducation {
   id?: string;
   degree: string;
   school: string;
+  minor?: string;
+  notes?: string;
   start_date?: string;
   end_date?: string;
   created_at?: string;
@@ -147,10 +165,14 @@ export interface ResumeContactForm {
   location: string;
   linkedin: string;
   github: string;
+  professional_summary: string;
 }
 
 export interface ResumeSkillForm {
   name: string;
+  category: string;
+  is_featured: boolean;
+  display_order: number;
   tags: string[]; // Keep as string[] for form handling
 }
 
@@ -159,7 +181,16 @@ export interface ResumeExperienceForm {
   company: string;
   start_date: string;
   end_date: string;
+  image_url: string;
   responsibilities: ResumeResponsibilityForm[];
+  managers: ResumeManagerForm[];
+}
+
+export interface ResumeManagerForm {
+  id?: string;
+  manager_name: string;
+  start_date: string;
+  end_date: string;
 }
 
 // Flexible type for experience operations
@@ -168,7 +199,9 @@ export interface ResumeExperienceInput {
   company: string;
   start_date?: string;
   end_date?: string;
+  image_url?: string;
   responsibilities?: ResumeResponsibilityForm[];
+  managers?: ResumeManagerForm[];
 }
 
 export interface ResumeResponsibilityForm {
@@ -179,6 +212,8 @@ export interface ResumeResponsibilityForm {
 export interface ResumeEducationForm {
   degree: string;
   school: string;
+  minor: string;
+  notes: string;
   start_date: string;
   end_date: string;
 }
@@ -212,8 +247,31 @@ export interface TailoringRequest {
   masterResume: MasterResume;
 }
 
+export interface JobBreakdown {
+  benefits: string[];
+  payRange: string;
+  fitRating: number;
+  requiredSkills: string[];
+  responsibilities: string[];
+  matchSummary: string;
+}
+
 export interface TailoringResponse {
+  jobBreakdown: JobBreakdown;
   tailoredResume: TailoredResume;
   analysis?: string;
   recommendations?: string[];
 }
+
+// Skill category constants
+export const SKILL_CATEGORIES = [
+  'Languages & Frameworks',
+  'Cloud & DevOps',
+  'Containerization & Microservices',
+  'Databases & ORM',
+  'Security & Compliance',
+  'Testing & Monitoring',
+  'Practices & Methodologies'
+] as const;
+
+export type SkillCategory = typeof SKILL_CATEGORIES[number];

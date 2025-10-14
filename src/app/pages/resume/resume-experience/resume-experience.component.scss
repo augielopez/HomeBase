@@ -41,6 +41,18 @@
   padding: 1.5rem;
 }
 
+// Center the company logo image vertically in the header
+::ng-deep .p-accordion-header-link {
+  .flex.align-items-center {
+    align-items: center !important;
+    
+    img {
+      align-self: center;
+      display: block;
+    }
+  }
+}
+
 .list-none {
   list-style: none;
 }
