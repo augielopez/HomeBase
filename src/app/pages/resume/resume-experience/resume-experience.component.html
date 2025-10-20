@@ -41,7 +41,7 @@
                       <small class="text-500">{{ formatDateRange(experience.start_date || '', experience.end_date || '') }}</small>
                       </div>
                     </div>
-                    <p-buttongroup>
+                    <p-buttongroup style="margin-top: 5px; margin-left: 10px;">
                       <p-button 
                         icon="pi pi-pencil"
                         size="small"
@@ -74,7 +74,26 @@
                 </ng-template>
 
                 <div *ngIf="experience.responsibilities && experience.responsibilities.length > 0">
-                  <h5 class="mb-2">Responsibilities & Achievements</h5>
+                  <div class="flex justify-content-between align-items-center mb-2">
+                    <h5 class="m-0">Responsibilities & Achievements</h5>
+                    <div class="flex align-items-center gap-2">
+                      <p-inputTextarea 
+                        [(ngModel)]="currentJobDescription" 
+                        placeholder="Paste job description for optimization context"
+                        rows="2"
+                        styleClass="text-sm"
+                        style="width: 200px;"
+                      ></p-inputTextarea>
+                      <p-selectButton 
+                        [(ngModel)]="bulletViewMode" 
+                        [options]="[{label: 'Original', value: 'original'}, {label: 'Optimized', value: 'optimized'}]"
+                        optionLabel="label"
+                        optionValue="value"
+                        (onChange)="toggleBulletView()"
+                        size="small"
+                      ></p-selectButton>
+                    </div>
+                  </div>
                   <p-table 
                     [value]="experience.responsibilities" 
                     styleClass="p-datatable-sm p-datatable-striped"
@@ -88,7 +107,11 @@
                     </ng-template>
                     <ng-template pTemplate="body" let-resp>
                       <tr>
-                        <td>{{ resp.description }}</td>
+                        <td>
+                          <div class="bullet-display" [class.optimized-bullet]="bulletViewMode === 'optimized'">
+                            {{ getBulletDisplay(resp) }}
+                          </div>
+                        </td>
                         <td>
                         <div *ngIf="resp.tags && resp.tags.length > 0">
                           <p-chips 

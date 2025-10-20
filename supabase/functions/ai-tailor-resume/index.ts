@@ -204,7 +204,7 @@ Step 2 — Generate Job Breakdown: Before tailoring the resume, provide a breakd
 
 Step 3 — Search the Master Resume JSON: Search for matching responsibilities, projects, and skills in the master resume by tag, skill name or synonym, and context match with job responsibilities or industry keywords.
 
-Step 4 — Select and Expand Relevant Achievements: Select the most relevant achievements and responsibilities that align with the target job. Each experience entry MUST have at least 3-4 bullet points. If the master resume does not have enough bullets for an experience, generate additional bullets that are consistent with the role, company, and time period, tailored to match the job description's focus areas. Ensure all bullets are action-oriented and quantifiable when possible.
+Step 4 — Select and Expand Relevant Achievements: For EACH work experience in the master resume (unless excluded), you MUST include AT LEAST 3-4 bullet points. First, select the most relevant achievements that align with the target job. If a job has fewer than 3 matching bullets from the master resume, include additional bullets from that same job's responsibilities to meet the minimum of 3 bullets. Only generate new bullets if the master resume truly has insufficient bullets for a given experience. Ensure all bullets are action-oriented and quantifiable when possible.
 
 Step 5 — Build Comprehensive Skill List: Extract explicit skills mentioned in the job description. For each extracted skill, identify related and complementary skills from the master resume (e.g., if Angular is mentioned, include TypeScript, RxJS, HTML, CSS, etc.). Recognize transferable skills (Angular/React are interchangeable, AWS/Azure/GCP are cloud equivalents). Organize skills by category: Frontend, Backend, Cloud/DevOps, Databases, Tools, Soft Skills. Ensure each category contains at least 3-4 representative skills to demonstrate breadth. Prioritize skills with most relevant tags and recent usage. Include 15-20 total skills even if job description lacks technical detail.
 
@@ -439,10 +439,21 @@ function generateMockTailoredResume(jobDescription: string, masterResume: any): 
       )
     )
     
-    // Ensure minimum 3 bullets - if matched < 3, take all available
-    const finalResponsibilities = matchedResponsibilities.length >= 3 
-      ? matchedResponsibilities 
-      : allResponsibilities.slice(0, Math.max(3, allResponsibilities.length))
+    // Ensure minimum 3 bullets per job
+    let finalResponsibilities = matchedResponsibilities
+    if (matchedResponsibilities.length < 3 && allResponsibilities.length >= 3) {
+      const needed = 3 - matchedResponsibilities.length
+      const unmatchedResponsibilities = allResponsibilities.filter(
+        (r: any) => !matchedResponsibilities.includes(r)
+      )
+      finalResponsibilities = [
+        ...matchedResponsibilities,
+        ...unmatchedResponsibilities.slice(0, needed)
+      ]
+    } else if (allResponsibilities.length < 3) {
+      // If job has less than 3 total bullets, include all
+      finalResponsibilities = allResponsibilities
+    }
     
     return {
       ...exp,

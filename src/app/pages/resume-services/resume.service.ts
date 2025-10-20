@@ -948,6 +948,326 @@ export class ResumeService {
     return response.data;
   }
 
+  // Generate Ideal Resume from Job Description (for Gap Analysis)
+  async generateIdealResumeFromJobDescription(jobDescription: string): Promise<TailoredResume> {
+    try {
+      const { data: { session } } = await this.supabase.getClient().auth.getSession();
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await this.supabase.getClient().functions.invoke('ai-generate-ideal-resume', {
+        body: { jobDescription },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.error) {
+        console.warn('Edge function error, falling back to mock generation:', response.error);
+        // Fallback to mock generation
+        return this.generateMockIdealResume(jobDescription);
+      }
+
+      return response.data.idealResume;
+    } catch (error) {
+      console.warn('Error calling edge function, using mock generation:', error);
+      // Fallback to mock generation
+      return this.generateMockIdealResume(jobDescription);
+    }
+  }
+
+  // Generate Mock Ideal Resume (fallback when edge function unavailable)
+  private generateMockIdealResume(jobDescription: string): TailoredResume {
+    const keywords = this.extractKeywords(jobDescription);
+    const skills = this.extractRequiredSkills(jobDescription);
+    
+    // Create ideal skills list
+    const idealSkills: any[] = skills.map((skill, idx) => ({
+      id: `skill-${idx}`,
+      name: skill,
+      category: idx < 5 ? 'Languages & Frameworks' : (idx < 10 ? 'Cloud, DevOps & Platforms' : 'Practices & Methodologies'),
+      is_featured: idx < 10,
+      display_order: idx,
+      tags: [skill]
+    }));
+
+    // Add some default professional skills if list is short
+    if (idealSkills.length < 15) {
+      const defaultSkills = ['Problem Solving', 'Communication', 'Leadership', 'Teamwork', 'Agile', 'Scrum'];
+      defaultSkills.forEach((skill, idx) => {
+        if (!idealSkills.some(s => s.name.toLowerCase() === skill.toLowerCase())) {
+          idealSkills.push({
+            id: `skill-${idealSkills.length}`,
+            name: skill,
+            category: 'Practices & Methodologies',
+            is_featured: false,
+            display_order: idealSkills.length,
+            tags: [skill]
+          });
+        }
+      });
+    }
+
+    // Create comprehensive set of bullet points for ranking
+    const primarySkill = skills[0] || 'Software';
+    const allBullets = [
+      // Technical Leadership & Architecture
+      {
+        description: `Architected and deployed enterprise-scale ${skills.slice(0, 3).join(', ')} applications serving 500K+ active users, improving system performance by 45% and reducing infrastructure costs by $2M annually`,
+        tags: skills.slice(0, 3)
+      },
+      {
+        description: `Led cross-functional team of 8 engineers to deliver ${keywords[0] || 'innovative'} solutions, reducing deployment time by 60% through automated CI/CD pipelines and DevOps best practices`,
+        tags: ['Leadership', 'CI/CD', 'DevOps', 'Team Management']
+      },
+      {
+        description: `Implemented ${skills[1] || 'modern'} architecture patterns and microservices, achieving 99.9% uptime and enabling seamless scaling to handle 10M+ daily transactions`,
+        tags: ['Architecture', 'Microservices', 'Scalability', 'Performance']
+      },
+      {
+        description: `Designed and built scalable ${skills[0] || 'web'} applications processing 1M+ transactions daily with 99.99% reliability and sub-200ms response times`,
+        tags: [skills[0] || 'Development', 'Scalability', 'Performance']
+      },
+      {
+        description: `Optimized database queries and implemented caching strategies, reducing API response time from 2s to 200ms (90% improvement) and cutting database load by 65%`,
+        tags: ['Performance Optimization', 'Database', 'Caching', 'API Development']
+      },
+      
+      // Development & Implementation
+      {
+        description: `Developed and maintained ${skills[0] || 'web'} applications using ${skills.slice(0, 2).join(' and ')}, implementing responsive design and optimal user experience across web and mobile platforms`,
+        tags: ['Full Stack Development', 'UI/UX', 'Cross-Platform']
+      },
+      {
+        description: `Built and deployed ${skills[1] || 'modern'} applications serving 50K+ users, focusing on clean code principles and maintainable architecture`,
+        tags: ['Development', 'Code Quality', 'Architecture']
+      },
+      {
+        description: `Created automated testing frameworks and CI/CD pipelines, reducing deployment time by 70% and increasing code quality metrics by 40%`,
+        tags: ['Testing', 'CI/CD', 'Automation', 'Quality Assurance']
+      },
+      {
+        description: `Implemented ${keywords[1] || 'modern'} design patterns and best practices, improving code maintainability and reducing technical debt by 30%`,
+        tags: ['Design Patterns', 'Code Quality', 'Best Practices']
+      },
+      
+      // Leadership & Mentorship
+      {
+        description: `Mentored 5 junior developers and established code review standards, increasing team velocity by 40% and reducing production bugs by 55%`,
+        tags: ['Mentorship', 'Best Practices', 'Code Review', 'Quality Assurance']
+      },
+      {
+        description: `Led technical interviews and hiring processes, building a high-performing engineering team of 12 developers across multiple time zones`,
+        tags: ['Leadership', 'Hiring', 'Team Building', 'Management']
+      },
+      {
+        description: `Collaborated with product managers and designers to deliver features used by 250K+ customers, increasing user engagement by 35% and retention by 28%`,
+        tags: ['Collaboration', 'Product Development', 'User Experience']
+      },
+      
+      // Agile & Process
+      {
+        description: `Participated in agile development sprints, consistently delivering 95% of sprint commitments on time while maintaining 85%+ test coverage`,
+        tags: ['Agile', 'Scrum', 'Testing', 'Sprint Planning']
+      },
+      {
+        description: `Established DevOps practices and monitoring systems, reducing mean time to recovery by 60% and improving system observability`,
+        tags: ['DevOps', 'Monitoring', 'Observability', 'Incident Response']
+      },
+      {
+        description: `Contributed to open-source projects and technical communities, sharing knowledge through blog posts and conference presentations`,
+        tags: ['Open Source', 'Community', 'Knowledge Sharing', 'Public Speaking']
+      },
+      
+      // Problem Solving & Innovation
+      {
+        description: `Identified and resolved critical performance bottlenecks in legacy systems, improving response times by 80% and reducing server costs by $500K annually`,
+        tags: ['Problem Solving', 'Performance', 'Cost Optimization', 'Legacy Systems']
+      },
+      {
+        description: `Researched and implemented emerging technologies including ${skills[2] || 'cloud-native'} solutions, staying ahead of industry trends and best practices`,
+        tags: ['Research', 'Innovation', 'Emerging Technologies', 'Cloud']
+      },
+      {
+        description: `Troubleshot complex production issues and implemented preventive measures, reducing system downtime by 90% and improving reliability`,
+        tags: ['Troubleshooting', 'Production Support', 'Reliability', 'Incident Management']
+      }
+    ];
+
+    // Rank all bullets by job relevance
+    const rankedBullets = this.rankBulletPoints(allBullets, jobDescription);
+
+    // Create ideal experience with ranked bullets
+    const idealExperience: any[] = [
+      {
+        id: 'exp-1',
+        role: `Senior ${primarySkill} Engineer`,
+        company: 'Tech Innovation Corp',
+        start_date: '2020-01-01',
+        end_date: undefined,
+        responsibilities: rankedBullets.slice(0, 4).map((bullet, idx) => ({
+          id: `resp-${idx + 1}`,
+          description: bullet.description,
+          tags: bullet.tags,
+          relevanceScore: bullet.score
+        }))
+      },
+      {
+        id: 'exp-2',
+        role: `${primarySkill} Engineer`,
+        company: 'Digital Solutions Inc',
+        start_date: '2017-06-01',
+        end_date: '2019-12-31',
+        responsibilities: rankedBullets.slice(4, 7).map((bullet, idx) => ({
+          id: `resp-${idx + 5}`,
+          description: bullet.description,
+          tags: bullet.tags,
+          relevanceScore: bullet.score
+        }))
+      },
+      {
+        id: 'exp-3',
+        role: 'Software Developer',
+        company: 'StartUp Ventures',
+        start_date: '2015-01-01',
+        end_date: '2017-05-31',
+        responsibilities: rankedBullets.slice(7, 10).map((bullet, idx) => ({
+          id: `resp-${idx + 8}`,
+          description: bullet.description,
+          tags: bullet.tags,
+          relevanceScore: bullet.score
+        }))
+      }
+    ];
+
+    return {
+      contact: {
+        name: 'Ideal Candidate',
+        email: 'ideal.candidate@example.com',
+        phone: '555-0100',
+        location: 'Remote, USA',
+        linkedin: 'linkedin.com/in/ideal-candidate',
+        github: 'github.com/ideal-candidate',
+        professional_summary: `Highly accomplished ${primarySkill} professional with 10+ years of experience delivering enterprise-scale solutions. Expert in ${skills.slice(0, 5).join(', ')} with proven track record of improving system performance, leading high-performing teams, and driving business outcomes through technical excellence.`
+      },
+      summary: `Highly accomplished ${primarySkill} professional with 10+ years of experience delivering enterprise-scale solutions. Expert in ${skills.slice(0, 5).join(', ')} with proven track record of improving system performance, leading high-performing teams, and driving business outcomes through technical excellence.`,
+      skills: idealSkills as any,
+      experience: idealExperience as any,
+      education: [
+        {
+          id: 'edu-1',
+          degree: 'Bachelor of Science in Computer Science',
+          school: 'State University',
+          minor: 'Mathematics',
+          notes: 'Summa Cum Laude, GPA: 3.9/4.0',
+          start_date: '2011-09-01',
+          end_date: '2015-05-01'
+        }
+      ],
+      certifications: [],
+      projects: [],
+      volunteer: []
+    } as TailoredResume;
+  }
+
+  // Tag-Based Resume Generation
+  async generateTagBasedResume(selectedTags: string[]): Promise<TailoredResume> {
+    const masterResume = await this.getMasterResumeForTailoring();
+    
+    if (!selectedTags || selectedTags.length === 0) {
+      // If no tags selected, return the full master resume
+      return {
+        contact: masterResume.contact,
+        summary: masterResume.contact?.professional_summary || 'Experienced professional with a proven track record of delivering results.',
+        skills: masterResume.skills,
+        experience: masterResume.experience,
+        education: masterResume.education,
+        certifications: masterResume.certifications,
+        projects: masterResume.projects,
+        volunteer: masterResume.volunteer
+      };
+    }
+
+    // Filter skills where tags intersect with selected tags
+    const filteredSkills = masterResume.skills.filter(skill => {
+      if (!skill.tags || skill.tags.length === 0) return false;
+      return skill.tags.some(tag => {
+        const tagName = typeof tag === 'string' ? tag : tag.name;
+        return selectedTags.includes(tagName);
+      });
+    });
+    
+    // Filter experience with matching responsibilities
+    const filteredExperience = masterResume.experience.map(exp => {
+      const allResponsibilities = exp.responsibilities || [];
+      
+      // First get tag-matched responsibilities
+      const matchedResponsibilities = allResponsibilities.filter(resp => {
+        if (!resp.tags || resp.tags.length === 0) return false;
+        return resp.tags.some(tag => {
+          // Tag can be either a string or a ResumeTag object
+          const tagName = typeof tag === 'string' ? tag : (typeof tag === 'object' && 'name' in tag ? tag.name : String(tag));
+          return selectedTags.includes(tagName);
+        });
+      });
+      
+      // Ensure minimum 3 bullets per job
+      let finalResponsibilities = matchedResponsibilities;
+      if (matchedResponsibilities.length < 3 && allResponsibilities.length >= 3) {
+        // Get unmatched responsibilities
+        const unmatchedResponsibilities = allResponsibilities.filter(
+          r => !matchedResponsibilities.includes(r)
+        );
+        
+        // Add unmatched responsibilities to reach 3 minimum
+        const needed = 3 - matchedResponsibilities.length;
+        finalResponsibilities = [
+          ...matchedResponsibilities,
+          ...unmatchedResponsibilities.slice(0, needed)
+        ];
+      } else if (allResponsibilities.length < 3) {
+        // If job has less than 3 total bullets, include all
+        finalResponsibilities = allResponsibilities;
+      }
+      
+      return {
+        ...exp,
+        responsibilities: finalResponsibilities
+      };
+    }).filter(exp => exp.responsibilities.length > 0);
+    
+    // Filter projects where tags intersect with selected tags
+    const filteredProjects = masterResume.projects.filter(proj => {
+      if (!proj.tags || proj.tags.length === 0) return false;
+      return proj.tags.some(tag => {
+        const tagName = typeof tag === 'string' ? tag : tag.name;
+        return selectedTags.includes(tagName);
+      });
+    });
+    
+    // Filter volunteer work where tags intersect with selected tags
+    const filteredVolunteer = masterResume.volunteer.filter(vol => {
+      if (!vol.tags || vol.tags.length === 0) return false;
+      return vol.tags.some(tag => {
+        const tagName = typeof tag === 'string' ? tag : tag.name;
+        return selectedTags.includes(tagName);
+      });
+    });
+    
+    return {
+      contact: masterResume.contact,
+      summary: masterResume.contact?.professional_summary || 'Experienced professional with a proven track record of delivering results.',
+      skills: filteredSkills,
+      experience: filteredExperience,
+      education: masterResume.education,
+      certifications: masterResume.certifications,
+      projects: filteredProjects,
+      volunteer: filteredVolunteer
+    };
+  }
+
   private generateMockTailoredResume(jobDescription: string, masterResume: any): TailoringResponse {
     // Extract keywords from job description
     const keywords = this.extractKeywords(jobDescription);
@@ -970,8 +1290,10 @@ export class ResumeService {
     // Filter relevant experience
     const experience = masterResume.experience || [];
     const relevantExperience = experience.map((exp: any) => {
-      const responsibilities = exp.responsibilities || [];
-      const matchedResponsibilities = responsibilities.filter((resp: any) =>
+      const allResponsibilities = exp.responsibilities || [];
+      
+      // Filter for keyword-matched responsibilities
+      const matchedResponsibilities = allResponsibilities.filter((resp: any) =>
         keywords.some(keyword =>
           resp?.description?.toLowerCase().includes(keyword.toLowerCase()) ||
           (Array.isArray(resp?.tags) && resp.tags.some((tag: string) => 
@@ -980,11 +1302,25 @@ export class ResumeService {
         )
       );
       
+      // Ensure minimum 3 bullets per job
+      let finalResponsibilities = matchedResponsibilities;
+      if (matchedResponsibilities.length < 3 && allResponsibilities.length >= 3) {
+        const needed = 3 - matchedResponsibilities.length;
+        const unmatchedResponsibilities = allResponsibilities.filter(
+          (r: any) => !matchedResponsibilities.includes(r)
+        );
+        finalResponsibilities = [
+          ...matchedResponsibilities,
+          ...unmatchedResponsibilities.slice(0, needed)
+        ];
+      } else if (allResponsibilities.length < 3) {
+        // If job has less than 3 total bullets, include all
+        finalResponsibilities = allResponsibilities;
+      }
+      
       return {
         ...exp,
-        responsibilities: matchedResponsibilities.length >= 3 
-          ? matchedResponsibilities 
-          : responsibilities.slice(0, Math.max(3, responsibilities.length))
+        responsibilities: finalResponsibilities
       };
     }).filter((exp: any) => exp.responsibilities.length > 0);
     
@@ -1118,22 +1454,260 @@ export class ResumeService {
   }
 
   private extractRequiredSkills(text: string): string[] {
-    const skills: string[] = [];
-    const skillPatterns = [
-      'javascript', 'typescript', 'python', 'java', 'c#', 'angular', 'react', 'vue',
-      'node', 'express', 'django', 'spring', 'aws', 'azure', 'gcp', 'docker',
-      'kubernetes', 'sql', 'mongodb', 'postgresql', 'git', 'agile', 'scrum'
-    ];
+    const textLower = text.toLowerCase();
+    const foundSkills = new Set<string>();
     
-    const lowerText = text.toLowerCase();
-    skillPatterns.forEach(skill => {
-      if (lowerText.includes(skill)) {
-        const formatted = skill.charAt(0).toUpperCase() + skill.slice(1);
-        skills.push(formatted);
+    // Comprehensive skill patterns matching gap analysis service
+    const skillPatterns = {
+      languages: ['javascript', 'typescript', 'python', 'java', 'c#', 'csharp', 'c\\+\\+', 'ruby', 'php', 'go', 'rust', 'swift', 'kotlin'],
+      frontend: ['react', 'angular', 'vue', 'html', 'css', 'sass', 'less', 'tailwind', 'bootstrap', 'jquery'],
+      backend: ['node\\.js', 'nodejs', 'express', 'django', 'flask', 'spring', 'spring boot', '\\.net', 'asp\\.net', 'fastapi', 'laravel'],
+      databases: ['sql', 'mysql', 'postgresql', 'postgres', 'mongodb', 'redis', 'oracle', 'dynamodb', 'cassandra'],
+      cloud: ['aws', 'azure', 'gcp', 'google cloud', 'docker', 'kubernetes', 'k8s', 'terraform', 'ansible'],
+      tools: ['git', 'github', 'gitlab', 'jira', 'jenkins', 'ci/cd', 'cicd', 'devops', 'maven', 'gradle', 'npm', 'webpack']
+    };
+    
+    // Search for each skill pattern
+    Object.values(skillPatterns).flat().forEach(pattern => {
+      const regex = new RegExp(`\\b${pattern}\\b`, 'gi');
+      const matches = textLower.match(regex);
+      if (matches) {
+        // Normalize the skill name
+        let normalized = matches[0]
+          .replace(/\./g, '')  // Remove dots
+          .replace(/\\/g, '')  // Remove backslashes from regex patterns
+          .trim();
+        
+        // Special formatting for specific skills
+        if (normalized === 'nodejs' || normalized === 'node js') {
+          normalized = 'Node.js';
+        } else if (normalized === 'cicd' || normalized === 'ci/cd' || normalized === 'ci cd') {
+          normalized = 'CI/CD';
+        } else if (normalized === 'csharp' || normalized === 'c#') {
+          normalized = 'C#';
+        } else if (normalized === 'c++') {
+          normalized = 'C++';
+        } else if (normalized === 'net' || normalized === '.net') {
+          normalized = '.NET';
+        } else if (normalized === 'aspnet' || normalized === 'asp.net') {
+          normalized = 'ASP.NET';
+        } else if (normalized === 'k8s') {
+          normalized = 'Kubernetes';
+        } else if (normalized === 'postgres') {
+          normalized = 'PostgreSQL';
+        } else {
+          // Standard capitalization
+          normalized = normalized
+            .split(/[\s-]+/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        }
+        
+        foundSkills.add(normalized);
       }
     });
     
-    return skills.slice(0, 10);
+    return Array.from(foundSkills);
+  }
+
+  // STAR Method + ATS Optimization
+  async optimizeBulletPoint(bulletPoint: string, jobDescription: string): Promise<{ optimizedText: string, method: 'ai' | 'mock' }> {
+    const maxRetries = 2;
+    
+    // Truncate job description to avoid API limits (max 2000 chars)
+    const truncatedJobDescription = jobDescription.length > 2000 
+      ? jobDescription.substring(0, 2000) + '...'
+      : jobDescription;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data: { session } } = await this.supabase.getClient().auth.getSession();
+        
+        if (!session) {
+          throw new Error('User not authenticated');
+        }
+
+        const keywords = this.extractRequiredSkills(truncatedJobDescription);
+
+        console.log(`Attempt ${attempt}/${maxRetries} - Calling Edge Function with bullet:`, bulletPoint.substring(0, 50) + '...');
+        
+        const response = await this.supabase.getClient().functions.invoke('ai-optimize-bullet', {
+          body: { 
+            bulletPoint, 
+            jobDescription: truncatedJobDescription, 
+            keywords 
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+        
+        console.log('Edge Function response:', response);
+
+        if (response.error) {
+          console.warn(`Edge function error on attempt ${attempt}:`, response.error);
+          if (attempt < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+            continue;
+          }
+          // Final attempt failed, use mock
+          return {
+            optimizedText: this.generateMockOptimization(bulletPoint, truncatedJobDescription),
+            method: 'mock'
+          };
+        }
+
+        // Check if response has the debug info to determine method
+        const method = response.data._debug?.method || 'ai';
+        return {
+          optimizedText: response.data.optimizedBullet || bulletPoint,
+          method: method as 'ai' | 'mock'
+        };
+      } catch (error) {
+        console.warn(`Error on attempt ${attempt}/${maxRetries}:`, error);
+        if (attempt < maxRetries) {
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+        // All retries failed, use mock
+        return {
+          optimizedText: this.generateMockOptimization(bulletPoint, truncatedJobDescription),
+          method: 'mock'
+        };
+      }
+    }
+
+    // Fallback (should never reach here)
+    return {
+      optimizedText: this.generateMockOptimization(bulletPoint, truncatedJobDescription),
+      method: 'mock'
+    };
+  }
+
+  // Mock optimization fallback
+  private generateMockOptimization(bulletPoint: string, jobDescription: string): string {
+    let optimized = bulletPoint;
+    
+    // Extract keywords from job description
+    const keywords = this.extractRequiredSkills(jobDescription);
+    
+    // Improve action verbs
+    const verbImprovements = {
+      'worked on': 'developed',
+      'helped with': 'led',
+      'was responsible for': 'managed',
+      'did': 'implemented',
+      'made': 'created',
+      'fixed': 'resolved',
+      'used': 'leveraged',
+      'handled': 'managed',
+      'took care of': 'coordinated'
+    };
+    
+    Object.entries(verbImprovements).forEach(([old, new_]) => {
+      optimized = optimized.replace(new RegExp(old, 'gi'), new_);
+    });
+    
+    // Add metrics if not present
+    if (!/\d+[%$km]?/.test(optimized)) {
+      const metrics = ['by 25%', 'by 40%', 'by 60%', 'by 30%', 'by 50%', 'by 35%', 'by 20%'];
+      const randomMetric = metrics[Math.floor(Math.random() * metrics.length)];
+      optimized += `, improving efficiency ${randomMetric}`;
+    }
+    
+    // Add scale indicators if not present
+    if (!/(serving|processing|managing|handling|supporting)/i.test(optimized)) {
+      const scaleIndicators = [
+        'serving 100K+ users', 'processing 1M+ transactions', 'managing team of 8',
+        'handling 500K+ daily requests', 'supporting 50+ clients', 'reducing costs by $100K'
+      ];
+      const randomScale = scaleIndicators[Math.floor(Math.random() * scaleIndicators.length)];
+      optimized = optimized.replace(/\.$/, `, ${randomScale}.`);
+    }
+    
+    // Add relevant keywords from job description
+    if (keywords.length > 0) {
+      const relevantKeyword = keywords[Math.floor(Math.random() * keywords.length)];
+      if (!optimized.toLowerCase().includes(relevantKeyword.toLowerCase())) {
+        optimized = optimized.replace(/\.$/, ` using ${relevantKeyword}.`);
+      }
+    }
+    
+    // Ensure it starts with a strong action verb
+    const strongVerbs = ['Led', 'Developed', 'Implemented', 'Designed', 'Managed', 'Created', 'Optimized', 'Enhanced'];
+    const firstWord = optimized.split(' ')[0];
+    if (!strongVerbs.some(verb => firstWord.toLowerCase().includes(verb.toLowerCase()))) {
+      optimized = `Developed ${optimized.toLowerCase()}`;
+    }
+    
+    return optimized;
+  }
+
+  /**
+   * Score and rank bullet points based on job description relevance
+   */
+  private rankBulletPoints(bullets: Array<{description: string, tags: string[]}>, jobDescription: string): Array<{description: string, tags: string[], score: number}> {
+    const jobKeywords = this.extractKeywords(jobDescription);
+    const jobSkills = this.extractRequiredSkills(jobDescription);
+    const jobLower = jobDescription.toLowerCase();
+    
+    return bullets.map(bullet => {
+      let score = 0;
+      const bulletLower = bullet.description.toLowerCase();
+      
+      // Score based on keyword matches in description
+      jobKeywords.forEach(keyword => {
+        if (bulletLower.includes(keyword.toLowerCase())) {
+          score += 10; // High weight for direct keyword matches
+        }
+      });
+      
+      // Score based on skill matches in description
+      jobSkills.forEach(skill => {
+        if (bulletLower.includes(skill.toLowerCase())) {
+          score += 15; // Higher weight for skill matches
+        }
+      });
+      
+      // Score based on tag matches
+      bullet.tags.forEach(tag => {
+        if (jobSkills.some(skill => skill.toLowerCase() === tag.toLowerCase())) {
+          score += 12; // High weight for tag matches
+        }
+        if (jobKeywords.some(keyword => keyword.toLowerCase() === tag.toLowerCase())) {
+          score += 8; // Medium weight for keyword tag matches
+        }
+      });
+      
+      // Score based on action verbs and impact indicators
+      const actionVerbs = ['led', 'managed', 'developed', 'implemented', 'designed', 'architected', 'optimized', 'improved', 'increased', 'reduced', 'delivered', 'built', 'created', 'established'];
+      actionVerbs.forEach(verb => {
+        if (bulletLower.includes(verb)) {
+          score += 2; // Small bonus for strong action verbs
+        }
+      });
+      
+      // Score based on quantifiable results
+      const hasNumbers = /\d+[%$km]?/.test(bullet.description);
+      if (hasNumbers) {
+        score += 5; // Bonus for quantifiable results
+      }
+      
+      // Score based on scale indicators
+      const scaleWords = ['enterprise', 'large-scale', 'high-volume', 'millions', 'thousands', 'team', 'cross-functional'];
+      scaleWords.forEach(word => {
+        if (bulletLower.includes(word)) {
+          score += 3; // Bonus for scale indicators
+        }
+      });
+      
+      return {
+        ...bullet,
+        score
+      };
+    }).sort((a, b) => b.score - a.score); // Sort by score descending (best first)
   }
 
   private extractResponsibilities(text: string): string[] {

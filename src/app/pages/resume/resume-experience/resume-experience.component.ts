@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
+import { ButtonGroupModule } from 'primeng/buttongroup';
 import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ChipsModule } from 'primeng/chips';
@@ -13,6 +14,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
@@ -32,6 +34,7 @@ import { ResumeExperience, ResumeExperienceForm, ResumeResponsibilityForm, Resum
     FormsModule,
     AutoCompleteModule,
     ButtonModule,
+    ButtonGroupModule,
     CardModule,
     CheckboxModule,
     ChipsModule,
@@ -42,6 +45,7 @@ import { ResumeExperience, ResumeExperienceForm, ResumeResponsibilityForm, Resum
     InputTextModule,
     MessageModule,
     ProgressSpinnerModule,
+    SelectButtonModule,
     TableModule,
     TagModule,
     TextareaModule,
@@ -82,6 +86,12 @@ export class ResumeExperienceComponent implements OnInit {
   adjustedStartDate = '';
   adjustedEndDate = '';
   displayTagsInResume = true; // Default to true (show tags)
+
+  // STAR Method + ATS Optimization
+  bulletViewMode: 'original' | 'optimized' = 'original';
+  optimizedBullets: Map<string, string> = new Map();
+  currentJobDescription = '';
+  optimizingBullets = false;
   responsibilityMappings = new Map<string, string>(); // responsibility_id -> target_experience_id
   availableTargetJobs: Array<{ id: string; displayLabel: string }> = [];
   savingSettings = false;
@@ -558,5 +568,77 @@ export class ResumeExperienceComponent implements OnInit {
     this.displayTagsInResume = true;
     this.responsibilityMappings = new Map();
     this.availableTargetJobs = [];
+  }
+
+  // STAR Method + ATS Optimization Methods
+  async optimizeAllBullets() {
+    if (!this.currentJobDescription.trim()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Job Description Required',
+        detail: 'Please paste a job description to optimize bullets for that specific role',
+        life: 3000
+      });
+      return;
+    }
+
+    this.optimizingBullets = true;
+    try {
+      const allBullets: Array<{id: string, description: string}> = [];
+      
+      // Collect all bullet points from current experience
+      this.experiences.forEach(exp => {
+        if (exp.responsibilities) {
+          exp.responsibilities.forEach(resp => {
+            if (resp.id) {
+              allBullets.push({ id: resp.id, description: resp.description });
+            }
+          });
+        }
+      });
+
+      // Optimize each bullet point
+      for (const bullet of allBullets) {
+        try {
+          const result = await this.resumeService.optimizeBulletPoint(bullet.description, this.currentJobDescription);
+          this.optimizedBullets.set(bullet.id, result.optimizedText);
+        } catch (error) {
+          console.warn(`Failed to optimize bullet ${bullet.id}:`, error);
+          // Keep original if optimization fails
+          this.optimizedBullets.set(bullet.id, bullet.description);
+        }
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Optimization Complete',
+        detail: `Optimized ${allBullets.length} bullet points using STAR method and ATS keywords`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error optimizing bullets:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Optimization Failed',
+        detail: 'Failed to optimize bullet points. Please try again.',
+        life: 3000
+      });
+    } finally {
+      this.optimizingBullets = false;
+    }
+  }
+
+  getBulletDisplay(resp: any): string {
+    if (this.bulletViewMode === 'optimized' && resp.id && this.optimizedBullets.has(resp.id)) {
+      return this.optimizedBullets.get(resp.id) || resp.description;
+    }
+    return resp.description;
+  }
+
+  toggleBulletView() {
+    if (this.bulletViewMode === 'optimized' && this.optimizedBullets.size === 0 && this.currentJobDescription.trim()) {
+      // Auto-optimize when switching to optimized view if job description is available
+      this.optimizeAllBullets();
+    }
   }
 }

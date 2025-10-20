@@ -12,9 +12,53 @@
             <!-- Input Panel -->
             <ng-template pTemplate>
               <div class="p-4" style="height: 100%; overflow-y: auto;">
-                <h3 class="mb-4">Job Description Input</h3>
+                <h3 class="mb-4">Resume Generation</h3>
                 
-                <div class="field">
+                <!-- Generation Mode Selection -->
+                <div class="field mb-4">
+                  <label class="font-medium mb-2 block">Generation Mode</label>
+                  <div class="flex flex-column gap-2">
+                    <div class="flex align-items-center">
+                      <p-radioButton 
+                        value="ai" 
+                        [(ngModel)]="generationMode" 
+                        inputId="mode-ai"
+                        (onClick)="onModeChange()"
+                      ></p-radioButton>
+                      <label for="mode-ai" class="ml-2 cursor-pointer">AI Mode (OpenAI GPT-4)</label>
+                    </div>
+                    <div class="flex align-items-center">
+                      <p-radioButton 
+                        value="mock" 
+                        [(ngModel)]="generationMode" 
+                        inputId="mode-mock"
+                        (onClick)="onModeChange()"
+                      ></p-radioButton>
+                      <label for="mode-mock" class="ml-2 cursor-pointer">Mock Algorithm</label>
+                    </div>
+                    <div class="flex align-items-center">
+                      <p-radioButton 
+                        value="tags" 
+                        [(ngModel)]="generationMode" 
+                        inputId="mode-tags"
+                        (onClick)="onModeChange()"
+                      ></p-radioButton>
+                      <label for="mode-tags" class="ml-2 cursor-pointer">Tag-Based Filtering</label>
+                    </div>
+                    <div class="flex align-items-center">
+                      <p-radioButton 
+                        value="gap-analysis" 
+                        [(ngModel)]="generationMode" 
+                        inputId="mode-gap"
+                        (onClick)="onModeChange()"
+                      ></p-radioButton>
+                      <label for="mode-gap" class="ml-2 cursor-pointer">Gap Analysis</label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Job Description Input (for AI, Mock, and Gap Analysis modes) -->
+                <div *ngIf="generationMode === 'ai' || generationMode === 'mock' || generationMode === 'gap-analysis'" class="field">
                   <label for="jobDescription" class="font-medium">Paste Job Description *</label>
                   <textarea 
                     pInputTextarea 
@@ -24,16 +68,68 @@
                     class="w-full"
                     placeholder="Paste the complete job description here. The AI will analyze requirements and tailor your resume accordingly..."
                   ></textarea>
-                  <small class="text-600">The AI will extract key requirements and match them with your experience and skills.</small>
+                  <small class="text-600">
+                    {{ generationMode === 'ai' ? 'The AI will extract key requirements and match them with your experience and skills.' : 'The mock algorithm will filter content based on keyword matching.' }}
+                  </small>
                 </div>
 
+                <!-- Tag Selection (for Tags mode) -->
+                <div *ngIf="generationMode === 'tags'" class="field">
+                  <label class="font-medium mb-2 block">Select Job Type (Optional)</label>
+                  <p-dropdown 
+                    [options]="jobTypeMappings" 
+                    [(ngModel)]="selectedJobType"
+                    optionLabel="name"
+                    placeholder="Choose a predefined job type"
+                    (onChange)="onJobTypeSelect()"
+                    [showClear]="true"
+                    class="w-full mb-2"
+                    [appendTo]="'body'"
+                  >
+                    <ng-template let-jobType pTemplate="item">
+                      <div>
+                        <div class="font-medium">{{ jobType.name }}</div>
+                        <small class="text-600">{{ jobType.description }}</small>
+                      </div>
+                    </ng-template>
+                  </p-dropdown>
+                  <small class="text-600 block mb-3">
+                    Or manually select tags below using the picklist
+                  </small>
+                  
+                  <div class="mt-3">
+                    <p-picklist 
+                      [source]="sourceTagsList" 
+                      [target]="selectedTagsList"
+                      sourceHeader="Available Tags"
+                      targetHeader="Selected Tags ({{ selectedTagsList.length }})"
+                      [dragdrop]="true"
+                      [responsive]="true"
+                      [showSourceControls]="false"
+                      [showTargetControls]="false"
+                      filterBy="label"
+                      sourceFilterPlaceholder="Search available tags"
+                      targetFilterPlaceholder="Search selected tags"
+                      [sourceStyle]="{ height: '250px' }"
+                      [targetStyle]="{ height: '250px' }"
+                    >
+                      <ng-template let-tag pTemplate="item">
+                        <div class="flex align-items-center">
+                          <span>{{ tag.label }}</span>
+                        </div>
+                      </ng-template>
+                    </p-picklist>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
                 <div class="flex flex-column gap-3 mt-4">
                   <div class="flex gap-2">
                     <p-button 
-                      label="Tailor Resume"
-                      icon="pi pi-magic-wand"
+                      [label]="generationMode === 'tags' ? 'Generate Resume' : (generationMode === 'gap-analysis' ? 'Analyze Gap' : 'Tailor Resume')"
+                      [icon]="generationMode === 'tags' ? 'pi pi-filter' : (generationMode === 'gap-analysis' ? 'pi pi-chart-bar' : 'pi pi-magic-wand')"
                       (click)="tailorResume()"
-                      [disabled]="!jobDescription.trim() || tailoring"
+                      [disabled]="(generationMode !== 'tags' && !jobDescription.trim()) || (generationMode === 'tags' && selectedTagsList.length === 0) || tailoring"
                       [loading]="tailoring"
                       severity="primary"
                     ></p-button>
@@ -46,25 +142,16 @@
                       [text]="true"
                     ></p-button>
                   </div>
-                  
-                  <div class="flex align-items-center gap-2">
-                    <label for="useMockSwitch" class="font-medium text-sm">Use Mock Algorithm</label>
-                    <p-inputSwitch 
-                      id="useMockSwitch"
-                      [(ngModel)]="useMockMode"
-                      (onChange)="onMockModeChange()"
-                    ></p-inputSwitch>
-                    <small class="text-600 ml-2">
-                      <i class="pi pi-info-circle mr-1"></i>
-                      {{ useMockMode ? 'Using mock algorithm (no API calls)' : 'Using OpenAI GPT-4 (requires API key)' }}
-                    </small>
-                  </div>
                 </div>
 
                 <div *ngIf="tailoring" class="mt-4">
                   <div class="flex align-items-center">
-                    <p-progressSpinner size="20px"></p-progressSpinner>
-                    <span class="ml-2">AI is analyzing the job description and tailoring your resume...</span>
+                    <p-progressSpinner [style]="{ width: '20px', height: '20px' }"></p-progressSpinner>
+                    <span class="ml-2">
+                      {{ generationMode === 'gap-analysis' ? 'Generating ideal candidate resume for comparison...' : 
+                         (generationMode === 'tags' ? 'Filtering resume content by selected tags...' : 
+                         'AI is analyzing the job description and tailoring your resume...') }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -83,15 +170,23 @@
                   <!-- Debug Info -->
                   <div *ngIf="debugInfo" class="mb-3">
                     <p-tag 
-                      [value]="debugInfo.method === 'mock' ? 'Generated using: Mock Algorithm' : 'Generated using: OpenAI GPT-4'"
-                      [severity]="debugInfo.method === 'mock' ? 'warning' : 'success'"
-                      [icon]="debugInfo.method === 'mock' ? 'pi pi-bolt' : 'pi pi-sparkles'"
+                      [value]="debugInfo.method === 'tags' ? 'Generated using: Tag-Based Filtering' : (debugInfo.method === 'mock' ? 'Generated using: Mock Algorithm' : 'Generated using: OpenAI GPT-4')"
+                      [severity]="debugInfo.method === 'tags' ? 'info' : (debugInfo.method === 'mock' ? 'warning' : 'success')"
+                      [icon]="debugInfo.method === 'tags' ? 'pi pi-filter' : (debugInfo.method === 'mock' ? 'pi pi-bolt' : 'pi pi-sparkles')"
                     ></p-tag>
                   </div>
 
                   <div class="flex justify-content-between align-items-center mb-4">
                     <h3 class="m-0">Tailored Resume</h3>
                     <div class="flex gap-2">
+                      <p-button 
+                        label="Gap Analysis"
+                        icon="pi pi-chart-bar"
+                        (click)="showGapAnalysis()"
+                        severity="success"
+                        size="small"
+                        [outlined]="true"
+                      ></p-button>
                       <p-button 
                         [label]="showMarkdownPreview ? 'Hide Preview' : 'Show Preview'"
                         [icon]="showMarkdownPreview ? 'pi pi-eye-slash' : 'pi pi-eye'"

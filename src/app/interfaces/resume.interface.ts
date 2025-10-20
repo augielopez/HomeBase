@@ -64,6 +64,7 @@ export interface ResumeResponsibility {
   experience_id: string;
   description: string;
   tags?: ResumeTag[] | string[];
+  relevanceScore?: number; // Added for bullet point ranking
   created_at?: string;
   updated_at?: string;
 }
@@ -260,6 +261,72 @@ export interface JobDescription {
 export interface TailoringRequest {
   jobDescription: string;
   masterResume: MasterResume;
+}
+
+export interface TagBasedResumeRequest {
+  selectedTags: string[];
+  jobTypeName?: string;
+}
+
+// Resume Gap Analysis Interfaces
+export interface ResumeGapAnalysis {
+  overallScore: number; // 0-100
+  skillsAnalysis: SkillsGapAnalysis;
+  experienceAnalysis: ExperienceGapAnalysis;
+  atsScore: ATSAnalysis;
+  recommendations: Recommendation[];
+}
+
+export interface SkillsGapAnalysis {
+  requiredSkills: SkillMatch[];
+  matchedSkills: SkillMatch[];
+  missingSkills: SkillMatch[];
+  matchPercentage: number;
+}
+
+export interface SkillMatch {
+  name: string;
+  status: 'matched' | 'partial' | 'missing';
+  inMasterResume: boolean;
+  inTailoredResume: boolean;
+  alternatives?: string[];
+}
+
+export interface ExperienceGapAnalysis {
+  totalBullets: number;
+  relevantBullets: number;
+  weakBullets: BulletAnalysis[];
+  missingKeywords: string[];
+  bulletQualityScore: number; // 0-100
+}
+
+export interface BulletAnalysis {
+  description: string;
+  score: number;
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface ATSAnalysis {
+  score: number; // 0-100
+  keywordDensity: KeywordDensity[];
+  formattingIssues: string[];
+  suggestions: string[];
+}
+
+export interface KeywordDensity {
+  keyword: string;
+  count: number;
+  optimal: number;
+  status: 'good' | 'low' | 'high';
+}
+
+export interface Recommendation {
+  type: 'skill' | 'experience' | 'keyword' | 'format' | 'content';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  actionable: string;
 }
 
 export interface JobBreakdown {

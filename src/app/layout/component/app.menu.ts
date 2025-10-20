@@ -187,6 +187,11 @@ export class AppMenu {
                         routerLink: ['/dashboard/pages/resume/tailoring']
                     },
                     {
+                        label: 'Gap Analysis',
+                        icon: 'pi pi-fw pi-chart-bar',
+                        routerLink: ['/dashboard/pages/resume/comparison']
+                    },
+                    {
                         label: 'Resume Card Style',
                         icon: 'pi pi-fw pi-id-card',
                         routerLink: ['/dashboard/pages/resume/card-style']

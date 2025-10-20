@@ -64,3 +64,35 @@
 .border-dashed {
   border-style: dashed;
 }
+
+// Bullet display styling for STAR + ATS optimization
+.bullet-display {
+  transition: all 0.3s ease;
+  
+  &.optimized-bullet {
+    background: linear-gradient(135deg, var(--green-50) 0%, var(--surface-card) 100%);
+    padding: 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid var(--green-500);
+    margin: 0.25rem 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+// Responsive adjustments for optimization controls
+@media (max-width: 768px) {
+  .flex.align-items-center.gap-2 {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.5rem;
+    
+    p-inputTextarea {
+      width: 100% !important;
+    }
+  }
+}

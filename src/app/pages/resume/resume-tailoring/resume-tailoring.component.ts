@@ -1,6 +1,7 @@
 import { Component, OnInit, SecurityContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -13,11 +14,15 @@ import { ToastModule } from 'primeng/toast';
 import { TagModule } from 'primeng/tag';
 import { ChipModule } from 'primeng/chip';
 import { DividerModule } from 'primeng/divider';
+import { PickListModule } from 'primeng/picklist';
+import { RadioButtonModule } from 'primeng/radiobutton';
+import { DropdownModule } from 'primeng/dropdown';
 import { MessageService } from 'primeng/api';
 import { marked } from 'marked';
 
 import { ResumeService } from '../../resume-services/resume.service';
 import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse, JobBreakdown } from '../../../interfaces/resume.interface';
+import { JOB_TYPE_MAPPINGS, JobTypeMapping } from './job-type-mappings';
 
 @Component({
   selector: 'app-resume-tailoring',
@@ -35,7 +40,10 @@ import { MasterResume, TailoredResume, TailoringRequest, TailoringResponse, JobB
     ToastModule,
     TagModule,
     ChipModule,
-    DividerModule
+    DividerModule,
+    PickListModule,
+    RadioButtonModule,
+    DropdownModule
   ],
   providers: [MessageService],
   templateUrl: './resume-tailoring.component.html',
@@ -48,8 +56,20 @@ export class ResumeTailoringComponent implements OnInit {
   tailoredResume: TailoredResume | null = null;
   tailoringAnalysis = '';
   recommendations: string[] = [];
-  debugInfo: { method: 'mock' | 'openai'; timestamp: string } | null = null;
-  useMockMode = false;
+  debugInfo: { method: 'mock' | 'openai' | 'tags'; timestamp: string } | null = null;
+  
+  // Generation mode
+  generationMode: 'ai' | 'mock' | 'tags' | 'gap-analysis' = 'ai';
+  
+  // Tag-based filtering
+  selectedJobType: JobTypeMapping | null = null;
+  availableTags: string[] = [];
+  sourceTagsList: Array<{ label: string; value: string }> = [];
+  selectedTagsList: Array<{ label: string; value: string }> = [];
+  jobTypeMappings = JOB_TYPE_MAPPINGS;
+  
+  // Gap analysis
+  idealResume: TailoredResume | null = null;
   
   loading = false;
   tailoring = false;
@@ -59,11 +79,15 @@ export class ResumeTailoringComponent implements OnInit {
   constructor(
     private resumeService: ResumeService,
     private messageService: MessageService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private router: Router
   ) {}
 
   async ngOnInit() {
-    await this.loadMasterResume();
+    await Promise.all([
+      this.loadMasterResume(),
+      this.loadAllTags()
+    ]);
   }
 
   async loadMasterResume() {
@@ -82,7 +106,71 @@ export class ResumeTailoringComponent implements OnInit {
     }
   }
 
+  async loadAllTags() {
+    try {
+      this.availableTags = await this.resumeService.getAllTags();
+      // Initialize source tags list for picklist
+      this.sourceTagsList = this.availableTags.map(tag => ({ label: tag, value: tag }));
+      this.selectedTagsList = [];
+    } catch (error) {
+      console.error('Error loading tags:', error);
+    }
+  }
+
+  onModeChange() {
+    // Reset results when mode changes
+    this.clearResults();
+    
+    // Reset tag selections when switching away from tags mode
+    if (this.generationMode !== 'tags') {
+      this.selectedJobType = null;
+      this.selectedTagsList = [];
+      this.sourceTagsList = this.availableTags.map(tag => ({ label: tag, value: tag }));
+    }
+  }
+
+  onJobTypeSelect() {
+    if (!this.selectedJobType) {
+      // If cleared, reset picklists
+      this.selectedTagsList = [];
+      this.sourceTagsList = this.availableTags.map(tag => ({ label: tag, value: tag }));
+      return;
+    }
+
+    // Pre-populate selected tags from job type mapping
+    const jobTypeTags = this.selectedJobType.tags;
+    
+    // Move matching tags to selected list
+    this.selectedTagsList = jobTypeTags
+      .filter(tag => this.availableTags.includes(tag))
+      .map(tag => ({ label: tag, value: tag }));
+    
+    // Remove selected tags from source list
+    const selectedValues = new Set(this.selectedTagsList.map(t => t.value));
+    this.sourceTagsList = this.availableTags
+      .filter(tag => !selectedValues.has(tag))
+      .map(tag => ({ label: tag, value: tag }));
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Job Type Selected',
+      detail: `Pre-populated ${this.selectedTagsList.length} tags for ${this.selectedJobType.name}`,
+      life: 3000
+    });
+  }
+
   async tailorResume() {
+    // Route to appropriate method based on generation mode
+    if (this.generationMode === 'tags') {
+      await this.generateTagBasedResume();
+      return;
+    }
+
+    if (this.generationMode === 'gap-analysis') {
+      await this.generateGapAnalysis();
+      return;
+    }
+
     if (!this.jobDescription.trim()) {
       this.messageService.add({
         severity: 'warn',
@@ -106,7 +194,7 @@ export class ResumeTailoringComponent implements OnInit {
         masterResume: this.masterResume
       };
 
-      const response = await this.resumeService.tailorResume(request, this.useMockMode);
+      const response = await this.resumeService.tailorResume(request, this.generationMode === 'mock');
       
       this.jobBreakdown = response.jobBreakdown;
       this.tailoredResume = response.tailoredResume;
@@ -125,6 +213,96 @@ export class ResumeTailoringComponent implements OnInit {
         severity: 'error',
         summary: 'Error',
         detail: 'Failed to tailor resume'
+      });
+    } finally {
+      this.tailoring = false;
+    }
+  }
+
+  async generateTagBasedResume() {
+    if (this.selectedTagsList.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'Please select at least one tag'
+      });
+      return;
+    }
+
+    this.tailoring = true;
+    try {
+      const selectedTags = this.selectedTagsList.map(t => t.value);
+      this.tailoredResume = await this.resumeService.generateTagBasedResume(selectedTags);
+      
+      // Clear job breakdown and analysis since tag-based doesn't generate those
+      this.jobBreakdown = null;
+      this.tailoringAnalysis = '';
+      this.recommendations = [];
+      this.debugInfo = {
+        method: 'tags',
+        timestamp: new Date().toISOString()
+      };
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: `Resume generated with ${selectedTags.length} selected tags`
+      });
+    } catch (error) {
+      console.error('Error generating tag-based resume:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to generate tag-based resume'
+      });
+    } finally {
+      this.tailoring = false;
+    }
+  }
+
+  async generateGapAnalysis() {
+    if (!this.jobDescription.trim()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'Please enter a job description'
+      });
+      return;
+    }
+
+    this.tailoring = true;
+    try {
+      // Generate ideal resume from job description
+      this.idealResume = await this.resumeService.generateIdealResumeFromJobDescription(
+        this.jobDescription
+      );
+      
+      // Load user's master resume
+      this.masterResume = await this.resumeService.getMasterResumeForTailoring();
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Analysis Ready',
+        detail: 'Ideal resume generated. Navigating to gap analysis...'
+      });
+      
+      // Navigate directly to gap analysis with both resumes
+      setTimeout(() => {
+        this.router.navigate(['/dashboard/pages/resume/comparison'], {
+          state: {
+            masterResume: this.masterResume,
+            tailoredResume: this.idealResume, // Use ideal resume as comparison
+            jobDescription: this.jobDescription
+          }
+        });
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error generating gap analysis:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to generate ideal resume for comparison'
       });
     } finally {
       this.tailoring = false;
@@ -273,11 +451,15 @@ export class ResumeTailoringComponent implements OnInit {
   clearResults() {
     this.jobBreakdown = null;
     this.tailoredResume = null;
+    this.idealResume = null;
     this.tailoringAnalysis = '';
     this.recommendations = [];
     this.debugInfo = null;
     this.showMarkdownPreview = false;
     this.markdownPreviewHtml = '';
+    this.selectedJobType = null;
+    this.selectedTagsList = [];
+    this.sourceTagsList = this.availableTags.map(tag => ({ label: tag, value: tag }));
   }
 
   toggleMarkdownPreview() {
@@ -285,16 +467,6 @@ export class ResumeTailoringComponent implements OnInit {
     if (this.showMarkdownPreview && this.tailoredResume) {
       this.generateMarkdownPreview();
     }
-  }
-
-  onMockModeChange() {
-    const mode = this.useMockMode ? 'Mock Algorithm' : 'OpenAI GPT-4';
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Mode Changed',
-      detail: `Switched to ${mode}`,
-      life: 3000
-    });
   }
 
   private async generateMarkdownPreview() {
@@ -382,5 +554,25 @@ export class ResumeTailoringComponent implements OnInit {
 
   getSkillNames(skills: any[]): string {
     return skills.map(s => s.name).join(', ');
+  }
+
+  showGapAnalysis() {
+    if (!this.masterResume || !this.tailoredResume) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'Please generate a tailored resume first'
+      });
+      return;
+    }
+
+    // Navigate to comparison page with data
+    this.router.navigate(['/dashboard/pages/resume/comparison'], {
+      state: {
+        masterResume: this.masterResume,
+        tailoredResume: this.tailoredResume,
+        jobDescription: this.jobDescription
+      }
+    });
   }
 }

@@ -21,6 +21,7 @@ import { ResumeProjectsComponent } from './resume/resume-projects/resume-project
 import { ResumeVolunteerComponent } from './resume/resume-volunteer/resume-volunteer.component';
 import { ResumeTailoringComponent } from './resume/resume-tailoring/resume-tailoring.component';
 import { ResumeCardStyleComponent } from './resume/resume-card-style/resume-card-style.component';
+import { ResumeComparisonComponent } from './resume/resume-comparison/resume-comparison.component';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -44,6 +45,7 @@ export default [
     { path: 'resume/projects', component: ResumeProjectsComponent },
     { path: 'resume/volunteer', component: ResumeVolunteerComponent },
     { path: 'resume/tailoring', component: ResumeTailoringComponent },
+    { path: 'resume/comparison', component: ResumeComparisonComponent },
     { path: 'resume/card-style', component: ResumeCardStyleComponent },
     { path: '**', redirectTo: '/notfound' }
 ] as Routes;
