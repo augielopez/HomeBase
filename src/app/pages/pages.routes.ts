@@ -23,6 +23,7 @@ import { ResumeVolunteerComponent } from './career-resume/resume-volunteer/resum
 import { ResumeTailoringComponent } from './career-resume/resume-tailoring/resume-tailoring.component';
 import { ResumeCardStyleComponent } from './career-resume/resume-card-style/resume-card-style.component';
 import { ResumeComparisonComponent } from './career-resume/resume-comparison/resume-comparison.component';
+import { Notfound } from './demo/notfound/notfound';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -49,6 +50,6 @@ export default [
     { path: 'career-resume/tailoring', component: ResumeTailoringComponent },
     { path: 'career-resume/comparison', component: ResumeComparisonComponent },
     { path: 'career-resume/card-style', component: ResumeCardStyleComponent },
-    { path: '**', redirectTo: '/notfound' }
+    { path: 'notfound', component: Notfound }
 ] as Routes;
 

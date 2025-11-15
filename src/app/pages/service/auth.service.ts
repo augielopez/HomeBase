@@ -69,6 +69,7 @@ export class AuthService {
 
   async signOut(): Promise<void> {
     await this.supabaseService.getClient().auth.signOut();
+    this.currentUserSubject.next(null);
   }
 
   getCurrentUser(): User | null {

@@ -71,18 +71,6 @@ import { AuthService } from '../../pages/service/auth.service';
 
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
-                    <button type="button" class="layout-topbar-action" (click)="logout()">
-                        <i class="pi pi-sign-out"></i>
-                        <span>Logout</span>
-                    </button>
-                    <button type="button" class="layout-topbar-action">
-                        <i class="pi pi-calendar"></i>
-                        <span>Calendar</span>
-                    </button>
-                    <button type="button" class="layout-topbar-action">
-                        <i class="pi pi-inbox"></i>
-                        <span>Messages</span>
-                    </button>
                     <button type="button" class="layout-topbar-action" (click)="userMenu.toggle($event)">
                         <i class="pi pi-user"></i>
                         <span>Profile</span>
@@ -266,28 +254,32 @@ export class AppTopbar {
     private initializeUserMenu() {
         this.userMenuItems = [
             {
+                label: 'Quick Actions',
+                items: [
+                    {
+                        label: 'Calendar',
+                        icon: 'pi pi-calendar',
+                        command: () => this.openCalendar()
+                    },
+                    {
+                        label: 'Messages',
+                        icon: 'pi pi-inbox',
+                        command: () => this.openMessages()
+                    }
+                ]
+            },
+            {
                 label: 'Profile',
                 items: [
                     {
                         label: 'UI Design',
                         icon: 'pi pi-palette',
-                        command: () => {
-                            this.showUIDrawer();
-                        }
-                    },
-                    {
-                        label: 'Settings',
-                        icon: 'pi pi-cog',
-                        command: () => {
-                            this.router.navigate(['/financial-managment/settings']);
-                        }
+                        command: () => this.showUIDrawer()
                     },
                     {
                         label: 'Logout',
                         icon: 'pi pi-sign-out',
-                        command: () => {
-                            this.logout();
-                        }
+                        command: () => this.logout()
                     }
                 ]
             }
@@ -302,10 +294,18 @@ export class AppTopbar {
         this.uiDrawerVisible = true;
     }
 
+    private openCalendar() {
+        console.info('Calendar view is coming soon.');
+    }
+
+    private openMessages() {
+        console.info('Messages view is coming soon.');
+    }
+
     async logout() {
         try {
             await this.authService.signOut();
-            this.router.navigate(['/auth/login']);
+            await this.router.navigateByUrl('/auth/login', { replaceUrl: true });
         } catch (error) {
             console.error('Logout error:', error);
         }
