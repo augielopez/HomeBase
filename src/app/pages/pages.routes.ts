@@ -2,26 +2,27 @@ import { Routes } from '@angular/router';
 import { Documentation } from './demo/documentation/documentation';
 import { Crud } from './demo/crud/crud';
 import { Empty } from './demo/empty/empty';
-import { AccountsComponent } from './accounts/accounts';
-import { SettingsComponent } from './settings/settings.component';
-import { PlaidIntegrationsComponent } from './plaid-integrations/plaid-integrations.component';
-import { TransactionsComponent } from './transactions/transactions.component';
-import { ReconciliationComponent } from './reconciliation/reconciliation.component';
-import { FinancialInsightsComponent } from './financial-insights/financial-insights.component';
-import { CategorizationRulesComponent } from './categorization-rules/categorization-rules.component';
-import { MoneyFlowComponent } from './money-flow/money-flow.component';
-import { FinancialDashboardComponent } from './financial-dashboard/financial-dashboard.component';
-import { BillsComponent } from './bills/bills.component';
-import { ResumeContactComponent } from './resume/resume-contact/resume-contact.component';
-import { ResumeSkillsComponent } from './resume/resume-skills/resume-skills.component';
-import { ResumeExperienceComponent } from './resume/resume-experience/resume-experience.component';
-import { ResumeEducationComponent } from './resume/resume-education/resume-education.component';
-import { ResumeCertificationsComponent } from './resume/resume-certifications/resume-certifications.component';
-import { ResumeProjectsComponent } from './resume/resume-projects/resume-projects.component';
-import { ResumeVolunteerComponent } from './resume/resume-volunteer/resume-volunteer.component';
-import { ResumeTailoringComponent } from './resume/resume-tailoring/resume-tailoring.component';
-import { ResumeCardStyleComponent } from './resume/resume-card-style/resume-card-style.component';
-import { ResumeComparisonComponent } from './resume/resume-comparison/resume-comparison.component';
+import { AccountsComponent } from './financial-managment/accounts/accounts';
+import { SettingsComponent } from './financial-managment/settings/settings.component';
+import { PlaidIntegrationsComponent } from './financial-managment/plaid-integrations/plaid-integrations.component';
+import { TransactionsComponent } from './financial-managment/transactions/transactions.component';
+import { ReconciliationComponent } from './financial-managment/reconciliation/reconciliation.component';
+import { FinancialInsightsComponent } from './financial-managment/financial-insights/financial-insights.component';
+import { CategorizationRulesComponent } from './financial-managment/categorization-rules/categorization-rules.component';
+import { MoneyFlowComponent } from './financial-managment/money-flow/money-flow.component';
+import { FinancialDashboardComponent } from './financial-managment/financial-dashboard/financial-dashboard.component';
+import { BillsComponent } from './financial-managment/bills/bills.component';
+import { DuplicateCheckerComponent } from './financial-managment/duplicate-checker/duplicate-checker.component';
+import { ResumeContactComponent } from './career-resume/resume-contact/resume-contact.component';
+import { ResumeSkillsComponent } from './career-resume/resume-skills/resume-skills.component';
+import { ResumeExperienceComponent } from './career-resume/resume-experience/resume-experience.component';
+import { ResumeEducationComponent } from './career-resume/resume-education/resume-education.component';
+import { ResumeCertificationsComponent } from './career-resume/resume-certifications/resume-certifications.component';
+import { ResumeProjectsComponent } from './career-resume/resume-projects/resume-projects.component';
+import { ResumeVolunteerComponent } from './career-resume/resume-volunteer/resume-volunteer.component';
+import { ResumeTailoringComponent } from './career-resume/resume-tailoring/resume-tailoring.component';
+import { ResumeCardStyleComponent } from './career-resume/resume-card-style/resume-card-style.component';
+import { ResumeComparisonComponent } from './career-resume/resume-comparison/resume-comparison.component';
 
 export default [
     { path: 'documentation', component: Documentation },
@@ -37,16 +38,17 @@ export default [
     { path: 'money-flow', component: MoneyFlowComponent },
     { path: 'financial-dashboard', component: FinancialDashboardComponent },
     { path: 'bills', component: BillsComponent },
-    { path: 'resume/contact', component: ResumeContactComponent },
-    { path: 'resume/skills', component: ResumeSkillsComponent },
-    { path: 'resume/experience', component: ResumeExperienceComponent },
-    { path: 'resume/education', component: ResumeEducationComponent },
-    { path: 'resume/certifications', component: ResumeCertificationsComponent },
-    { path: 'resume/projects', component: ResumeProjectsComponent },
-    { path: 'resume/volunteer', component: ResumeVolunteerComponent },
-    { path: 'resume/tailoring', component: ResumeTailoringComponent },
-    { path: 'resume/comparison', component: ResumeComparisonComponent },
-    { path: 'resume/card-style', component: ResumeCardStyleComponent },
+    { path: 'duplicate-checker', component: DuplicateCheckerComponent },
+    { path: 'career-resume/contact', component: ResumeContactComponent },
+    { path: 'career-resume/skills', component: ResumeSkillsComponent },
+    { path: 'career-resume/experience', component: ResumeExperienceComponent },
+    { path: 'career-resume/education', component: ResumeEducationComponent },
+    { path: 'career-resume/certifications', component: ResumeCertificationsComponent },
+    { path: 'career-resume/projects', component: ResumeProjectsComponent },
+    { path: 'career-resume/volunteer', component: ResumeVolunteerComponent },
+    { path: 'career-resume/tailoring', component: ResumeTailoringComponent },
+    { path: 'career-resume/comparison', component: ResumeComparisonComponent },
+    { path: 'career-resume/card-style', component: ResumeCardStyleComponent },
     { path: '**', redirectTo: '/notfound' }
 ] as Routes;
 

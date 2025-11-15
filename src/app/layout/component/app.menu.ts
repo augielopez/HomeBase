@@ -35,6 +35,22 @@ export class AppMenu {
                 expanded: false,
                 items: [
                     {
+                        label: 'Admin Tools',
+                        icon: 'pi pi-fw pi-shield',
+                        items: [
+                            {
+                                label: 'Settings',
+                                icon: 'pi pi-fw pi-sliders-h',
+                                routerLink: ['/dashboard/pages/settings']
+                            },
+                            {
+                                label: 'Duplicate Checker',
+                                icon: 'pi pi-fw pi-clone',
+                                routerLink: ['/dashboard/pages/duplicate-checker']
+                            }
+                        ]
+                    },
+                    {
                         label: 'Overview & Analytics',
                         icon: 'pi pi-fw pi-chart-bar',
                         items: [
@@ -149,52 +165,52 @@ export class AppMenu {
                     {
                         label: 'Contact Information',
                         icon: 'pi pi-fw pi-user',
-                        routerLink: ['/dashboard/pages/resume/contact']
+                        routerLink: ['/dashboard/pages/career-resume/contact']
                     },
                     {
                         label: 'Skills',
                         icon: 'pi pi-fw pi-star',
-                        routerLink: ['/dashboard/pages/resume/skills']
+                        routerLink: ['/dashboard/pages/career-resume/skills']
                     },
                     {
                         label: 'Work Experience',
                         icon: 'pi pi-fw pi-briefcase',
-                        routerLink: ['/dashboard/pages/resume/experience']
+                        routerLink: ['/dashboard/pages/career-resume/experience']
                     },
                     {
                         label: 'Education',
                         icon: 'pi pi-fw pi-graduation-cap',
-                        routerLink: ['/dashboard/pages/resume/education']
+                        routerLink: ['/dashboard/pages/career-resume/education']
                     },
                     {
                         label: 'Certifications',
                         icon: 'pi pi-fw pi-id-card',
-                        routerLink: ['/dashboard/pages/resume/certifications']
+                        routerLink: ['/dashboard/pages/career-resume/certifications']
                     },
                     {
                         label: 'Projects',
                         icon: 'pi pi-fw pi-folder',
-                        routerLink: ['/dashboard/pages/resume/projects']
+                        routerLink: ['/dashboard/pages/career-resume/projects']
                     },
                     {
                         label: 'Volunteer Work',
                         icon: 'pi pi-fw pi-heart',
-                        routerLink: ['/dashboard/pages/resume/volunteer']
+                        routerLink: ['/dashboard/pages/career-resume/volunteer']
                     },
                     {
                         label: 'Job Tailoring Assistant',
                         icon: 'pi pi-fw pi-cog',
-                        routerLink: ['/dashboard/pages/resume/tailoring']
+                        routerLink: ['/dashboard/pages/career-resume/tailoring']
                     },
                     {
                         label: 'Gap Analysis',
                         icon: 'pi pi-fw pi-chart-bar',
-                        routerLink: ['/dashboard/pages/resume/comparison']
+                        routerLink: ['/dashboard/pages/career-resume/comparison']
                     },
                     {
                         label: 'Resume Card Style',
                         icon: 'pi pi-fw pi-id-card',
-                        routerLink: ['/dashboard/pages/resume/card-style']
+                        routerLink: ['/dashboard/pages/career-resume/card-style']
                     }
                 ]
             }

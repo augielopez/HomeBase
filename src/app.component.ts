@@ -1,7 +1,7 @@
 
 import { Component, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { MasterDataService } from './app/pages/service/master-data.service';
+import { MasterDataService } from './app/pages/financial-managment/services/master-data.service';
 
 @Component({
     selector: 'app-root',
