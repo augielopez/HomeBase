@@ -185,7 +185,8 @@ export class ReconciliationComponent {
         this.accountOptions = [
             { id: '', name: 'All Accounts' },
             { id: 'Fidelity', name: 'Fidelity' },
-            { id: 'US Bank', name: 'US Bank' }
+            { id: 'US Bank', name: 'US Bank' },
+            { id: 'American Express', name: 'American Express' }
         ];
 
         // No default selection - starts with empty string
@@ -384,7 +385,13 @@ export class ReconciliationComponent {
                 return 'Fidelity'; // Default CHECKING to Fidelity
             case 'Credit Card':
                 return 'US Bank'; // Default Credit Card to US Bank
+            case 'AUGUSTINE LOPEZ':
+                return 'American Express'; // AMEX cardholder
             default:
+                // Check if it looks like a person's name (contains space and all caps)
+                if (accountId && accountId.includes(' ') && accountId === accountId.toUpperCase()) {
+                    return 'American Express'; // Likely AMEX cardholder
+                }
                 return 'Fidelity'; // Default fallback
         }
     }
@@ -401,6 +408,7 @@ export class ReconciliationComponent {
             const subtext = transaction.subtext.toLowerCase();
             if (subtext.includes('fidelity')) return 'Fidelity';
             if (subtext.includes('us bank')) return 'US Bank';
+            if (subtext.includes('amex') || subtext.includes('american_express') || subtext.includes('american express')) return 'American Express';
         }
         
         // Default fallback

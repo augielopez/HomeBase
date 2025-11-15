@@ -80,7 +80,7 @@ export class CsvImportService {
         },
         {
             name: 'American Express',
-            patterns: ['amex', 'american express'],
+            patterns: ['amex', 'american express', 'activity'],
             fieldMapping: {
                 date: 'Date',
                 description: 'Description',
@@ -189,6 +189,26 @@ export class CsvImportService {
                     account: 'Account Name'
                 },
                 dateFormat: 'M/d/yyyy',
+                amountFormat: 'positive_negative'
+            };
+        }
+        
+        // Check for AMEX activity.csv files
+        if (filenameLower === 'activity.csv' && 
+            headers.includes('Card Member') && 
+            headers.includes('Account #')) {
+            console.log('Matched AMEX activity.csv pattern');
+            return {
+                name: 'American Express',
+                patterns: ['amex', 'american express', 'activity'],
+                fieldMapping: {
+                    date: 'Date',
+                    description: 'Description',
+                    amount: 'Amount',
+                    merchant: 'Description',
+                    account: 'Card Member'
+                },
+                dateFormat: 'MM/dd/yyyy',
                 amountFormat: 'positive_negative'
             };
         }
@@ -554,7 +574,7 @@ export class CsvImportService {
             }
 
             // Parse amount
-            const amount = this.parseAmount(amountStr, schema.amountFormat);
+            let amount = this.parseAmount(amountStr, schema.amountFormat);
             if (amount === null) {
                 console.log('Amount parsing failed:', { 
                     amountStr, 
@@ -562,6 +582,13 @@ export class CsvImportService {
                     schema: schema.name 
                 });
                 return null;
+            }
+
+            // For AMEX credit cards, flip the sign:
+            // - Positive amounts in CSV = charges (money spent) → store as negative
+            // - Negative amounts in CSV = refunds/credits → store as positive
+            if (schema.name === 'American Express') {
+                amount = -amount;
             }
 
             return {
@@ -903,7 +930,10 @@ export class CsvImportService {
                     try {
                         const { data: insertedTransactions, error: insertError } = await supabase
                             .from('hb_transactions')
-                            .insert(transactionsToInsert)
+                            .upsert(transactionsToInsert, {
+                                onConflict: 'user_id,account_id,date,amount,name',
+                                ignoreDuplicates: true
+                            })
                             .select('id');
 
                         if (insertError) {

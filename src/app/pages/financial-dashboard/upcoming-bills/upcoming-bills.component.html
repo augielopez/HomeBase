@@ -2,45 +2,36 @@
   <!-- Section Header -->
   <div class="flex justify-between items-center mb-6">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Upcoming Bills</h2>
-      <p class="text-gray-600 dark:text-gray-400">Bills due in the next 30 days</p>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Remaining Bills</h2>
+      <p class="text-gray-600 dark:text-gray-400">Bills sorted by upcoming due date - check what's remaining to be paid</p>
     </div>
     <p-button 
-      icon="pi pi-plus" 
-      label="Add Bill" 
+      icon="pi pi-refresh" 
+      label="Refresh" 
       severity="secondary" 
       [outlined]="true"
-      (onClick)="addNewBill()">
+      (onClick)="refreshBills()">
     </p-button>
   </div>
 
   <!-- Loading State -->
   <div *ngIf="loading" class="loading-state">
     <div class="summary-cards mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div *ngFor="let i of [1,2,3]" class="summary-card">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div *ngFor="let i of [1,2,3,4]" class="summary-card">
           <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
         </div>
       </div>
     </div>
-    <div class="bills-list">
-      <div *ngFor="let i of [1,2,3]" class="bill-item">
-        <p-skeleton width="100%" height="80px" borderRadius="8px"></p-skeleton>
-      </div>
-    </div>
+    <p-skeleton width="100%" height="400px"></p-skeleton>
   </div>
 
   <!-- No Bills State -->
   <div *ngIf="!loading && upcomingBills.length === 0" class="no-bills-state">
     <div class="text-center py-12">
-      <i class="pi pi-file text-6xl text-gray-400 mb-4"></i>
-      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Upcoming Bills</h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-6">You're all caught up! No bills due in the next 30 days.</p>
-      <p-button 
-        icon="pi pi-plus" 
-        label="Add Bill" 
-        (onClick)="addNewBill()">
-      </p-button>
+      <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Bills Due Soon</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">You're all caught up! No bills in your payment history.</p>
     </div>
   </div>
 
@@ -49,7 +40,7 @@
     
     <!-- Summary Cards -->
     <div class="summary-cards mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         
         <!-- Total Amount -->
         <p-card class="summary-card">
@@ -61,121 +52,138 @@
           </div>
         </p-card>
 
-        <!-- Due Today -->
-        <p-card class="summary-card" *ngIf="billsDueToday > 0">
+        <!-- Expected Paid -->
+        <p-card class="summary-card" [class.highlight-danger]="overdueCount > 0">
           <div class="text-center">
-            <div class="text-2xl font-bold mb-2 text-orange-600">
-              {{ billsDueToday }}
+            <div class="text-2xl font-bold mb-2" [class.text-red-600]="overdueCount > 0" [class.text-gray-500]="overdueCount === 0">
+              {{ overdueCount }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Expected Paid</div>
+          </div>
+        </p-card>
+
+        <!-- Due Today -->
+        <p-card class="summary-card" [class.highlight-warning]="dueTodayCount > 0">
+          <div class="text-center">
+            <div class="text-2xl font-bold mb-2" [class.text-orange-600]="dueTodayCount > 0" [class.text-gray-500]="dueTodayCount === 0">
+              {{ dueTodayCount }}
             </div>
             <div class="text-sm text-gray-600 dark:text-gray-400">Due Today</div>
           </div>
         </p-card>
 
-        <!-- Overdue -->
-        <p-card class="summary-card" *ngIf="billsOverdue > 0">
+        <!-- Due Soon (next 7 days) -->
+        <p-card class="summary-card">
           <div class="text-center">
-            <div class="text-2xl font-bold mb-2 text-red-600">
-              {{ billsOverdue }}
+            <div class="text-2xl font-bold mb-2 text-yellow-600">
+              {{ dueSoonCount }}
             </div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Overdue</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Due This Week</div>
           </div>
         </p-card>
       </div>
     </div>
 
-    <!-- Bills List -->
-    <div class="bills-list">
-      <div 
-        *ngFor="let bill of upcomingBills" 
-        class="bill-item">
+    <!-- Bills Table -->
+    <div class="bills-table-container">
+      <p-table 
+        [value]="upcomingBills" 
+        [tableStyle]="{ 'min-width': '50rem' }"
+        styleClass="bills-table"
+        [rowHover]="true">
         
-        <div class="bill-info">
-          <div class="bill-header">
-            <div class="bill-name">{{ bill.name }}</div>
-            <div class="bill-amount">{{ bill.amount | currency }}</div>
-          </div>
-          
-          <div class="bill-details">
-            <div class="bill-meta">
-              <span class="due-date">
-                <i class="pi pi-calendar mr-1"></i>
-                {{ formatDueDate(bill.due_date) }}
-              </span>
+        <!-- Bill Name Column -->
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="bill_name">
+              Bill Name
+              <p-sortIcon field="bill_name"></p-sortIcon>
+            </th>
+            <th pSortableColumn="bank_source">
+              Bank Source
+              <p-sortIcon field="bank_source"></p-sortIcon>
+            </th>
+            <th pSortableColumn="last_payment_date">
+              Last Paid
+              <p-sortIcon field="last_payment_date"></p-sortIcon>
+            </th>
+            <th pSortableColumn="next_due_date">
+              Next Due Date
+              <p-sortIcon field="next_due_date"></p-sortIcon>
+            </th>
+            <th pSortableColumn="days_until_due">
+              Status
+              <p-sortIcon field="days_until_due"></p-sortIcon>
+            </th>
+            <th pSortableColumn="amount_due" class="text-right">
+              Amount
+              <p-sortIcon field="amount_due"></p-sortIcon>
+            </th>
+          </tr>
+        </ng-template>
+        
+        <!-- Table Body -->
+        <ng-template pTemplate="body" let-bill>
+          <tr 
+            [class.overdue-row]="getDueStatus(bill.days_until_due) === 'overdue'"
+            [class.not-overdue-row]="getDueStatus(bill.days_until_due) !== 'overdue'">
+            <td>
+              <span class="font-semibold">{{ bill.bill_name }}</span>
+            </td>
+            <td>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-building text-gray-500"></i>
+                <span>{{ bill.bank_source || 'N/A' }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="text-sm">{{ formatLastPaymentDate(bill.last_payment_date) }}</span>
+            </td>
+            <td>
+              <span class="text-sm font-medium">{{ formatDueDate(bill.next_due_date) }}</span>
+            </td>
+            <td>
               <p-tag 
-                [value]="getDueStatusText(getDueStatus(bill.due_date), bill.due_date)"
-                [severity]="getDueStatusSeverity(getDueStatus(bill.due_date))"
+                [value]="getDueStatusText(bill.days_until_due)"
+                [severity]="getDueStatusSeverity(getDueStatus(bill.days_until_due))"
                 [rounded]="true">
               </p-tag>
-            </div>
-            
-            <div class="bill-category" *ngIf="bill.category">
-              <p-tag 
-                [value]="bill.category.name" 
-                severity="info" 
-                [rounded]="true">
-              </p-tag>
-            </div>
-            
-            <div class="bill-account" *ngIf="bill.account">
-              <span class="text-sm text-gray-600 dark:text-gray-400">
-                <i class="pi pi-building mr-1"></i>
-                {{ bill.account.name }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="bill-actions">
-          <div class="action-buttons">
-            <p-button 
-              icon="pi pi-check" 
-              label="Mark Paid" 
-              severity="success"
-              [outlined]="true"
-              size="small"
-              (onClick)="markAsPaid(bill)">
-            </p-button>
-            
-            <p-button 
-              icon="pi pi-clock" 
-              label="Schedule" 
-              severity="info"
-              [outlined]="true"
-              size="small"
-              (onClick)="schedulePayment(bill)">
-            </p-button>
-            
-            <p-button 
-              icon="pi pi-eye" 
-              label="View" 
-              severity="secondary"
-              [outlined]="true"
-              size="small"
-              (onClick)="viewBillDetails(bill)">
-            </p-button>
-          </div>
-        </div>
-      </div>
+            </td>
+            <td class="text-right amount-cell">
+              <span class="text-lg font-bold">{{ bill.amount_due | currency }}</span>
+            </td>
+          </tr>
+        </ng-template>
+        
+        <!-- Empty State -->
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6" class="text-center py-8">
+              <p class="text-gray-500">No bills found</p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="quick-stats mt-6">
-      <div class="stats-grid">
+    <!-- Quick Stats Footer -->
+    <div class="quick-stats mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
         <div class="stat-item">
-          <div class="stat-value">{{ upcomingBills.length }}</div>
-          <div class="stat-label">Total Bills</div>
+          <div class="stat-value text-xl font-bold text-gray-900 dark:text-white">{{ billsCount }}</div>
+          <div class="stat-label text-sm text-gray-600 dark:text-gray-400">Total Bills</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ overdueCount }}</div>
-          <div class="stat-label">Overdue</div>
+          <div class="stat-value text-xl font-bold text-red-600">{{ overdueCount }}</div>
+          <div class="stat-label text-sm text-gray-600 dark:text-gray-400">Expected Paid</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ dueTodayCount }}</div>
-          <div class="stat-label">Due Today</div>
+          <div class="stat-value text-xl font-bold text-orange-600">{{ dueTodayCount }}</div>
+          <div class="stat-label text-sm text-gray-600 dark:text-gray-400">Due Today</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ dueSoonCount }}</div>
-          <div class="stat-label">Due Soon</div>
+          <div class="stat-value text-xl font-bold text-yellow-600">{{ dueSoonCount }}</div>
+          <div class="stat-label text-sm text-gray-600 dark:text-gray-400">Due This Week</div>
         </div>
       </div>
     </div>

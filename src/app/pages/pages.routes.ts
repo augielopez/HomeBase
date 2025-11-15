@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
-import { Documentation } from './documentation/documentation';
-import { Crud } from './crud/crud';
-import { Empty } from './empty/empty';
+import { Documentation } from './demo/documentation/documentation';
+import { Crud } from './demo/crud/crud';
+import { Empty } from './demo/empty/empty';
 import { AccountsComponent } from './accounts/accounts';
 import { SettingsComponent } from './settings/settings.component';
 import { PlaidIntegrationsComponent } from './plaid-integrations/plaid-integrations.component';

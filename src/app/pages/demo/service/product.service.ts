@@ -19,7 +19,7 @@ export interface Product {
     rating?: number;
 }
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ProductService {
     getProductsData() {
         return [

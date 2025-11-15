@@ -418,7 +418,9 @@ export class TransactionsComponent implements OnInit {
         } else if (bankSourceLower.includes('us bank') || bankSourceLower.includes('usbank') || bankSourceLower === 'us_bank') {
             return 'assets/images/usbank.png';
         } else if (bankSourceLower.includes('marcus')) {
-            return 'assets/images/marcus.png'; // Assuming you have a Marcus logo
+            return 'assets/images/marcus.png';
+        } else if (bankSourceLower.includes('amex') || bankSourceLower.includes('american express') || bankSourceLower.includes('american_express')) {
+            return 'assets/images/amex.png';
         }
         
         // Return null for no logo instead of a non-existent default

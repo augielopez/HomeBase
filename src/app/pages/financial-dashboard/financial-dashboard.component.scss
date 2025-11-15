@@ -7,24 +7,15 @@
     margin-bottom: 2rem;
   }
 
-  .summary-section {
-    .summary-card {
-      transition: all 0.3s ease;
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-      }
-    }
-  }
-
-  .main-content {
-    .charts-section,
-    .transactions-section,
-    .accounts-section,
-    .bills-section,
-    .alerts-section {
-      min-height: 400px;
+  .bills-section {
+    margin-top: 2rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    
+    :host-context(.app-dark) & {
+      background: var(--surface-card);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
   }
 }
@@ -41,25 +32,10 @@
         gap: 1rem;
       }
     }
-    
-    .summary-section {
-      .grid {
-        gap: 1rem;
-      }
-    }
-    
-    .main-content {
-      gap: 1.5rem;
-    }
-  }
-}
 
-// Dark theme support
-:host-context(.app-dark) {
-  .financial-dashboard {
-    .summary-card {
-      background: var(--surface-card);
-      border: 1px solid var(--surface-border);
+    .bills-section {
+      margin-top: 1rem;
+      border-radius: 8px;
     }
   }
 }

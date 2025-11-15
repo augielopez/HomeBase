@@ -18,7 +18,7 @@ export class ReconciliationService {
 
     /**
      * Get unreconciled transactions for a specific month
-     * Only includes transactions from CHECKING and Credit Card accounts
+     * Only includes transactions from CHECKING, Credit Card, and American Express accounts
      * that don't have a bill_id (unreconciled)
      */
     async getUnreconciledTransactions(year: number, month: number): Promise<DbTransaction[]> {
@@ -29,12 +29,11 @@ export class ReconciliationService {
             
             const startDateStr = startDate.toISOString().split('T')[0];
             const endDateStr = endDate.toISOString().split('T')[0];
-
             // Use account type strings directly
-            const accountIds = ['CHECKING', 'Credit Card'];
-
+            const accountIds = ['CHECKING', 'Credit Card', 'AUGUSTINE LOPEZ'];
             // Query transactions only - no joins needed
             // Exclude transactions that are matched to bills OR marked as excluded
+            // Include transactions from CHECKING, Credit Card, OR American Express (by bank_source)
             const { data: transactions, error } = await this.supabaseService.getClient()
                 .from('hb_transactions')
                 .select('*')
@@ -198,7 +197,7 @@ export class ReconciliationService {
             const endDateStr = endDate.toISOString().split('T')[0];
 
             // Use account type strings directly
-            const accountIds = ['CHECKING', 'Credit Card'];
+            const accountIds = ['CHECKING', 'Credit Card', 'AUGUSTINE LOPEZ'];
 
             // First get matched transactions
             const { data: transactions, error } = await this.supabaseService.getClient()
@@ -360,7 +359,7 @@ export class ReconciliationService {
             const endDateStr = endDate.toISOString().split('T')[0];
 
             // Use account type strings directly
-            const accountIds = ['CHECKING', 'Credit Card'];
+            const accountIds = ['CHECKING', 'Credit Card', 'AUGUSTINE LOPEZ'];
 
             // Query transactions marked as excluded
             const { data: transactions, error } = await this.supabaseService.getClient()
