@@ -98,7 +98,7 @@ export class ResumeComparisonComponent implements OnInit {
         detail: 'Please generate a tailored resume first in the Job Tailoring Assistant',
         life: 5000
       });
-      setTimeout(() => this.router.navigate(['/dashboard/pages/career-resume/tailoring']), 2000);
+      setTimeout(() => this.router.navigate(['/career-resume/tailoring']), 2000);
     }
   }
 
@@ -429,7 +429,7 @@ export class ResumeComparisonComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/dashboard/pages/career-resume/tailoring']);
+    this.router.navigate(['/career-resume/tailoring']);
   }
 
   // STAR Method + ATS Optimization Methods
@@ -542,7 +542,7 @@ export class ResumeComparisonComponent implements OnInit {
   onViewModeChange() {
     if (this.viewMode === 'edit') {
       // Navigate to Experience Editor for editing
-      this.router.navigate(['/dashboard/pages/career-resume/experience']);
+      this.router.navigate(['/career-resume/experience']);
     }
   }
 

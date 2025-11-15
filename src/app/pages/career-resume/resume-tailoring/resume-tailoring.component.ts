@@ -288,7 +288,7 @@ export class ResumeTailoringComponent implements OnInit {
       
       // Navigate directly to gap analysis with both resumes
       setTimeout(() => {
-        this.router.navigate(['/dashboard/pages/career-resume/comparison'], {
+        this.router.navigate(['/career-resume/comparison'], {
           state: {
             masterResume: this.masterResume,
             tailoredResume: this.idealResume, // Use ideal resume as comparison
@@ -567,7 +567,7 @@ export class ResumeTailoringComponent implements OnInit {
     }
 
     // Navigate to comparison page with data
-    this.router.navigate(['/dashboard/pages/career-resume/comparison'], {
+    this.router.navigate(['/career-resume/comparison'], {
       state: {
         masterResume: this.masterResume,
         tailoredResume: this.tailoredResume,

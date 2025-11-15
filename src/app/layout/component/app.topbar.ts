@@ -107,21 +107,21 @@ import { AuthService } from '../../pages/service/auth.service';
             <div class="ui-section">
                 <h4 class="ui-section-title">UI Components</h4>
                 <ul class="ui-menu-list">
-                    <li><a routerLink="/dashboard/uikit/formlayout"><i class="pi pi-fw pi-th-large"></i> Form Layout</a></li>
-                    <li><a routerLink="/dashboard/uikit/input"><i class="pi pi-fw pi-pencil"></i> Input</a></li>
-                    <li><a routerLink="/dashboard/uikit/button"><i class="pi pi-fw pi-circle"></i> Button</a></li>
-                    <li><a routerLink="/dashboard/uikit/table"><i class="pi pi-fw pi-table"></i> Table</a></li>
-                    <li><a routerLink="/dashboard/uikit/list"><i class="pi pi-fw pi-list"></i> List</a></li>
-                    <li><a routerLink="/dashboard/uikit/tree"><i class="pi pi-fw pi-sitemap"></i> Tree</a></li>
-                    <li><a routerLink="/dashboard/uikit/panel"><i class="pi pi-fw pi-window-maximize"></i> Panel</a></li>
-                    <li><a routerLink="/dashboard/uikit/overlay"><i class="pi pi-fw pi-eye"></i> Overlay</a></li>
-                    <li><a routerLink="/dashboard/uikit/media"><i class="pi pi-fw pi-image"></i> Media</a></li>
-                    <li><a routerLink="/dashboard/uikit/menu"><i class="pi pi-fw pi-bars"></i> Menu</a></li>
-                    <li><a routerLink="/dashboard/uikit/message"><i class="pi pi-fw pi-comment"></i> Message</a></li>
-                    <li><a routerLink="/dashboard/uikit/file"><i class="pi pi-fw pi-file"></i> File</a></li>
-                    <li><a routerLink="/dashboard/uikit/charts"><i class="pi pi-fw pi-chart-bar"></i> Chart</a></li>
-                    <li><a routerLink="/dashboard/uikit/timeline"><i class="pi pi-fw pi-clock"></i> Timeline</a></li>
-                    <li><a routerLink="/dashboard/uikit/misc"><i class="pi pi-fw pi-ellipsis-h"></i> Misc</a></li>
+                    <li><a routerLink="/uikit/formlayout"><i class="pi pi-fw pi-th-large"></i> Form Layout</a></li>
+                    <li><a routerLink="/uikit/input"><i class="pi pi-fw pi-pencil"></i> Input</a></li>
+                    <li><a routerLink="/uikit/button"><i class="pi pi-fw pi-circle"></i> Button</a></li>
+                    <li><a routerLink="/uikit/table"><i class="pi pi-fw pi-table"></i> Table</a></li>
+                    <li><a routerLink="/uikit/list"><i class="pi pi-fw pi-list"></i> List</a></li>
+                    <li><a routerLink="/uikit/tree"><i class="pi pi-fw pi-sitemap"></i> Tree</a></li>
+                    <li><a routerLink="/uikit/panel"><i class="pi pi-fw pi-window-maximize"></i> Panel</a></li>
+                    <li><a routerLink="/uikit/overlay"><i class="pi pi-fw pi-eye"></i> Overlay</a></li>
+                    <li><a routerLink="/uikit/media"><i class="pi pi-fw pi-image"></i> Media</a></li>
+                    <li><a routerLink="/uikit/menu"><i class="pi pi-fw pi-bars"></i> Menu</a></li>
+                    <li><a routerLink="/uikit/message"><i class="pi pi-fw pi-comment"></i> Message</a></li>
+                    <li><a routerLink="/uikit/file"><i class="pi pi-fw pi-file"></i> File</a></li>
+                    <li><a routerLink="/uikit/charts"><i class="pi pi-fw pi-chart-bar"></i> Chart</a></li>
+                    <li><a routerLink="/uikit/timeline"><i class="pi pi-fw pi-clock"></i> Timeline</a></li>
+                    <li><a routerLink="/uikit/misc"><i class="pi pi-fw pi-ellipsis-h"></i> Misc</a></li>
                 </ul>
             </div>
 
@@ -141,20 +141,20 @@ import { AuthService } from '../../pages/service/auth.service';
                     <li class="ui-submenu">
                         <span class="ui-submenu-title"><i class="pi pi-fw pi-cog"></i> Settings</span>
                         <ul class="ui-submenu-list">
-                            <li><a routerLink="/dashboard/pages/settings"><i class="pi pi-fw pi-sliders-h"></i> Settings</a></li>
+                            <li><a routerLink="/financial-managment/settings"><i class="pi pi-fw pi-sliders-h"></i> Settings</a></li>
                         </ul>
                     </li>
                     <li class="ui-submenu">
                         <span class="ui-submenu-title"><i class="pi pi-fw pi-database"></i> Data</span>
                         <ul class="ui-submenu-list">
-                            <li><a routerLink="/dashboard/pages/crud"><i class="pi pi-fw pi-table"></i> Crud</a></li>
+                            <li><a routerLink="/crud"><i class="pi pi-fw pi-table"></i> Crud</a></li>
                         </ul>
                     </li>
                     <li class="ui-submenu">
                         <span class="ui-submenu-title"><i class="pi pi-fw pi-info-circle"></i> Info</span>
                         <ul class="ui-submenu-list">
                             <li><a routerLink="/notfound"><i class="pi pi-fw pi-question-circle"></i> Not Found</a></li>
-                            <li><a routerLink="/dashboard/pages/empty"><i class="pi pi-fw pi-file-o"></i> Empty</a></li>
+                            <li><a routerLink="/empty"><i class="pi pi-fw pi-file-o"></i> Empty</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -167,7 +167,7 @@ import { AuthService } from '../../pages/service/auth.service';
                     <li class="ui-submenu">
                         <span class="ui-submenu-title"><i class="pi pi-fw pi-book"></i> Documentation</span>
                         <ul class="ui-submenu-list">
-                            <li><a routerLink="/dashboard/documentation"><i class="pi pi-fw pi-info-circle"></i> Documentation</a></li>
+                            <li><a routerLink="/documentation"><i class="pi pi-fw pi-info-circle"></i> Documentation</a></li>
                             <li><a href="https://github.com/primefaces/homebase-ng" target="_blank"><i class="pi pi-fw pi-github"></i> View Source</a></li>
                         </ul>
                     </li>
@@ -279,7 +279,7 @@ export class AppTopbar {
                         label: 'Settings',
                         icon: 'pi pi-cog',
                         command: () => {
-                            this.router.navigate(['/dashboard/pages/settings']);
+                            this.router.navigate(['/financial-managment/settings']);
                         }
                     },
                     {

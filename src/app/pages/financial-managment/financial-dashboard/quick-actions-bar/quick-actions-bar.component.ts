@@ -41,7 +41,7 @@ export class QuickActionsBarComponent {
       severity: 'success',
       outlined: true,
       action: () => this.addTransaction(),
-      routerLink: ['/pages/transactions']
+      routerLink: ['/financial-managment/transactions']
     },
     {
       id: 'add-bill',
@@ -58,7 +58,7 @@ export class QuickActionsBarComponent {
       severity: 'secondary',
       outlined: true,
       action: () => this.addAccount(),
-      routerLink: ['/pages/accounts']
+      routerLink: ['/financial-managment/accounts']
     },
     {
       id: 'reconcile',
@@ -67,7 +67,7 @@ export class QuickActionsBarComponent {
       severity: 'danger',
       outlined: true,
       action: () => this.reconcile(),
-      routerLink: ['/pages/reconciliation']
+      routerLink: ['/financial-managment/reconciliation']
     },
     {
       id: 'export-csv',

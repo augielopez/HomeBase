@@ -6,15 +6,15 @@ import { Landing } from './app/pages/demo/landing/landing';
 import { Notfound } from './app/pages/demo/notfound/notfound';
 
 export const appRoutes: Routes = [
-    { path: '', redirectTo: '/auth', pathMatch: 'full' },
+    { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
     {
-        path: 'dashboard',
+        path: '',
         component: AppLayout,
         children: [
-            { path: '', component: Dashboard },
+            { path: 'dashboard', component: Dashboard },
             { path: 'uikit', loadChildren: () => import('./app/pages/demo/uikit/uikit.routes') },
             { path: 'documentation', component: Documentation },
-            { path: 'pages', loadChildren: () => import('./app/pages/pages.routes') }
+            { path: '', loadChildren: () => import('./app/pages/pages.routes') }
         ]
     },
     { path: 'landing', component: Landing },

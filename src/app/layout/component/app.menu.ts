@@ -41,12 +41,12 @@ export class AppMenu {
                             {
                                 label: 'Settings',
                                 icon: 'pi pi-fw pi-sliders-h',
-                                routerLink: ['/dashboard/pages/settings']
+                                routerLink: ['/financial-managment/settings']
                             },
                             {
                                 label: 'Duplicate Checker',
                                 icon: 'pi pi-fw pi-clone',
-                                routerLink: ['/dashboard/pages/duplicate-checker']
+                                routerLink: ['/financial-managment/duplicate-checker']
                             }
                         ]
                     },
@@ -57,17 +57,17 @@ export class AppMenu {
                             {
                                 label: 'Financial Dashboard',
                                 icon: 'pi pi-fw pi-chart-bar',
-                                routerLink: ['/dashboard/pages/financial-dashboard']
+                                routerLink: ['/financial-managment/financial-dashboard']
                             },
                             {
                                 label: 'Financial Insights',
                                 icon: 'pi pi-fw pi-chart-pie',
-                                routerLink: ['/dashboard/pages/financial-insights']
+                                routerLink: ['/financial-managment/financial-insights']
                             },
                             {
                                 label: 'Money Flow',
                                 icon: 'pi pi-fw pi-sitemap',
-                                routerLink: ['/dashboard/pages/money-flow']
+                                routerLink: ['/financial-managment/money-flow']
                             }
                         ]
                     },
@@ -78,17 +78,17 @@ export class AppMenu {
                             {
                                 label: 'Accounts',
                                 icon: 'pi pi-fw pi-credit-card',
-                                routerLink: ['/dashboard/pages/accounts']
+                                routerLink: ['/financial-managment/accounts']
                             },
                             {
                                 label: 'Transactions',
                                 icon: 'pi pi-fw pi-list',
-                                routerLink: ['/dashboard/pages/transactions']
+                                routerLink: ['/financial-managment/transactions']
                             },
                             {
                                 label: 'Reconciliation',
                                 icon: 'pi pi-fw pi-chart-line',
-                                routerLink: ['/dashboard/pages/reconciliation']
+                                routerLink: ['/financial-managment/reconciliation']
                             }
                         ]
                     },
@@ -99,7 +99,7 @@ export class AppMenu {
                             {
                                 label: 'Bills',
                                 icon: 'pi pi-fw pi-receipt',
-                                routerLink: ['/dashboard/pages/bills']
+                                routerLink: ['/financial-managment/bills']
                             }
                         ]
                     },
@@ -110,13 +110,13 @@ export class AppMenu {
                             {
                                 label: 'Budget Management',
                                 icon: 'pi pi-fw pi-calculator',
-                                routerLink: ['/dashboard/pages/budget-management'],
+                                routerLink: ['/financial-managment/budget-management'],
                                 disabled: true
                             },
                             {
                                 label: 'Financial Goals',
                                 icon: 'pi pi-fw pi-flag',
-                                routerLink: ['/dashboard/pages/financial-goals'],
+                                routerLink: ['/financial-managment/financial-goals'],
                                 disabled: true
                             }
                         ]
@@ -128,13 +128,13 @@ export class AppMenu {
                             {
                                 label: 'Investment Portfolio',
                                 icon: 'pi pi-fw pi-chart-line',
-                                routerLink: ['/dashboard/pages/investment-portfolio'],
+                                routerLink: ['/financial-managment/investment-portfolio'],
                                 disabled: true
                             },
                             {
                                 label: 'Debt Management',
                                 icon: 'pi pi-fw pi-credit-card',
-                                routerLink: ['/dashboard/pages/debt-management'],
+                                routerLink: ['/financial-managment/debt-management'],
                                 disabled: true
                             }
                         ]
@@ -146,12 +146,12 @@ export class AppMenu {
                             {
                                 label: 'Categorization Rules',
                                 icon: 'pi pi-fw pi-tags',
-                                routerLink: ['/dashboard/pages/categorization-rules']
+                                routerLink: ['/financial-managment/categorization-rules']
                             },
                             {
                                 label: 'Plaid Integrations',
                                 icon: 'pi pi-fw pi-link',
-                                routerLink: ['/dashboard/pages/plaid-integrations']
+                                routerLink: ['/financial-managment/plaid-integrations']
                             }
                         ]
                     }
@@ -165,52 +165,52 @@ export class AppMenu {
                     {
                         label: 'Contact Information',
                         icon: 'pi pi-fw pi-user',
-                        routerLink: ['/dashboard/pages/career-resume/contact']
+                        routerLink: ['/career-resume/contact']
                     },
                     {
                         label: 'Skills',
                         icon: 'pi pi-fw pi-star',
-                        routerLink: ['/dashboard/pages/career-resume/skills']
+                        routerLink: ['/career-resume/skills']
                     },
                     {
                         label: 'Work Experience',
                         icon: 'pi pi-fw pi-briefcase',
-                        routerLink: ['/dashboard/pages/career-resume/experience']
+                        routerLink: ['/career-resume/experience']
                     },
                     {
                         label: 'Education',
                         icon: 'pi pi-fw pi-graduation-cap',
-                        routerLink: ['/dashboard/pages/career-resume/education']
+                        routerLink: ['/career-resume/education']
                     },
                     {
                         label: 'Certifications',
                         icon: 'pi pi-fw pi-id-card',
-                        routerLink: ['/dashboard/pages/career-resume/certifications']
+                        routerLink: ['/career-resume/certifications']
                     },
                     {
                         label: 'Projects',
                         icon: 'pi pi-fw pi-folder',
-                        routerLink: ['/dashboard/pages/career-resume/projects']
+                        routerLink: ['/career-resume/projects']
                     },
                     {
                         label: 'Volunteer Work',
                         icon: 'pi pi-fw pi-heart',
-                        routerLink: ['/dashboard/pages/career-resume/volunteer']
+                        routerLink: ['/career-resume/volunteer']
                     },
                     {
                         label: 'Job Tailoring Assistant',
                         icon: 'pi pi-fw pi-cog',
-                        routerLink: ['/dashboard/pages/career-resume/tailoring']
+                        routerLink: ['/career-resume/tailoring']
                     },
                     {
                         label: 'Gap Analysis',
                         icon: 'pi pi-fw pi-chart-bar',
-                        routerLink: ['/dashboard/pages/career-resume/comparison']
+                        routerLink: ['/career-resume/comparison']
                     },
                     {
                         label: 'Resume Card Style',
                         icon: 'pi pi-fw pi-id-card',
-                        routerLink: ['/dashboard/pages/career-resume/card-style']
+                        routerLink: ['/career-resume/card-style']
                     }
                 ]
             }
