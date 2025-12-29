@@ -79,4 +79,26 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!this.currentUserSubject.value;
   }
+
+  async signUpWithInvitation(payload: { code: string; email: string; username: string; password: string; displayName?: string }): Promise<{ data?: any; error?: string }> {
+    try {
+      const { data, error } = await this.supabaseService.getClient().functions.invoke('signup-with-invite', {
+        body: payload
+      });
+
+      if (error) {
+        console.error('Invite signup error:', error);
+        return { error: error.message };
+      }
+
+      if (data?.error) {
+        return { error: data.error };
+      }
+
+      return { data };
+    } catch (error: any) {
+      console.error('Unexpected invite signup error:', error);
+      return { error: error.message || 'Unable to complete sign up' };
+    }
+  }
 } 

@@ -72,7 +72,7 @@ import { AuthService } from '../service/auth.service';
                                 
                                 <div class="text-center">
                                     <span class="text-muted-color">Don't have an account? </span>
-                                    <span class="font-medium no-underline cursor-pointer text-primary" (click)="onSignUp()">Sign Up</span>
+                                    <a routerLink="/auth/signup" class="font-medium no-underline cursor-pointer text-primary">Sign Up</a>
                                 </div>
                             </div>
                         </form>
@@ -149,48 +149,4 @@ export class Login {
         }
     }
 
-    async onSignUp() {
-        if (!this.email || !this.password) {
-            this.messageService.add({
-                severity: 'error',
-                summary: 'Validation Error',
-                detail: 'Please enter both email and password'
-            });
-            return;
-        }
-
-        this.loading = true;
-        
-        try {
-            console.log('Attempting to sign up with:', this.email);
-            const result = await this.authService.signUp(this.email, this.password);
-            
-            console.log('Sign up result:', result);
-            
-            if (result.error) {
-                console.error('Registration error:', result.error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Registration Failed',
-                    detail: result.error
-                });
-            } else {
-                console.log('Registration successful:', result.user);
-                this.messageService.add({
-                    severity: 'success',
-                    summary: 'Registration Successful',
-                    detail: 'Account created! Please check your email to confirm your account.'
-                });
-            }
-        } catch (error: any) {
-            console.error('Unexpected error during sign up:', error);
-            this.messageService.add({
-                severity: 'error',
-                summary: 'Registration Failed',
-                detail: error.message || 'An unexpected error occurred'
-            });
-        } finally {
-            this.loading = false;
-        }
-    }
 }

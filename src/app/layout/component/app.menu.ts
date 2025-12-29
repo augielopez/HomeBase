@@ -213,6 +213,35 @@ export class AppMenu {
                         routerLink: ['/career-resume/card-style']
                     }
                 ]
+            },
+            {
+                label: 'Shopping',
+                icon: 'pi pi-fw pi-shopping-cart',
+                expanded: false,
+                items: [
+                    {
+                        label: 'Receipts',
+                        icon: 'pi pi-fw pi-receipt',
+                        routerLink: ['/shopping/receipts']
+                    },
+                    {
+                        label: 'Items Management',
+                        icon: 'pi pi-fw pi-list',
+                        routerLink: ['/shopping/items']
+                    }
+                ]
+            },
+            {
+                label: 'Party Invite',
+                icon: 'pi pi-fw pi-calendar-plus',
+                expanded: false,
+                items: [
+                    {
+                        label: 'Coming Soon',
+                        icon: 'pi pi-fw pi-info-circle',
+                        disabled: true
+                    }
+                ]
             }
         ];
     }

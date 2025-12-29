@@ -23,6 +23,9 @@ import { ResumeVolunteerComponent } from './career-resume/resume-volunteer/resum
 import { ResumeTailoringComponent } from './career-resume/resume-tailoring/resume-tailoring.component';
 import { ResumeCardStyleComponent } from './career-resume/resume-card-style/resume-card-style.component';
 import { ResumeComparisonComponent } from './career-resume/resume-comparison/resume-comparison.component';
+import { ReceiptListComponent } from './shopping/receipt-list/receipt-list.component';
+import { ReceiptDetailsComponent } from './shopping/receipt-details/receipt-details.component';
+import { ItemsManagementComponent } from './shopping/items-management/items-management.component';
 import { Notfound } from './demo/notfound/notfound';
 
 export default [
@@ -50,6 +53,9 @@ export default [
     { path: 'career-resume/tailoring', component: ResumeTailoringComponent },
     { path: 'career-resume/comparison', component: ResumeComparisonComponent },
     { path: 'career-resume/card-style', component: ResumeCardStyleComponent },
+    { path: 'shopping/receipts', component: ReceiptListComponent },
+    { path: 'shopping/receipts/:id', component: ReceiptDetailsComponent },
+    { path: 'shopping/items', component: ItemsManagementComponent },
     { path: 'notfound', component: Notfound }
 ] as Routes;
 
